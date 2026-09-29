@@ -15,7 +15,7 @@
                 "kind": "build",
                 "isDefault": true
             },
-            "detail": "Build Phase 1 and regenerate calc.csv from the scene."
+            "detail": "Build Phase 2 and regenerate calc.csv from the scene."
         }
     ]
 }

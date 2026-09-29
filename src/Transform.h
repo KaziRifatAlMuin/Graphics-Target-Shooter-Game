@@ -88,13 +88,34 @@ struct Transform {
     Vec3 scale{1,1,1};
     std::array<float, 6> shear{}; // xy, xz, yx, yz, zx, zy.
 };
-inline Mat4 composeModelMatrix(const Transform& t) {
+inline constexpr const char* modelMatrixOrder = "T*Rz*Ry*Rx*H*S";
+struct TransformStage {
+    const char* name;
+    Mat4 matrix;
+};
+inline std::array<TransformStage, 6> modelTransformStages(const Transform& t) {
     const auto& h = t.shear;
-    // Applied right to left: scale -> shear -> Rx -> Ry -> Rz -> translate.
-    return makeTranslation(t.position.x,t.position.y,t.position.z)
-        * makeRotationZ(t.rotation.z) * makeRotationY(t.rotation.y) * makeRotationX(t.rotation.x)
-        * makeShear(h[0],h[1],h[2],h[3],h[4],h[5])
-        * makeScale(t.scale.x,t.scale.y,t.scale.z);
+    // Application order; identity operations remain explicit for every object.
+    return {{{"S", makeScale(t.scale.x,t.scale.y,t.scale.z)},
+             {"H", makeShear(h[0],h[1],h[2],h[3],h[4],h[5])},
+             {"Rx", makeRotationX(t.rotation.x)},
+             {"Ry", makeRotationY(t.rotation.y)},
+             {"Rz", makeRotationZ(t.rotation.z)},
+             {"T", makeTranslation(t.position.x,t.position.y,t.position.z)}}};
+}
+inline Mat4 composeModelMatrix(const Transform& t) {
+    Mat4 model = Mat4::identity();
+    // Left-multiply each stage: the resulting matrix is T * Rz * Ry * Rx * H * S.
+    for (const auto& stage : modelTransformStages(t)) model = stage.matrix * model;
+    return model;
+}
+inline std::array<Vec4, 7> traceTransformPoint(const Transform& t, Vec4 localPoint) {
+    std::array<Vec4, 7> points{};
+    points[0] = localPoint;
+    const auto stages = modelTransformStages(t);
+    for (std::size_t i = 0; i < stages.size(); ++i)
+        points[i+1] = transformPoint(stages[i].matrix, points[i]);
+    return points; // local, scaled, sheared, rotated X/Y/Z, world.
 }
 inline Mat4 makePerspective(float fovDegrees, float aspect, float nearPlane, float farPlane) {
     Mat4 m;
