@@ -27,6 +27,9 @@ GLuint compileShader(GLenum kind, const std::filesystem::path& path) {
 }
 }
 Renderer::~Renderer() {
+    if (uiVbo) glDeleteBuffers(1,&uiVbo);
+    if (uiVao) glDeleteVertexArrays(1,&uiVao);
+    if (uiProgram) glDeleteProgram(uiProgram);
     if (vbo) glDeleteBuffers(1,&vbo);
     if (vao) glDeleteVertexArrays(1,&vao);
     if (program) glDeleteProgram(program);
@@ -75,6 +78,27 @@ void Renderer::initialize(const std::filesystem::path& directory) {
     glVertexAttribPointer(1,1,GL_FLOAT,GL_FALSE,4*sizeof(float),reinterpret_cast<void*>(3*sizeof(float)));
     glEnableVertexAttribArray(1);
     glBindVertexArray(0);
+    const GLuint uiVertex=compileShader(GL_VERTEX_SHADER,directory/"ui.vert");
+    GLuint uiFragment=0;
+    try { uiFragment=compileShader(GL_FRAGMENT_SHADER,directory/"ui.frag"); }
+    catch (...) { glDeleteShader(uiVertex); throw; }
+    uiProgram=glCreateProgram();
+    glAttachShader(uiProgram,uiVertex); glAttachShader(uiProgram,uiFragment); glLinkProgram(uiProgram);
+    glDeleteShader(uiVertex); glDeleteShader(uiFragment);
+    glGetProgramiv(uiProgram,GL_LINK_STATUS,&ok);
+    if (!ok) throw std::runtime_error("UI shader link failed.");
+    glGenVertexArrays(1,&uiVao); glGenBuffers(1,&uiVbo);
+    glBindVertexArray(uiVao); glBindBuffer(GL_ARRAY_BUFFER,uiVbo);
+    glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,sizeof(UiVertex),nullptr); glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,sizeof(UiVertex),reinterpret_cast<void*>(2*sizeof(float)));
+    glEnableVertexAttribArray(1); glBindVertexArray(0);
+}
+void Renderer::drawInterface(const std::vector<UiVertex>& vertices) {
+    glDisable(GL_DEPTH_TEST);
+    glUseProgram(uiProgram); glBindVertexArray(uiVao); glBindBuffer(GL_ARRAY_BUFFER,uiVbo);
+    glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(UiVertex)),vertices.data(),GL_STREAM_DRAW);
+    glDrawArrays(GL_TRIANGLES,0,static_cast<GLsizei>(vertices.size()));
+    glBindVertexArray(0); glEnable(GL_DEPTH_TEST);
 }
 void Renderer::drawTransformedCube(const SceneObject& object) {
     const Mat4 model=composeModelMatrix(object.transform);

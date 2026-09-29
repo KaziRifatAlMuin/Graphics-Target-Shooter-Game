@@ -13,6 +13,7 @@ void require(bool condition, const char* message) {
 void near(float actual, float expected) {
     require(std::abs(actual-expected)<0.0001f,"Numeric result differs from the expected mapping.");
 }
+#include "game_tests.h"
 int main() {
     try {
         Transform t;
@@ -103,6 +104,7 @@ int main() {
         }
         require(shearVisible && rotateX && rotateY && rotateZ,"Scene must demonstrate shear and all rotation axes.");
         std::cout << "PASS: transformation stages, six shears, view/projection, camera, closed boundary, grounded supports and object IDs.\n";
+        gameTests();
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "FAIL: " << error.what() << '\n';
