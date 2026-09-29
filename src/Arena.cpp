@@ -125,7 +125,7 @@ void writeCalculations(const std::vector<SceneObject>& objects, const std::files
             << csvQuote(shear.str()) << ',' << t.rotation.x << ',' << t.rotation.y << ',' << t.rotation.z
             << ',' << csvQuote(vectorText(t.position)) << ',' << modelMatrixOrder << ','
             << csvQuote(matrix.str()) << ',' << csvQuote(vectorText({point.x,point.y,point.z}))
-            << ",Flat face colors; transformation demonstration," << csvQuote(object.notes) << '\n';
+            << ",Flat face colors; scene and gameplay visualization," << csvQuote(object.notes) << '\n';
     }
     out.close();
     if (!out) throw std::runtime_error("Failed to finish calculations: " + path.string());

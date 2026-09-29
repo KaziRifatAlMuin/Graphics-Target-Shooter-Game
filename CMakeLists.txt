@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.15)
-project(TargetShooter VERSION 0.2.0 LANGUAGES C CXX)
+project(TargetShooter VERSION 0.4.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_library(scene_core src/Arena.cpp src/Camera.cpp)
+add_library(scene_core src/Arena.cpp src/Camera.cpp src/Game.cpp src/Weapon.cpp src/Interface.cpp)
 target_include_directories(scene_core PUBLIC src)
 
 add_executable(main src/main.cpp src/Renderer.cpp src/glad.c)

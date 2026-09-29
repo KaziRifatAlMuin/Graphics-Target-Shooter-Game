@@ -845,7 +845,15 @@ calculateTargetRange();
   F4                   Free camera
   N                    Day/Night toggle
   R                    Reset targets
-  Esc                  Exit
+  Esc                  Pause / resume menu
+  Tab                  Release / capture mouse for HUD buttons
+  F5                   Save current calculation snapshot
+
+The application starts on a menu with brief instructions, Start Session,
+View Controls, and Exit buttons. The pause menu provides Resume, View
+Controls, Main Menu, and Exit. Gameplay pauses while menus are open.
+Player view uses WASD to walk and mouse movement to aim; free-camera mode
+uses WASD/Q/E to fly independently. Firing is enabled in player view.
 
 ------------------------------------------------------------------------
 
