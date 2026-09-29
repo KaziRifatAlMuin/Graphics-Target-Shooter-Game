@@ -7,6 +7,25 @@
 
 ## 1. Project Overview
 
+### Final implemented gameplay requirements
+
+All six phases are implemented. The final arena is fully enclosed on all four
+sides. Targets are circular disks (the explicit exception to cube-based modeling),
+1.6 m in diameter, with six concentric scoring regions printed only on the front.
+From center outward, repeated hits require 1, 2, 3, 4, 5, and 6 distinct shots to
+break a fresh target. Mixed hits accumulate damage against 60 health; the region
+damage values are 60, 30, 20, 15, 12, and 10. Shotgun pellets share a shot ID, so
+one trigger contributes at most the best region damage to a target. Back and
+edge hits stop projectiles without scoring. Targets move faster, rotating targets
+turn through 360 degrees, and broken targets emit fragments before respawning.
+
+Day/night lighting includes ambient, diffuse, and Blinn-Phong specular response,
+a directional sun/moon fill, eight point lamps, and six soft-edged spotlights.
+N toggles day/night; M toggles synthesized game sound. Both also have menu/HUD
+buttons. Instructions, scoring rules, controls, pause/resume, and exit are available
+in the interface. `calc.csv` regenerates on every run and records current disk,
+ring, lighting, and scene transforms; `calc-init.csv` remains unchanged.
+
 This project extends the original **3D Target Shooter** proposal while
 keeping its central idea unchanged: a simple OpenGL shooting arena with
 movable/rotating targets, visible projectiles, lighting, multiple camera
@@ -368,6 +387,9 @@ Suggested functions:
 ------------------------------------------------------------------------
 
 ## 10. Targets
+
+The final gameplay requirements above supersede the original cube-ring suggestion:
+use smaller round targets with six front-only scoring regions and faster movement.
 
 Targets should preserve the proposal's idea of multiple targets at
 different distances and heights.
@@ -844,6 +866,7 @@ calculateTargetRange();
   F3                   Side camera
   F4                   Free camera
   N                    Day/Night toggle
+  M                    Sound on/off toggle
   R                    Reset targets
   Esc                  Pause / resume menu
   Tab                  Release / capture mouse for HUD buttons

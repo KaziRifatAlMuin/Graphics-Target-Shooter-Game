@@ -27,6 +27,7 @@ GLuint compileShader(GLenum kind, const std::filesystem::path& path) {
 }
 }
 Renderer::~Renderer() {
+    if (skyProgram) glDeleteProgram(skyProgram);
     if (uiVbo) glDeleteBuffers(1,&uiVbo);
     if (uiVao) glDeleteVertexArrays(1,&uiVao);
     if (uiProgram) glDeleteProgram(uiProgram);
@@ -54,6 +55,11 @@ void Renderer::initialize(const std::filesystem::path& directory) {
     viewLocation=glGetUniformLocation(program,"view");
     projectionLocation=glGetUniformLocation(program,"projection");
     colorLocation=glGetUniformLocation(program,"objectColor");
+    specularLocation=glGetUniformLocation(program,"materialSpecular");
+    shininessLocation=glGetUniformLocation(program,"shininess");
+    emissionLocation=glGetUniformLocation(program,"emission");
+    patternLocation=glGetUniformLocation(program,"targetPattern");
+    flashLocation=glGetUniformLocation(program,"targetFlash");
     if (modelLocation<0 || viewLocation<0 || projectionLocation<0 || colorLocation<0)
         throw std::runtime_error("Required shader uniform missing.");
 
@@ -64,18 +70,32 @@ void Renderer::initialize(const std::filesystem::path& directory) {
     };
     const int faces[6][4] = {{4,5,6,7},{1,0,3,2},{0,4,7,3},{5,1,2,6},{3,7,6,2},{0,1,5,4}};
     const int triangles[] = {0,1,2,0,2,3};
-    const float tones[] = {0.86f,0.70f,0.76f,0.90f,1.0f,0.55f};
+    const Vec3 normals[]={{0,0,1},{0,0,-1},{-1,0,0},{1,0,0},{0,1,0},{0,-1,0}};
     std::vector<float> vertices;
     for (int face=0; face<6; ++face) for (int corner : triangles) {
         const Vec3 p=corners[faces[face][corner]];
-        vertices.insert(vertices.end(),{p.x,p.y,p.z,tones[face]});
+        const Vec3 n=normals[face];
+        vertices.insert(vertices.end(),{p.x,p.y,p.z,n.x,n.y,n.z});
     }
+    // Circular targets use a thin 96-sided disk; other models retain the unit cube.
+    auto appendVertex=[&](Vec3 p,Vec3 n) { vertices.insert(vertices.end(),{p.x,p.y,p.z,n.x,n.y,n.z}); };
+    for (int i=0;i<96;++i) {
+        const float a=i*2*pi/96,b=(i+1)*2*pi/96;
+        const Vec3 na{std::cos(a),std::sin(a),0},nb{std::cos(b),std::sin(b),0};
+        const Vec3 af{na.x*.5f,na.y*.5f,.5f},bf{nb.x*.5f,nb.y*.5f,.5f};
+        const Vec3 ab{af.x,af.y,-.5f},bb{bf.x,bf.y,-.5f};
+        appendVertex({0,0,.5f},{0,0,1}); appendVertex(af,{0,0,1}); appendVertex(bf,{0,0,1});
+        appendVertex({0,0,-.5f},{0,0,-1}); appendVertex(bb,{0,0,-1}); appendVertex(ab,{0,0,-1});
+        appendVertex(af,na); appendVertex(ab,na); appendVertex(bb,nb);
+        appendVertex(af,na); appendVertex(bb,nb); appendVertex(bf,nb);
+    }
+    diskVertices=static_cast<GLsizei>(vertices.size()/6)-36;
     glGenVertexArrays(1,&vao); glGenBuffers(1,&vbo);
     glBindVertexArray(vao); glBindBuffer(GL_ARRAY_BUFFER,vbo);
     glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(float)),vertices.data(),GL_STATIC_DRAW);
-    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,4*sizeof(float),nullptr);
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,6*sizeof(float),nullptr);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1,1,GL_FLOAT,GL_FALSE,4*sizeof(float),reinterpret_cast<void*>(3*sizeof(float)));
+    glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,6*sizeof(float),reinterpret_cast<void*>(3*sizeof(float)));
     glEnableVertexAttribArray(1);
     glBindVertexArray(0);
     const GLuint uiVertex=compileShader(GL_VERTEX_SHADER,directory/"ui.vert");
@@ -92,6 +112,15 @@ void Renderer::initialize(const std::filesystem::path& directory) {
     glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,sizeof(UiVertex),nullptr); glEnableVertexAttribArray(0);
     glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,sizeof(UiVertex),reinterpret_cast<void*>(2*sizeof(float)));
     glEnableVertexAttribArray(1); glBindVertexArray(0);
+    const GLuint skyVertex=compileShader(GL_VERTEX_SHADER,directory/"sky.vert");
+    GLuint skyFragment=0;
+    try { skyFragment=compileShader(GL_FRAGMENT_SHADER,directory/"sky.frag"); }
+    catch (...) { glDeleteShader(skyVertex); throw; }
+    skyProgram=glCreateProgram();
+    glAttachShader(skyProgram,skyVertex); glAttachShader(skyProgram,skyFragment); glLinkProgram(skyProgram);
+    glDeleteShader(skyVertex); glDeleteShader(skyFragment);
+    glGetProgramiv(skyProgram,GL_LINK_STATUS,&ok);
+    if (!ok) throw std::runtime_error("Sky shader link failed.");
 }
 void Renderer::drawInterface(const std::vector<UiVertex>& vertices) {
     glDisable(GL_DEPTH_TEST);
@@ -104,10 +133,32 @@ void Renderer::drawTransformedCube(const SceneObject& object) {
     const Mat4 model=composeModelMatrix(object.transform);
     glUniformMatrix4fv(modelLocation,1,GL_FALSE,model.data.data());
     glUniform3f(colorLocation,object.color.x,object.color.y,object.color.z);
-    glDrawArrays(GL_TRIANGLES,0,36);
+    glUniform1f(specularLocation,object.specular); glUniform1f(shininessLocation,object.shininess);
+    glUniform1f(emissionLocation,object.emission); glUniform1f(flashLocation,object.flash);
+    const bool disk=object.primitive==Primitive::RoundTarget;
+    glUniform1i(patternLocation,disk);
+    glDrawArrays(GL_TRIANGLES,disk?36:0,disk?diskVertices:36);
 }
-void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection) {
+void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection,Vec3 eye,bool night) {
+    glDisable(GL_DEPTH_TEST); glDepthMask(GL_FALSE);
+    glUseProgram(skyProgram); glUniform1i(glGetUniformLocation(skyProgram,"night"),night);
+    glBindVertexArray(vao); glDrawArrays(GL_TRIANGLES,0,3);
+    glEnable(GL_DEPTH_TEST); glDepthMask(GL_TRUE);
     glUseProgram(program);
+    const auto lighting=createLighting(night);
+    auto vec=[&](const std::string& name,Vec3 v) { glUniform3f(glGetUniformLocation(program,name.c_str()),v.x,v.y,v.z); };
+    vec("eyePosition",eye); vec("ambientColor",lighting.ambient);
+    vec("sunDirection",lighting.sunDirection); vec("sunColor",lighting.sunColor);
+    for (std::size_t i=0;i<lighting.points.size();++i) {
+        const std::string prefix="points["+std::to_string(i)+"].";
+        vec(prefix+"position",lighting.points[i].position); vec(prefix+"color",lighting.points[i].color);
+    }
+    for (std::size_t i=0;i<lighting.spots.size();++i) {
+        const std::string prefix="spots["+std::to_string(i)+"]."; const auto& light=lighting.spots[i];
+        vec(prefix+"position",light.position); vec(prefix+"direction",light.direction); vec(prefix+"color",light.color);
+        glUniform1f(glGetUniformLocation(program,(prefix+"innerCos").c_str()),light.innerCos);
+        glUniform1f(glGetUniformLocation(program,(prefix+"outerCos").c_str()),light.outerCos);
+    }
     glUniformMatrix4fv(viewLocation,1,GL_FALSE,view.data.data());
     glUniformMatrix4fv(projectionLocation,1,GL_FALSE,projection.data.data());
     glBindVertexArray(vao);

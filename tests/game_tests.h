@@ -1,6 +1,7 @@
 #pragma once
 #include "Game.h"
 #include "Interface.h"
+#include "Sound.h"
 
 void gameTests() {
     const auto cargo=generateCargoLayout(2107042), same=generateCargoLayout(2107042), other=generateCargoLayout(17);
@@ -53,12 +54,11 @@ void gameTests() {
     require(hit.fire(),"Pistol did not fire.");
     require(!hit.fire(),"Weapon cooldown was ignored.");
     hit.update(.3f);
-    require(hit.hits==1 && hit.targets[0].health==60,"Swept projectile did not hit the target.");
+    require(hit.hits==1 && hit.targets[0].health==0,"Center hit must break the target in one shot.");
     require(hit.projectiles.empty(),"Projectile survived impact.");
-    hit.fire(); hit.update(.3f); hit.fire(); hit.update(.3f);
     require(hit.destroyed==1 && hit.targets[0].respawn>0,"Target destruction did not trigger respawn.");
     hit.update(2);
-    require(hit.targets[0].health==100 && hit.targets[0].respawn==0,"Target did not reset after hit.");
+    require(hit.targets[0].health==60 && hit.targets[0].respawn==0,"Target did not reset after hit.");
 
     auto blocked=controlled();
     obstacle.transform.position={0,1.7f,-9}; obstacle.transform.scale={4,4,.2f}; blocked.staticObjects.push_back(obstacle);
@@ -70,7 +70,7 @@ void gameTests() {
     auto farther=nearest.targets[0]; farther.base.z=-20; farther.position=farther.base;
     nearest.targets.insert(nearest.targets.begin(),farther);
     nearest.fire(); nearest.update(.3f);
-    require(nearest.targets[0].health==100 && nearest.targets[1].health==60,"Collision did not choose the nearest target.");
+    require(nearest.targets[0].health==60 && nearest.targets[1].health==0,"Collision did not choose the nearest target.");
 
     auto shotgun=controlled(); shotgun.weapon=WeaponType::Shotgun; shotgun.fire();
     require(shotgun.projectiles.size()==9,"Shotgun pellet count is wrong.");
@@ -97,5 +97,61 @@ void gameTests() {
     require(clickedAction(Screen::Playing,1040,40)==Action::Menu,"HUD menu button does not activate.");
     require(clickedAction(Screen::Playing,1200,40)==Action::Exit,"HUD exit button does not activate.");
     require(!buildInterface(snapshot,Screen::Controls,0,0,true).empty(),"Controls overlay is empty.");
+    require(clickedAction(Screen::Playing,850,740)==Action::DayNight,"Day/night button failed.");
+    require(clickedAction(Screen::Menu,1040,490)==Action::Sound,"Menu sound button failed.");
+
+    // Each concentric band requires exactly its index+1 distinct shots, including shotgun triggers.
+    for (int ring=0;ring<6;++ring) {
+        auto scoring=controlled();
+        for (int shot=1;shot<=ring+1;++shot) {
+            scoring.applyTargetHit(0,ring,shot);
+            require((scoring.destroyed==1)==(shot==ring+1),"Incorrect shots required for a scoring ring.");
+        }
+    }
+    auto pelletDamage=controlled();
+    for (int pellet=0;pellet<9;++pellet) pelletDamage.applyTargetHit(0,5,1);
+    near(pelletDamage.targets[0].health,50); require(pelletDamage.hits==1,"Pellets counted as separate shots.");
+    pelletDamage.applyTargetHit(0,3,1); near(pelletDamage.targets[0].health,45);
+    pelletDamage.applyTargetHit(0,5,2); near(pelletDamage.targets[0].health,35);
+    require(pelletDamage.hits==2,"Distinct triggers were not counted separately.");
+
+    Target circle; circle.position={0,0,0};
+    require(!std::isfinite(intersectTarget({.75f,.75f,5},{0,0,-1},circle,10).distance),"Square corner scored outside circle.");
+    auto back=intersectTarget({0,0,-5},{0,0,1},circle,10);
+    require(std::isfinite(back.distance) && back.ring==-1,"Back face accepted a scoring hit.");
+    auto edge=intersectTarget({5,0,0},{-1,0,0},circle,10);
+    require(std::isfinite(edge.distance) && edge.ring==-1,"Target edge accepted a scoring hit.");
+    for (float yaw:{0.0f,90.0f,180.0f,270.0f}) for (int ring=0;ring<6;++ring) {
+        circle.yaw=yaw;
+        const Mat4 rotation=makeRotationY(yaw);
+        const auto origin=transformPoint(rotation,{Target::radius*(ring+.5f)/6,0,5,1});
+        const auto direction=transformPoint(rotation,{0,0,-1,0});
+        const auto contact=intersectTarget({origin.x,origin.y,origin.z},{direction.x,direction.y,direction.z},circle,10);
+        require(contact.ring==ring,"Rotated front-face ring scoring is incorrect.");
+    }
+    auto rearShot=controlled(); rearShot.player.position={0,1.7f,-20}; rearShot.player.yaw=90;
+    require(rearShot.aimedTarget(distance)==-1,"Range finder highlighted the unprinted back.");
+    rearShot.fire(); rearShot.update(.4f);
+    require(rearShot.hits==0 && rearShot.targets[0].health==60 && rearShot.projectiles.empty(),"Back projectile scored or passed through target.");
+    Game fast; fast.update(.1f);
+    require(fast.targets[0].position.x>.8f,"Target movement is not faster than Phase 4.");
+    require(Target::radius<1,"Targets were not made smaller.");
+    const auto day=createLighting(false),night=createLighting(true);
+    require(day.points.size()==8 && night.spots.size()==6,"Missing point/spot light sources.");
+    require(day.points[0].color.x==0 && night.points[0].color.x>0,"Night lamps do not toggle.");
+    require(day.ambient.x>night.ambient.x && day.sunColor.x>night.sunColor.x,"Day/night illumination is unchanged.");
+    snapshot.night=true;
+    bool moon=false,glowing=false;
+    for (auto& o:snapshot.scene()) { moon|=o.id=="MOON_VIS"; glowing|=o.component=="Point lamp head"&&o.emission>0; }
+    require(moon&&glowing,"Night environment geometry is missing.");
+    for (int event=0;event<6;++event) {
+        const auto samples=synthesizeSound(static_cast<SoundEvent>(event));
+        require(samples.size()>500,"Sound effect has no duration.");
+        float energy=0;
+        for (float sample:samples) { require(std::isfinite(sample)&&std::abs(sample)<=1,"Invalid sound sample."); energy+=sample*sample; }
+        require(energy>1,"Sound effect is silent.");
+        require(std::abs(samples.front())<.001f && std::abs(samples.back())<.001f,"Sound envelope has a hard edge.");
+    }
+    std::cout<<"PASS: all six ring shot counts, pellet grouping, front-only round collision, faster/smaller targets, day/night lights and synthesized audio.\n";
     std::cout<<"PASS: moving targets, cargo seed, player/camera movement, collision, weapons, hits/respawn, range, snapshots and menu buttons.\n";
 }

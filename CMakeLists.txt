@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.15)
-project(TargetShooter VERSION 0.4.0 LANGUAGES C CXX)
+project(TargetShooter VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_library(scene_core src/Arena.cpp src/Camera.cpp src/Game.cpp src/Weapon.cpp src/Interface.cpp)
+add_library(scene_core src/Arena.cpp src/Camera.cpp src/Game.cpp src/Weapon.cpp src/Interface.cpp src/Lighting.cpp src/Sound.cpp)
 target_include_directories(scene_core PUBLIC src)
 
 add_executable(main src/main.cpp src/Renderer.cpp src/glad.c)
@@ -14,6 +14,7 @@ target_compile_definitions(main PRIVATE SHOOTER_SOURCE_DIR="${CMAKE_CURRENT_SOUR
 target_link_libraries(main PRIVATE scene_core)
 
 if(WIN32)
+    target_link_libraries(scene_core PUBLIC winmm)
     if(NOT MINGW)
         message(FATAL_ERROR "The bundled GLFW library requires 64-bit MinGW. Configure with -G \"MinGW Makefiles\".")
     endif()
