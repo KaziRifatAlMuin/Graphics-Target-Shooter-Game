@@ -219,7 +219,7 @@ Build it from repeated transformed cubes:
 -   Main wall segments
 -   Thick corner sections
 -   Raised top blocks/battlements
--   Gate opening or decorative entrance
+-   Continuous boundary on all four sides, with no gate or entrance opening
 -   Optional watch-platform shapes
 
 Suggested functions:

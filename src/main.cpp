@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
             else if ((arg=="--calc" || arg=="--capture") && i+1<argc) {
                 (arg=="--calc"?csvPath:capture)=argv[++i];
             } else if (arg=="--help") {
-                std::cout << "3D Target Shooter - Phase 1\n"
+                std::cout << "3D Target Shooter - Phase 2\n"
                     "WASD: fly | Q/E: down/up | Shift: faster | hold RMB: look | Home: reset | Esc: exit\n"
                     "--export-calc : regenerate CSV without opening OpenGL\n"
                     "--calc PATH   : override CSV output (default: project root/calc.csv)\n"
@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
         glfwWindowHint(GLFW_OPENGL_PROFILE,GLFW_OPENGL_CORE_PROFILE);
         if (smoke) glfwWindowHint(GLFW_VISIBLE,GLFW_FALSE);
         window=glfwCreateWindow(1280,800,
-            "3D Target Shooter | Phase 1 | WASD + QE: move | RMB: look | Home: reset | Esc: exit",
+            "3D Target Shooter | Phase 2 | WASD + QE: move | RMB: look | Home: reset | Esc: exit",
             nullptr,nullptr);
         if (!window) throw std::runtime_error("Cannot create an OpenGL 3.3 window.");
         glfwMakeContextCurrent(window);

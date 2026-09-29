@@ -1,4 +1,4 @@
-# 3D Target Shooter - Phase 1
+# 3D Target Shooter - Phase 2
 
 A runnable C++17 / OpenGL 3.3 basic scene for Kazi Rifat Al Muin (2107042),
 following [project.md](project.md). One world unit is one meter; +Y is up
@@ -6,9 +6,15 @@ and -Z points into the arena.
 
 Implemented: an OpenGL window, GLSL shaders, a shared unit-cube mesh,
 a free camera, a 60 x 100 m floor, 8 m boundary walls, battlements,
-corner towers, and a 10 m entrance. The initial elevated view shows the
+corner towers, and solid walls on all four sides with no entrance opening. The initial elevated view shows the
 arena. Fixed face colors make the cubes readable; gameplay, targets,
 weapons, full lighting, day/night, HUD, and camera presets belong to later phases.
+
+Phase 2 completes the shared transformation framework: scaling, all six shear
+coefficients, X/Y/Z rotations, translation, and model-matrix composition.
+Sand-colored stone supports around the inside of the boundary visibly lean
+through shear and rotation. Their lowest transformed corners sit at ground
+level. Each CSV row now includes the point after every transformation stage.
 
 ## Build and run (Windows)
 
@@ -74,9 +80,9 @@ scene record, not a per-frame log.
 
 The exporter preserves all 16 reference columns. It writes one representative
 local corner `(0.5,0.5,0.5)` for **every currently rendered cube instance**,
-including its actual model matrix and resulting world point. Later phases
+including each intermediate point, its actual model matrix, and resulting world point. Later phases
 will add rows as their objects enter the scene. The initial examples for
-future weapons/targets are not copied into the Phase 1 output.
+future weapons/targets are not copied into the Phase 2 output.
 
 Drawing and export both call `composeModelMatrix` with:
 
@@ -87,8 +93,12 @@ worldPoint = M * localPoint
 
 Angles are degrees; matrices use column-major storage and column vectors.
 The CSV prints matrix rows for readability. Identity shear/rotation still
-pass through the full pipeline. This small shared math foundation is included
-now so the first runnable phase already produces accurate calculations.
+pass through the full pipeline. Both matrix composition and point tracing use
+the same ordered stages from `modelTransformStages()`. In the existing
+`Matrix_or_Operation` column, `S`, `H`, `Rx`, `Ry`, `Rz`, and `T` show the
+point after each operation, followed by the composed matrix. For example,
+the floor corner scales to `(30,0.1,50)` and translates to `(30,0,0)`.
+No extra columns are needed, so the reference CSV format stays compatible.
 
 Regenerate without opening a graphics window:
 
@@ -109,7 +119,10 @@ mingw32-make test
 
 This checks known mathematical results for transform order, all six shear
 coefficients, view/projection matrices, camera motion, arena bounds, and
-unique object IDs. It then creates a hidden OpenGL window, compiles/links the
+unique object IDs. It also checks each intermediate point against hand-calculated
+results, complete coverage of all four boundary edges, grounded supports, and
+agreement between the staged and composed mappings of all scene cube corners.
+It then creates a hidden OpenGL window, compiles/links the
 real shaders, draws three frames, reads pixels back to verify visible floor
 and walls, checks for GL errors, and exits.
 
@@ -117,16 +130,17 @@ The graphics check can also be run directly:
 
 ```powershell
 .\main.exe --smoke-test
-.\main.exe --smoke-test --capture phase1.ppm
+.\main.exe --smoke-test --capture build/phase2.ppm
 ```
 
-The optional PPM image is the actual rendered frame. Run the visible app to
+Create the `build` directory first if capturing there. The optional PPM image
+is the actual rendered frame. Run the visible app to
 inspect movement, mouse look, and resizing interactively.
 
 ## Source layout
 
 - `src/main.cpp`: startup, resource paths, input loop, window, and smoke check.
-- `src/Transform.h`: vectors, matrices, model/view/projection calculations.
+- `src/Transform.h`: vectors, matrices, ordered model stages, point tracing, view/projection.
 - `src/Camera.*`: free camera movement and view.
 - `src/Arena.*`: cube instances and CSV generation.
 - `src/Renderer.*`: shader loading, shared cube mesh, scene drawing.

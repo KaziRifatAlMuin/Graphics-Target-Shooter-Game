@@ -1,5 +1,6 @@
 #include "Arena.h"
 #include "Camera.h"
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <set>
@@ -21,6 +22,13 @@ int main() {
         // Independent hand calculation: (1,2,3) -> (2,2,3) -> (2,-3,2)
         // -> (2,-3,-2) -> (3,2,-2) -> (13,22,28).
         near(p.x,13); near(p.y,22); near(p.z,28); near(p.w,1);
+        const auto trace=traceTransformPoint(t,{0.5f,0.5f,0.5f,1});
+        const Vec3 expectedTrace[]={{.5f,.5f,.5f},{1,2,3},{2,2,3},{2,-3,2},
+                                    {2,-3,-2},{3,2,-2},{13,22,28}};
+        for (std::size_t i=0; i<trace.size(); ++i) {
+            near(trace[i].x,expectedTrace[i].x); near(trace[i].y,expectedTrace[i].y);
+            near(trace[i].z,expectedTrace[i].z); near(trace[i].w,1);
+        }
         const auto sheared=transformPoint(makeShear(.1f,.2f,.3f,.4f,.5f,.6f),{1,2,3,1});
         near(sheared.x,1.8f); near(sheared.y,3.5f); near(sheared.z,4.7f);
 
@@ -52,7 +60,49 @@ int main() {
         near(floorOther.x,-30); near(floorOther.y,0); near(floorOther.z,-100);
         const auto north=transformPoint(composeModelMatrix(scene[1].transform),{.5f,.5f,.5f,1});
         near(north.x,30); near(north.y,8); near(north.z,-99.5f);
-        std::cout << "PASS: transform order, six shears, view/projection, camera, arena bounds and object IDs.\n";
+        struct Bounds { Vec3 min, max; };
+        auto bounds=[](const SceneObject& object) {
+            Bounds b{{1e6f,1e6f,1e6f},{-1e6f,-1e6f,-1e6f}};
+            for (float x : {-0.5f,0.5f}) for (float y : {-0.5f,0.5f}) for (float z : {-0.5f,0.5f}) {
+                const auto p=transformPoint(composeModelMatrix(object.transform),{x,y,z,1});
+                b.min={std::min(b.min.x,p.x),std::min(b.min.y,p.y),std::min(b.min.z,p.z)};
+                b.max={std::max(b.max.x,p.x),std::max(b.max.y,p.y),std::max(b.max.z,p.z)};
+                const auto steps=traceTransformPoint(object.transform,{x,y,z,1});
+                near(steps.back().x,p.x); near(steps.back().y,p.y); near(steps.back().z,p.z);
+            }
+            return b;
+        };
+        auto findObject=[&](const char* id) -> const SceneObject& {
+            const auto found=std::find_if(scene.begin(),scene.end(),[&](const SceneObject& o) { return o.id==id; });
+            require(found!=scene.end(),"Missing continuous boundary wall.");
+            return *found;
+        };
+        // Each side must be a solid cube spanning the entire floor edge from Y=0 to Y=8.
+        for (const char* id : {"WALL_N","WALL_S"}) {
+            const auto b=bounds(findObject(id));
+            near(b.min.x,-30); near(b.max.x,30); near(b.min.y,0); near(b.max.y,8);
+            const float center=std::string(id)=="WALL_N"?-100.0f:0.0f;
+            near(b.min.z,center-.5f); near(b.max.z,center+.5f);
+        }
+        for (const char* id : {"WALL_W","WALL_E"}) {
+            const auto b=bounds(findObject(id));
+            near(b.min.z,-100); near(b.max.z,0); near(b.min.y,0); near(b.max.y,8);
+            const float center=std::string(id)=="WALL_W"?-30.0f:30.0f;
+            near(b.min.x,center-.5f); near(b.max.x,center+.5f);
+        }
+        bool shearVisible=false, rotateX=false, rotateY=false, rotateZ=false;
+        for (const auto& object : scene) {
+            const auto b=bounds(object);
+            if (object.component=="Sheared stone support") {
+                near(b.min.y,0);
+                shearVisible |= object.transform.shear[0]!=0;
+                rotateX |= object.transform.rotation.x!=0;
+                rotateY |= object.transform.rotation.y!=0;
+                rotateZ |= object.transform.rotation.z!=0;
+            }
+        }
+        require(shearVisible && rotateX && rotateY && rotateZ,"Scene must demonstrate shear and all rotation axes.");
+        std::cout << "PASS: transformation stages, six shears, view/projection, camera, closed boundary, grounded supports and object IDs.\n";
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "FAIL: " << error.what() << '\n';
