@@ -3,20 +3,8 @@
     "tasks": [
         {
             "type": "shell",
-            "label": "Build OpenGL Project",
-            "command": "g++",
-            "args": [
-                "-std=c++17",
-                "src/main.cpp",
-                "src/glad.c",
-                "-Iinclude",
-                "-Llib",
-                "-lglfw3",
-                "-lopengl32",
-                "-lgdi32",
-                "-o",
-                "main.exe"
-            ],
+            "label": "Build 3D Target Shooter",
+            "command": ".\\build.bat",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -27,7 +15,7 @@
                 "kind": "build",
                 "isDefault": true
             },
-            "detail": "Compile OpenGL project with g++"
+            "detail": "Build Phase 1 and regenerate calc.csv from the scene."
         }
     ]
 }
