@@ -3,7 +3,7 @@
 
 namespace shooter {
 enum class Screen { Menu, Controls, Playing, Paused };
-enum class Action { None, Start, Resume, Controls, Back, Menu, Exit, Pistol, Shotgun, Rifle };
+enum class Action { None, Start, Resume, Controls, Back, Menu, Exit, Pistol, Shotgun, Rifle, DayNight, Sound };
 struct UiVertex { float x,y,r,g,b; };
 struct Button { float x,y,w,h; const char* text; Action action; };
 std::vector<Button> screenButtons(Screen screen);

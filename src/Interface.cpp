@@ -31,6 +31,7 @@ std::array<unsigned char,7> glyph(char character) {
     case ':': return {0,4,4,0,4,4,0}; case '.': return {0,0,0,0,0,6,6};
     case '-': return {0,0,0,31,0,0,0}; case '/': return {1,1,2,4,8,16,16};
     case '+': return {0,4,4,31,4,4,0}; case '>': return {16,8,4,2,4,8,16};
+    case '!': return {4,4,4,4,4,0,4};
     case '(': return {2,4,8,8,8,4,2}; case ')': return {8,4,2,2,2,4,8};
     default: return {};
     }
@@ -62,13 +63,16 @@ bool inside(const Button& b,float x,float y) { return x>=b.x && x<=b.x+b.w && y>
 std::vector<Button> screenButtons(Screen screen) {
     if (screen==Screen::Playing) return {{1000,22,122,40,"MENU",Action::Menu},{1134,22,112,40,"EXIT",Action::Exit},
         {28,716,220,52,"1  PISTOL",Action::Pistol},{262,716,220,52,"2  SHOTGUN",Action::Shotgun},
-        {496,716,274,52,"3  ASSAULT RIFLE",Action::Rifle}};
-    if (screen==Screen::Controls) return {{96,660,430,56,"BACK",Action::Back}};
+        {496,716,274,52,"3  ASSAULT RIFLE",Action::Rifle},
+        {802,716,208,52,"",Action::DayNight},{1024,716,224,52,"",Action::Sound}};
+    if (screen==Screen::Controls) return {{96,660,430,56,"BACK",Action::Back},
+        {650,466,264,52,"",Action::DayNight},{932,466,278,52,"",Action::Sound}};
     const bool paused=screen==Screen::Paused;
     return {{96,400,430,56,paused?"RESUME SESSION":"START SESSION",paused?Action::Resume:Action::Start},
             {96,472,430,56,"VIEW CONTROLS",Action::Controls},
             {96,544,430,56,paused?"MAIN MENU":"EXIT",paused?Action::Menu:Action::Exit},
-            {96,616,430,56,paused?"EXIT":"",paused?Action::Exit:Action::None}};
+            {96,616,430,56,paused?"EXIT":"",paused?Action::Exit:Action::None},
+            {650,466,264,52,"",Action::DayNight},{932,466,278,52,"",Action::Sound}};
 }
 Action clickedAction(Screen screen,float x,float y) {
     for (const auto& b:screenButtons(screen)) if (inside(b,x,y)) return b.action;
@@ -84,9 +88,9 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
             const char* lines[]={"WASD       WALK / FREE CAMERA","MOUSE      LOOK AND AIM","LEFT CLICK / SPACE    FIRE",
                 "1 / 2 / 3  SELECT WEAPON","SHIFT      MOVE FASTER","F1         PLAYER VIEW","F2 / F3    ARENA / SIDE VIEW",
                 "F4         FREE CAMERA","Q / E      FREE CAMERA DOWN / UP","R          RESET TARGETS","TAB        RELEASE / CAPTURE MOUSE",
-                "ESC        PAUSE / RESUME","F5         SAVE CALC SNAPSHOT"};
+                "ESC        PAUSE / RESUME","F5         SAVE CALC SNAPSHOT","N          DAY / NIGHT","M          SOUND ON / OFF"};
             float y=222;
-            for (const char* line:lines) { p.text(96,y,line,1.8f,ink); y+=30; }
+            for (const char* line:lines) { p.text(96,y,line,1.8f,ink); y+=27; }
         } else {
             p.text(96,162,screen==Screen::Paused?"SESSION":"TARGET",5,ink);
             p.text(96,212,screen==Screen::Paused?"PAUSED":"SHOOTER",5,ink);
@@ -99,6 +103,13 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
         p.text(676,610,"THE TRAINING GROUND",2.8f,ink);
         p.text(676,652,"60 X 100 M  /  FULLY ENCLOSED ARENA",1.9f,muted);
         p.text(676,687,"PISTOL 25 M  /  SHOTGUN 18 M  /  RIFLE 70 M",1.8f,teal);
+        p.rect(648,198,562,240,{.035f,.065f,.09f});
+        p.text(676,222,"SIX RINGS. FRONT HITS ONLY.",2.5f,ink);
+        p.text(676,266,"CENTER: 1 SHOT TO BREAK",2.3f,amber);
+        p.text(676,300,"THEN 2 / 3 / 4 / 5 / 6 SHOTS OUTWARD",1.9f,muted);
+        p.text(676,338,"AIM SMALL. TARGETS MOVE FAST.",2,teal);
+        p.text(676,378,"BACK AND EDGE HITS DO NOT SCORE.",1.8f,muted);
+        p.text(676,406,"SHOTGUN COUNTS ONCE PER TRIGGER.",1.8f,muted);
     } else {
         p.rect(20,16,940,88,{.035f,.065f,.09f});
         p.text(40,32,weaponSpec(game.weapon).name,2.8f,ink);
@@ -106,10 +117,17 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
         p.text(430,32,std::string("CAMERA: ")+modes[game.cameraMode],2,teal);
         float distance=0; const int target=game.aimedTarget(distance);
         std::ostringstream range; range<<std::fixed<<std::setprecision(1);
-        range<<"TARGET: "; if (target<0) range<<"--"; else range<<distance<<" M";
+        range<<(game.cameraMode==1?"TARGET: ":"PLAYER AIM: "); if (target<0) range<<"--"; else range<<distance<<" M";
         range<<"  /  RANGE: "<<int(weaponSpec(game.weapon).range)<<" M";
         p.text(40,72,range.str(),1.9f,target>=0&&distance>weaponSpec(game.weapon).range?amber:muted);
         p.text(650,72,"HITS "+std::to_string(game.hits)+"  CLEARED "+std::to_string(game.destroyed),1.8f,ink);
+        p.rect(20,112,630,44,{.035f,.065f,.09f});
+        p.text(40,127,"SCORE "+std::to_string(game.score)+"  /  BULLSEYES "+std::to_string(game.bullseyes),2,amber);
+        if (target>=0 && game.cameraMode==1) {
+            p.rect(28,608,400,40,{.035f,.065f,.09f});
+            p.text(42,620,"TARGET HEALTH "+std::to_string(int(game.targets[target].health))+" / 60",2,ink);
+        }
+        if (game.feedbackTime>0) p.text(500,468,game.lastRing==0?"BULLSEYE!":"RING "+std::to_string(game.lastRing+1)+" HIT",2.5f,amber);
         p.rect(28,665,740,34,{.035f,.065f,.09f});
         p.text(42,676,game.cameraMode==1?(pointerFree?"CLICK MENU OR WEAPON. TAB TO RESUME AIM.":"WASD MOVE  /  CLICK FIRE  /  ESC MENU  /  TAB POINTER"):
             "F1 TO AIM AND FIRE  /  F2 ARENA  /  F3 SIDE  /  F4 FREE",1.8f,muted);
@@ -144,7 +162,9 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
         const bool primary=b.action==Action::Start||b.action==Action::Resume;
         p.rect(b.x,b.y,b.w,b.h,primary||selected?teal:(hover?Vec3{.20f,.32f,.36f}:Vec3{.10f,.16f,.20f}));
         if (hover) p.rect(b.x,b.y,4,b.h,amber);
-        p.text(b.x+18,b.y+(b.h-14)/2,b.text,2,primary||selected?Vec3{.03f,.08f,.10f}:ink);
+        const std::string label=b.action==Action::DayNight?(game.night?"N  NIGHT":"N  DAY"):
+            b.action==Action::Sound?(!game.soundAvailable?"NO AUDIO DEVICE":game.soundEnabled?"M  SOUND ON":"M  SOUND OFF"):b.text;
+        p.text(b.x+18,b.y+(b.h-14)/2,label,2,primary||selected?Vec3{.03f,.08f,.10f}:ink);
     }
     return p.vertices;
 }

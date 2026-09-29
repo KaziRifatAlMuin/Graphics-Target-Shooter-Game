@@ -3,9 +3,9 @@
 namespace shooter {
 const WeaponSpec& weaponSpec(WeaponType type) {
     static const WeaponSpec specs[]={
-        {"PISTOL",25,42,.28f,40,0,1,{.10f,.10f,.25f}},
-        {"SHOTGUN",18,36,.8f,20,.075f,9,{.08f,.08f,.18f}},
-        {"ASSAULT RIFLE",70,65,.11f,30,.009f,1,{.13f,.13f,.30f}}
+        {"PISTOL",25,42,.28f,0,1,{.10f,.10f,.25f}},
+        {"SHOTGUN",18,36,.8f,.075f,9,{.08f,.08f,.18f}},
+        {"ASSAULT RIFLE",70,65,.11f,.009f,1,{.13f,.13f,.30f}}
     };
     return specs[static_cast<int>(type)];
 }
@@ -32,6 +32,8 @@ std::vector<SceneObject> createWeapon(WeaponType type, const Camera& player, flo
         t.rotation={player.pitch,-player.yaw-90,0}; t.scale=size; t.shear[3]=shear;
         result.push_back({prefix+"_"+name,"Weapon",name,t,color,
             "Game model; "+std::to_string(int(weaponSpec(type).range))+" m range; follows player aim"});
+        result.back().specular=.75f; result.back().shininess=80;
+        if (std::string(name)=="MUZZLE_FLASH") result.back().emission=1;
     };
     if (type==WeaponType::Pistol) {
         part("BODY",{.32f,-.25f,-.68f},{.22f,.22f,.56f},metal);

@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -Iinclude
-LDFLAGS = -Llib -lglfw3 -lopengl32 -lgdi32
-CORE = src/Arena.cpp src/Camera.cpp src/Game.cpp src/Weapon.cpp src/Interface.cpp
+LDFLAGS = -Llib -lglfw3 -lopengl32 -lgdi32 -lwinmm
+CORE = src/Arena.cpp src/Camera.cpp src/Game.cpp src/Weapon.cpp src/Interface.cpp src/Lighting.cpp src/Sound.cpp
 SRC = src/main.cpp $(CORE) src/Renderer.cpp src/glad.c
 HEADERS = $(wildcard src/*.h)
 TARGET = main.exe
@@ -17,7 +17,7 @@ run: all
 	./$(TARGET)
 
 core_tests.exe: tests/core_tests.cpp tests/game_tests.h $(CORE) $(HEADERS)
-	$(CXX) $(CXXFLAGS) -Isrc tests/core_tests.cpp $(CORE) -o $@
+	$(CXX) $(CXXFLAGS) -Isrc tests/core_tests.cpp $(CORE) -lwinmm -o $@
 
 test: all core_tests.exe
 	./core_tests.exe

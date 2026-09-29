@@ -99,9 +99,10 @@ void writeCalculations(const std::vector<SceneObject>& objects, const std::files
     for (const auto& object : objects) {
         const auto& t = object.transform;
         const Mat4 model = composeModelMatrix(t);
-        const Vec4 point = transformPoint(model, {0.5f,0.5f,0.5f,1});
+        const Vec4 local=object.primitive==Primitive::RoundTarget?Vec4{.5f,0,.5f,1}:Vec4{.5f,.5f,.5f,1};
+        const Vec4 point = transformPoint(model, local);
         const auto stages = modelTransformStages(t);
-        const auto trace = traceTransformPoint(t, {0.5f,0.5f,0.5f,1});
+        const auto trace = traceTransformPoint(t, local);
         std::ostringstream shear, matrix;
         shear.imbue(std::locale::classic()); matrix.imbue(std::locale::classic());
         shear << std::fixed << std::setprecision(6) << '(';
@@ -121,11 +122,14 @@ void writeCalculations(const std::vector<SceneObject>& objects, const std::files
             matrix << ']';
         }
         out << csvQuote(object.id) << ',' << csvQuote(object.type) << ',' << csvQuote(object.component)
-            << ",Unit Cube,\"(0.5,0.5,0.5)\"," << csvQuote(vectorText(t.scale)) << ','
+            << ',' << (object.primitive==Primitive::RoundTarget?"Unit Disk (radius 0.5; Z thickness 1)":"Unit Cube")
+            << ',' << csvQuote(vectorText({local.x,local.y,local.z})) << ',' << csvQuote(vectorText(t.scale)) << ','
             << csvQuote(shear.str()) << ',' << t.rotation.x << ',' << t.rotation.y << ',' << t.rotation.z
             << ',' << csvQuote(vectorText(t.position)) << ',' << modelMatrixOrder << ','
             << csvQuote(matrix.str()) << ',' << csvQuote(vectorText({point.x,point.y,point.z}))
-            << ",Flat face colors; scene and gameplay visualization," << csvQuote(object.notes) << '\n';
+            << ',' << csvQuote("Ambient + Diffuse + Blinn-Phong Specular; ks="+std::to_string(object.specular)+
+                "; shininess="+std::to_string(object.shininess)+"; emission="+std::to_string(object.emission))
+            << ',' << csvQuote(object.notes) << '\n';
     }
     out.close();
     if (!out) throw std::runtime_error("Failed to finish calculations: " + path.string());
