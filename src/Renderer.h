@@ -2,6 +2,7 @@
 #include <glad/gl.h>
 #include "Arena.h"
 #include "Interface.h"
+#include <filesystem>
 
 namespace shooter {
 class Renderer {
@@ -17,7 +18,7 @@ private:
     GLuint program=0, vao=0, vbo=0;
     GLuint uiProgram=0, uiVao=0, uiVbo=0;
     GLuint skyProgram=0;
-    GLsizei diskVertices=0;
+    GLint patternScaleLocation=-1, patternOffsetLocation=-1;
     GLint modelLocation=-1, viewLocation=-1, projectionLocation=-1, colorLocation=-1;
     GLint specularLocation=-1, shininessLocation=-1, emissionLocation=-1, patternLocation=-1, flashLocation=-1;
     void drawTransformedCube(const SceneObject& object);

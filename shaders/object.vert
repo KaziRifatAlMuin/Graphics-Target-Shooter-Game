@@ -2,12 +2,13 @@
 layout(location=0) in vec3 localPosition;
 layout(location=1) in vec3 localNormal;
 uniform mat4 model, view, projection;
+uniform vec3 patternScale, patternOffset;
 out vec3 worldPosition, worldNormal, shapePosition, shapeNormal;
 void main() {
     vec4 world=model*vec4(localPosition,1.0);
     worldPosition=world.xyz;
     worldNormal=transpose(inverse(mat3(model)))*localNormal;
-    shapePosition=localPosition;
+    shapePosition=localPosition*patternScale+patternOffset;
     shapeNormal=localNormal;
     gl_Position=projection*view*world;
 }
