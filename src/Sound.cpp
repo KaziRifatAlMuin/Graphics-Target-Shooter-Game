@@ -17,8 +17,8 @@ namespace shooter {
 namespace { constexpr int sampleRate=22050, blockSamples=512; }
 std::vector<float> synthesizeSound(SoundEvent event) {
     const int kind=static_cast<int>(event);
-    const float durations[]={.16f,.28f,.11f,.13f,.34f,.05f};
-    const float frequencies[]={170,95,230,1250,650,850};
+    const float durations[]={.16f,.28f,.11f,.13f,.34f,.05f,.4f};
+    const float frequencies[]={170,95,230,1250,650,850,160};
     const float duration=durations[kind];
     std::vector<float> samples(static_cast<std::size_t>(duration*sampleRate));
     std::uint32_t random=2107042+kind;
@@ -35,7 +35,7 @@ std::vector<float> synthesizeSound(SoundEvent event) {
 }
 struct Sound::Impl {
     bool ready=false,enabled=true;
-    std::array<std::vector<float>,6> effects;
+    std::array<std::vector<float>,static_cast<int>(SoundEvent::Count)> effects;
     struct Voice { int kind; std::size_t cursor=0; };
     std::vector<Voice> voices;
 #ifdef _WIN32
@@ -51,7 +51,7 @@ struct Sound::Impl {
 #endif
 };
 Sound::Sound():impl(std::make_unique<Impl>()) {
-    for (int i=0;i<6;++i) impl->effects[i]=synthesizeSound(static_cast<SoundEvent>(i));
+    for (int i=0;i<static_cast<int>(SoundEvent::Count);++i) impl->effects[i]=synthesizeSound(static_cast<SoundEvent>(i));
 }
 Sound::~Sound()=default;
 bool Sound::initialize() {

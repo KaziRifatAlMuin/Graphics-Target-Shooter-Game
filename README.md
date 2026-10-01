@@ -1,185 +1,178 @@
-﻿# 3D Target Shooter - Phase 1 of 4
+﻿# 3D Target Shooter - Phase 2 of 4
 
-C++17 / OpenGL 3.3 graphics project by **Kazi Rifat Al Muin (2107042)**.
+C++17 / OpenGL 3.3 project by **Kazi Rifat Al Muin (2107042)**.
 
-This checkpoint implements the **Graphics Foundation + Playable Core** in
-[final-project.md](final-project.md), sections 25-26. It extends the existing
-project. Challenge levels, NPCs, competitive scoring, modes and leaderboards
-belong to later phases; this version opens a working training sandbox.
+This extends the working Phase 1 project with the seven-level Challenge specified in
+[final-project.md](final-project.md), sections 25-26. The original Practice Sandbox remains
+available. Full Free Mode, Developer Mode, persistence and final polish remain for Phases 3-4.
 
 ## Build and run
 
-Windows requires a **64-bit MinGW/GCC** compiler on PATH and an OpenGL 3.3 driver.
-GLFW, GLAD and their headers are bundled. Models, UI font and sounds are procedural;
-there are no external asset downloads. Windows sound uses WinMM.
+Windows requires **64-bit MinGW/GCC** on PATH and an OpenGL 3.3 driver. GLFW/GLAD
+are bundled; models, fonts and sounds are procedural. Windows audio uses WinMM.
 
 ```powershell
-.\run.bat
+./run.bat
+# Or build and launch separately:
+./build.bat
+./main.exe
 ```
 
-`run.bat` builds, regenerates calculations and launches. Alternatively:
+CMake 3.15+ is supported (verified with CMake 3.31.6 and GCC 13.2):
 
 ```powershell
-.\build.bat
-.\main.exe
+cmake -S . -B build/phase2-clean -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+cmake --build build/phase2-clean --parallel 4
+ctest --test-dir build/phase2-clean --output-on-failure
+./build/phase2-clean/main.exe
 ```
 
-CMake 3.15+ is supported and verified with CMake 3.31.6 / GCC 13.2:
+Portable CMake is available locally under `build/tools/cmake-3.31.6-windows-x86_64/bin/`;
+use that executable path if CMake is absent from PATH. Bundled GLFW requires MinGW,
+not MSVC. Linux needs GLFW/OpenGL development packages; playback is Windows-only.
+Makefile and VS Code build tasks also work. Keep shaders and project files together.
 
-```powershell
-cmake -S . -B build/phase1-clean -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-cmake --build build/phase1-clean --parallel 4
-ctest --test-dir build/phase1-clean --output-on-failure
-.\build\phase1-clean\main.exe
-```
+## Seven-level Challenge
 
-Portable CMake downloaded during this checkpoint is under
-`build/tools/cmake-3.31.6-windows-x86_64/bin/`; use that full executable path if
-CMake is absent from PATH. It is a local build tool, not a game dependency.
-The bundled GLFW archive requires MinGW, not MSVC. Linux CMake builds need installed
-GLFW/OpenGL development packages; audio playback is currently Windows-only.
+Choose **START CHALLENGE** or press Enter. Destroy all targets, wait for the brief
+completion animation, then press Enter/NEXT LEVEL. Level 7 ends with run statistics.
+Challenge targets never respawn. Introduction, pause and completion screens freeze time.
 
-The existing `mingw32-make`, `mingw32-make run`, `mingw32-make test` and VS Code
-build task also remain supported. Keep the project and shaders together.
+| Level | Targets | Rules | NPCs |
+| --- | --- | --- | --- |
+| 1 | 3 | Position locked; static targets within pistol range | None |
+| 2 | 3 | Position locked; farther targets, one moving on X; rifle reaches all | None |
+| 3 | 4 | Position locked; varied single-axis X/Y/Z movement; clear rifle lanes | None |
+| 4 | 6 | Movement enabled; varied single-axis speeds, two spinners; cover requires repositioning | None |
+| 5 | 8 | Retains six; adds spinning X+Z and Y+Z targets | 8 continuously active birds |
+| 6 | 10 | Retains eight; adds two faster XYZ spinners | 16 birds near target zones |
+| 7 | 12 | Retains ten; adds two still faster XYZ spinners; densest cargo | 4 birds and 3 humans per active zone |
 
-## Playable features
+Motion uses shared bounded patterns with varied amplitude, phase, speed, direction and
+spin. Birds choose bounded random 3D destinations and flap. Humans walk/pause on the
+ground near their target zones and avoid cargo, walls and moving stands. Struck NPCs
+are immediately replaced to preserve population. Levels 5-6 redistribute birds to
+remaining zones; Level 7 retires NPCs from cleared zones.
 
-- Enclosed 60 x 100 m arena, 8 m fortified walls, towers, battlements and sheared supports.
-- 28 reproducible cargo clusters with 572 crates for the default seed. Each crate
-  is 0.6 m (configurable human height / 3). Runs contain 3-7 columns, L/T formations
-  add branches, and stacks vary from 1-5 crates with a preference for middle heights.
-  Central corridors and cross aisles remain navigable.
-- Seven sandbox targets: six existing horizontal/vertical/rotating targets plus
-  one nearby static practice target. Every target is built from 32 thin cubes,
-  approximating a 1.6 m round plate. The same cube slices drive collision.
-- Pistol (25 m), shotgun (18 m, nine spreading pellets), assault rifle (70 m,
-  repeated fire), with distinct cube models, recoil, muzzle flashes and visible projectiles.
-- Pistol dot/short marks, shotgun spread circle/ticks, rifle compact cross;
-  target distance and effective weapon range in meters.
-- Grounded player movement with cargo/boundary collision; nearest swept projectile
-  contact prevents shots passing through cover. A muzzle inside/beyond nearby cover
-  cannot fire through it. Free camera flies independently for inspection.
-- Player, elevated, side and free cameras; mouse look, menus, pause/resume, controls,
-  target reset and clickable weapon/settings buttons.
-- Ambient, diffuse and Blinn-Phong specular shading; directional sun/moon, eight
-  point lamps and six soft-edged spotlights; day/night sky and emissive fixtures.
-- Preserved synthesized firing, hit, break and UI audio, with mute and device status.
+The loader validates fixed-player sightlines/range, flood-fills walkable space from spawn
+in movable levels, and checks reachable close firing positions. Seeded cargo layouts
+avoid target movement regions and leave routes around cover.
 
-All 3D models use the shared centered unit cube. The later cube-only specification
-supersedes the historical disk exception in `project.md`. Target rings are a front-face
-material on the cube assembly; no cylinder/sphere/disk mesh is used. Screen-space HUD
-and sky are shader/UI geometry, not modeled world objects.
+## Scoring and controls
 
-## Controls
+Targets have 60 health. Front-center through outer ring damage: **60/30/20/15/12/10**.
+Shotgun pellets share a trigger ID and contribute only the strongest pellet damage.
+Back/edge contacts stop shots without damage.
+
+- Destroy target: **+100**. Destroy it on its first valid trigger: **+150 total**.
+- A later center hit gives normal destruction points. Damage alone gives no points.
+- Bird: **-100**. Human: **-200**. Negative scores are valid.
+- NPC penalties count once per trigger. Points float; penalties flash red and sound.
+- Score, active time, targets destroyed, bullseyes, bird/human hits, shots, target hits
+  and cleared levels accumulate through the run.
+- Restarting an unfinished level restores its starting score/time/statistics.
+  Completed levels cannot be replayed inside that run to farm points.
 
 | Input | Action |
 | --- | --- |
-| Enter | Start from menu / resume paused session |
-| WASD | Walk in F1-F3; fly in F4 |
-| Mouse | Aim in F1; look in F4 with pointer captured |
-| Shift | Faster movement |
+| Enter | Start Challenge / resume pause / advance completed level |
+| WASD / Shift | Walk / faster movement when allowed; fly in F4 |
+| Mouse | Aim in F1; look in F4 |
 | Left click / Space | Fire in F1; hold for rifle, new press for pistol/shotgun |
-| 1 / 2 / 3 | Pistol / shotgun / assault rifle |
+| 1 / 2 / 3 | Pistol 25 m / shotgun 18 m / assault rifle 70 m |
 | F1 / F2 / F3 / F4 | Player / elevated / side / free camera |
 | Q / E | Free camera down / up |
-| Tab | Release / capture pointer for HUD buttons |
-| N / M | Day-night / sound toggle, including menus |
-| R | Reset targets and temporary effects; preserve score/player/weapon |
-| F5 | Save current calculation snapshot |
-| Esc | Pause/resume; back from controls; exit from main menu |
+| Tab | Release/capture pointer for HUD buttons |
+| N / M | Day-night / sound |
+| R | Restart unfinished Challenge level; reset Practice targets |
+| F5 | Save calculations while playing |
+| Esc | Pause/resume; back from controls/results; exit main menu |
 
-Menus and focus loss pause gameplay. Tab alone does not pause. A UI click is consumed;
-release the fire button before firing after starting/resuming. Start Session resets the
-player, weapon and practice statistics. Shooting is available only in F1.
+Free camera cannot move the grounded player or fire. Practice preserves Phase 1 respawn
+and damage-plus-destruction scoring. Starting either session resets statistics.
+A UI click cannot also fire; release fire after starting/resuming. Focus loss pauses.
 
-Targets have 60 health and six front-only regions. From center outward the damage is
-60/30/20/15/12/10, requiring 1/2/3/4/5/6 distinct triggers. Shotgun pellets share a shot ID
-and contribute only the best region damage to a target. Back/edge contacts stop shots
-without damage. Broken targets emit cube fragments and return after 1.8 seconds.
-The existing practice score (damage plus 100 on destruction) is preserved; the later
-Challenge/Free scoring rules are not yet active. Ammunition is unlimited.
+All Phase 1 systems remain: cube weapons, distinct crosshairs, meter ranges, visible
+swept projectiles, player/cargo/boundary collision, four cameras, enclosed 60 x 100 m
+arena, fortified walls, seeded 0.6 m cargo, equipment display, day/night, ambient/diffuse/
+Blinn-Phong shading, directional sun/moon, eight point lamps and six spotlights.
+**All modeled objects use transformed unit cubes.** Targets use 32 cube slices and
+a front-face ring material, not a disk mesh.
 
-## Automatic, actual-scene calc.csv
+## Automatic actual-scene calc.csv
 
-**Every normal launch overwrites `calc.csv` with a fresh scene snapshot.** It also updates
-about once per second of active play, on weapon/lighting/reset/menu changes, on F5 and
-on normal exit. Builds regenerate it too. Default output is the project root even when
-launched from a CMake build directory. `calc-init.csv` remains untouched.
+**Every launch regenerates calc.csv in the project root.** It refreshes about once per
+active second, on weapon/lighting/session changes, F5 and normal exit. Builds refresh
+it too; calc-init.csv is unchanged.
 
-The logger receives the **same SceneObject instances passed to the renderer**. It
-records one actual local cube corner `(0.5,0.5,0.5)` per instance, applying exactly:
+The logger observes the same objects sent to the renderer and maps cube corner
+(0.5,0.5,0.5) using **M_model = T * Rz * Ry * Rx * H * S**.
+Rows contain Phase 2, Level (0 = practice), object/component, local point, scale, six
+shears, XYZ rotations, translation, matrix order, intermediate points, full matrix,
+world point, purpose, lighting, observation time and UTC.
 
-```text
-M_model = T * Rz * Ry * Rx * H * S
-world_point = M_model * local_point
-```
+Current rows are marked as current snapshots. Bounded history retains actual previous
+observations of moving/spinning targets, NPC parts, representative cargo, weapons,
+projectiles and environment from visited levels, with original times and explicit
+retained-observation labels. **Unvisited levels are not invented.** History starts
+fresh each launch; completing a run provides all seven levels' coverage.
+Startup includes real equipment-display weapon/projectile models; DISPLAY_ rows are
+exhibits, while fired projectiles have separate IDs.
 
-Columns include Phase, Object_ID, Object_Type, Component, Primitive, Local_Point,
-Scale (X/Y/Z), Shear (XY/XZ/YX/YZ/ZX/ZY), Rotation_X/Y/Z_deg, Translation (X/Y/Z),
-Matrix_Order, Matrix_or_Operation (intermediate points and full matrix), Result_World_Point,
-Lighting_or_Use, Notes, Parent_or_Group, Purpose and Generated_UTC. Phase is **1**.
-Notes record simulation time and day/night state. Values use six decimal places.
-
-Current objects are marked `current scene snapshot`. For short-lived projectiles,
-fragments, previously selected weapons and hidden target slices, the logger retains
-bounded **last actual observations from this run**, explicitly marked as no longer active
-with their original observation time. These are not current positions or fabricated
-examples. History starts empty on every process launch. All three weapons and projectile
-shapes are rendered on a cube-built equipment table near spawn, so startup exports cover
-every implemented category. `DISPLAY_` rows identify these stationary exhibits; firing
-adds separate moving projectile records. The supplied final CSV includes all three
-weapons and fired projectile types from the tested run. Ground, walls, cargo,
-targets/stands, lamps and environment are present
-immediately. CSV is a snapshot/reference, not an every-frame recording or saved game.
-
-Writes go to a temporary file and replace the completed CSV, preventing partial truncation.
-Close spreadsheet applications that lock it; write failures produce an explicit error.
-Manual CSV edits are overwritten. Edit scene code for lasting changes.
+The delivered CSV comes from the seven-level rendering test. Your next launch replaces
+it with your own session's observations. It is a snapshot plus documented observations,
+not an every-frame recording or saved game. Writes use temporary files and atomic
+replacement; close applications that lock the CSV.
 
 ```powershell
-.\main.exe --export-calc                 # Initial scene and equipment display, no GPU required
-.\main.exe --export-calc --calc other.csv
-.\main.exe --smoke-test --capture build/phase1.ppm
-powershell -NoProfile -ExecutionPolicy Bypass -File tests/verify_calc.ps1 -RequirePlayedCoverage
+./main.exe --export-calc
+./main.exe --export-calc --test-level 7
+./main.exe --test-level 4
+./main.exe --smoke-test
+./main.exe --challenge-smoke-test --capture build/phase2.ppm
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/verify_calc.ps1 -RequirePlayedCoverage -RequireChallengeCoverage
 ```
 
-`--calc PATH` overrides output; create parent directories first. `--capture` requires
-`--smoke-test` and produces PPM views. `--help` describes arguments without starting a run.
+Export initializes a real scene without a GPU. Test-level is a development CLI hook,
+not the future Developer Mode. --calc PATH overrides output; create parent directories
+first. --capture saves PPM previews with either smoke option.
 
-## Modules and later phases
+## Architecture
 
 | Files in src/ | Responsibility |
 | --- | --- |
-| main.cpp, Application.h/.cpp | Five-line entry point; platform lifecycle, input, screen transitions, loop, smoke checks |
-| Game.h/.cpp | Shared sandbox state and gameplay orchestration |
-| Transform.h, SceneObject.h | Matrix pipeline, point tracing, common cube/material description |
-| Renderer.h/.cpp, shaders/ | Shared cube buffer, materials, lighting upload, sky and UI |
-| Collision.h/.cpp | Reusable affine cube ray tests and conservative player footprints |
-| CsvLogger.h/.cpp | Current/observed scene records, transform export, atomic replacement |
-| Arena.h/.cpp, Cargo.h/.cpp | Fortifications, configurable seeded cargo and reserved routes |
-| Environment.h/.cpp, Lighting.h/.cpp | Sun/moon geometry and day/night light rigs/fixtures |
-| Camera.h/.cpp | Movement, look and view matrix |
-| Weapon.h/.cpp | Weapon specs, cube assemblies and muzzle placement |
-| Projectile.h/.cpp | Projectile data, swept movement/collision and visuals; hit callback |
-| Target.h/.cpp | Sandbox configuration, reusable movement, cube assembly and exact slice hits |
-| Interface.h/.cpp | Working menus, HUD, crosshairs and built-in font |
-| SoundEvent.h, Sound.h/.cpp | Shared sound events, synthesis and playback |
+| main.cpp, Application.* | Small entry point; platform, input, screen transitions and loop |
+| Game.*, Challenge.cpp | Shared simulation, level lifecycle and NPC orchestration |
+| levels/LevelBase.*, Level1.* through Level7.* | Interface and seven data-oriented definitions |
+| LevelManager.* | Intro/active/complete/finished states and gated progression |
+| LevelWorld.*, Cargo.* | World construction, seeded cover and accessibility checks |
+| Movement.*, Target.* | Parameterized motion, cube assembly and front-only collision |
+| ScoreSystem.* | Cumulative statistics, exact scoring and animated feedback |
+| Npc.*, Bird.*, Human.* | Shared random movement, NPC collision and cube animation |
+| Weapon.*, Projectile.*, Collision.* | Reused weapons, swept nearest contact and cover collision |
+| Transform.h, SceneObject.h, Renderer.*, shaders/ | Shared matrices, cube rendering and materials |
+| CsvLogger.* | Current/observed transform export and atomic regeneration |
+| Arena.*, Environment.*, Lighting.*, Camera.* | Preserved world, lights and views |
+| Interface.*, SoundEvent.h, Sound.* | Functional menus/HUD and synthesized audio |
 
-Later level configurations can supply targets and cargo without duplicating rendering,
-weapons, collision or logging. No placeholder mode buttons, NPC systems, leaderboard
-files or seven-level progression are introduced in Phase 1.
+All new sources are in CMake, Makefile and build.bat. Rendering, movement, scoring and
+collision algorithms are shared across levels.
 
-## Validation and current limits
+## Validation and limits
 
-CTest covers transform order and all shears, camera math, enclosed walls, grounded
-supports, deterministic cargo, navigation paths, player/cover collision, weapon cooldowns,
-spread/range, nearest hits, rotated front/back/edge hits, all six ring thresholds,
-shotgun shot grouping, respawn, lighting, audio waveform validity and menus.
-The CSV test independently recomputes every exported world point with scalar arithmetic.
-The GPU smoke test exercises menu/controls/start/pause/resume, all weapons/cameras,
-day/night brightness, front/back target views, audio toggles and OpenGL pixel/depth checks.
+CTest runs the retained Phase 1 suite, Challenge rules and independent CSV arithmetic
+checks. Tests cover every level, swept target/NPC contacts, actual player-muzzle firing
+against live moving/spinning targets, movement locks, NPC population/bounds/avoidance,
+cover accessibility, exact/negative scores, no respawn, completion gating, accumulated
+time and restart rollback.
 
-Free camera can pass through geometry for inspection; player collision is conservative.
-Target stands, fragments and avatar do not block shots. There are no cast shadows,
-networking, ammunition economy or persistent results. Actual audible quality requires
-listening on the user's device; automatic audio checks verify initialization/queueing.
+The hidden OpenGL test renders all levels, completion/victory screens, menus, cameras,
+weapons, lighting and NPC penalties. Its fast progression script injects hit events;
+separate CPU tests verify normal muzzle/projectile behavior. It checks visible geometry,
+OpenGL errors, day/night brightness and exports visited transforms. Audio initialization
+and queueing are checked; subjective quality requires listening.
+
+Free camera passes through geometry. Stands/fragments/avatar do not block shots; humans
+avoid stands. Cast shadows, networking, ammunition economy and persistent results are
+not included. Phase 3 can reuse LevelManager::completedStats as its completed-level
+persistence boundary.

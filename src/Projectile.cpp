@@ -4,7 +4,8 @@
 
 namespace shooter {
 void updateProjectiles(std::vector<Projectile>& projectiles, const std::vector<Target>& targets,
-                       const std::vector<SceneObject>& obstacles, float dt, const TargetHitCallback& hit) {
+                       const std::vector<SceneObject>& obstacles, float dt, const TargetHitCallback& hit,
+                       const std::vector<NpcCollider>& npcs, const NpcHitCallback& npcHit) {
     for (auto& p:projectiles) {
         const auto& spec=weaponSpec(p.weapon);
         const float travel=std::min(spec.speed*dt,spec.range-p.travelled);
@@ -13,13 +14,18 @@ void updateProjectiles(std::vector<Projectile>& projectiles, const std::vector<T
             const float d=intersectCube(p.position,p.direction,o.transform,nearest);
             if (d<=nearest) { nearest=d; blocked=true; }
         }
-        for (std::size_t i=0;i<targets.size();++i) if (targets[i].respawn<=0) {
+        for (std::size_t i=0;i<targets.size();++i) if (targets[i].respawn<=0 && !targets[i].eliminated) {
             const auto contact=intersectTarget(p.position,p.direction,targets[i],nearest);
             if (contact.distance<nearest) { nearest=contact.distance; hitTarget=int(i); hitRing=contact.ring; blocked=true; }
         }
+        const auto npc=intersectNpcs(p.position,p.direction,nearest,npcs);
+        if (npc.distance<nearest) { nearest=npc.distance; hitTarget=-1; blocked=true; }
         p.position=p.position+p.direction*nearest;
         p.travelled+=nearest;
         if (hitTarget>=0 && hitRing>=0) hit(std::size_t(hitTarget),hitRing,p.shotId);
+        if (npc.collider>=0 && npc.distance<=nearest && npcHit) {
+            const auto& collider=npcs[npc.collider]; npcHit(collider.human,collider.index,p.shotId);
+        }
         if (blocked) p.travelled=spec.range;
     }
     projectiles.erase(std::remove_if(projectiles.begin(),projectiles.end(),[](const Projectile& p) {

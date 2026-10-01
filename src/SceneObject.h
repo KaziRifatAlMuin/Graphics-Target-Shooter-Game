@@ -13,6 +13,7 @@ struct SceneObject {
     float specular=.12f, shininess=24, emission=0, flash=0;
     bool targetPattern=false;
     Vec3 patternScale{1,1,1}, patternOffset{};
+    int level=0;
 };
 inline Vec3 asVec3(Vec4 v) { return {v.x,v.y,v.z}; }
 inline float length(Vec3 v) { return std::sqrt(dot(v,v)); }

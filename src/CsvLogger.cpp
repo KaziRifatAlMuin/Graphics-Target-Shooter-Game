@@ -36,7 +36,7 @@ void writeCalculations(const std::vector<SceneObject>& objects, const std::files
     out.imbue(std::locale::classic());
     out << "Phase,Object_ID,Object_Type,Component,Primitive,Local_Point,Scale,Shear,Rotation_X_deg,"
            "Rotation_Y_deg,Rotation_Z_deg,Translation,Matrix_Order,Matrix_or_Operation,"
-           "Result_World_Point,Lighting_or_Use,Notes,Parent_or_Group,Purpose,Generated_UTC\n";
+           "Result_World_Point,Lighting_or_Use,Notes,Parent_or_Group,Purpose,Generated_UTC,Level\n";
     const auto now=std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::ostringstream generated;
     generated<<std::put_time(std::gmtime(&now),"%Y-%m-%dT%H:%M:%SZ");
@@ -67,7 +67,7 @@ void writeCalculations(const std::vector<SceneObject>& objects, const std::files
             for (int col=0; col<4; ++col) { if (col) matrix << ' '; matrix << model.at(row,col); }
             matrix << ']';
         }
-        out << "1," << csvQuote(object.id) << ',' << csvQuote(object.type) << ',' << csvQuote(object.component)
+        out << "2," << csvQuote(object.id) << ',' << csvQuote(object.type) << ',' << csvQuote(object.component)
             << ",Unit Cube"
             << ',' << csvQuote(vectorText({local.x,local.y,local.z})) << ',' << csvQuote(vectorText(t.scale)) << ','
             << csvQuote(shear.str()) << ',' << t.rotation.x << ',' << t.rotation.y << ',' << t.rotation.z
@@ -76,7 +76,7 @@ void writeCalculations(const std::vector<SceneObject>& objects, const std::files
             << ',' << csvQuote("Ambient + Diffuse + Blinn-Phong Specular; ks="+std::to_string(object.specular)+
                 "; shininess="+std::to_string(object.shininess)+"; emission="+std::to_string(object.emission))
             << ',' << csvQuote(object.notes) << ',' << csvQuote(object.type)
-            << ',' << csvQuote(object.component+"; actual scene cube corner mapping") << ',' << generated.str() << '\n';
+            << ',' << csvQuote(object.component+"; actual scene cube corner mapping") << ',' << generated.str() << ',' << object.level << '\n';
     }
     out.close();
     if (!out) throw std::runtime_error("Failed to finish calculations: " + path.string());
@@ -92,9 +92,9 @@ void CsvLogger::observe(const std::vector<SceneObject>& objects, float time, boo
     for (auto& o:current) {
         o.notes+="; observed at simulation time="+std::to_string(time)+" s; mode="+(night?"NIGHT":"DAY");
         // Bound history by component, not by projectile ID: unlimited play stays small.
-        if (o.type=="Weapon" || o.type=="Projectile" || o.type=="Hit effect" || o.type=="Environment" || o.targetPattern) {
-            const bool transient=(o.type=="Projectile"||o.type=="Hit effect") && o.id.rfind("DISPLAY_",0)!=0;
-            const auto key=transient?o.type+o.component:o.id;
+        if (o.type=="Weapon" || o.type=="Projectile" || o.type=="Hit effect" || o.type=="Environment" || o.targetPattern || o.type=="Bird" || o.type=="Human" || o.type=="Cargo") {
+            const bool transient=(o.type=="Projectile"||o.type=="Hit effect") && o.id.find("DISPLAY_")==std::string::npos;
+            const auto key=(transient || o.type=="Cargo")?std::to_string(o.level)+o.type+o.component:o.id;
             observed[key]=o;
         }
     }

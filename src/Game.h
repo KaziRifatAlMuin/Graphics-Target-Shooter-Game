@@ -8,19 +8,27 @@
 #include "Projectile.h"
 #include "Target.h"
 #include "SoundEvent.h"
+#include "LevelManager.h"
+#include "Bird.h"
+#include "Human.h"
 
 namespace shooter {
 struct Debris { std::uint64_t id; Vec3 position, velocity, rotation; float life; };
-class Game {
+class Game : public RunStats {
 public:
     Game();
     Camera player, freeCamera;
     WeaponType weapon=WeaponType::Pistol;
-    int cameraMode=1, shots=0, hits=0, destroyed=0;
-    int score=0, bullseyes=0, lastRing=-1;
+    int cameraMode=1, lastRing=-1;
     float feedbackTime=0;
     bool night=false, soundEnabled=true, soundAvailable=true;
-    float elapsed=0, cooldown=0, recoil=0;
+    float cooldown=0, recoil=0;
+    bool challenge=false;
+    LevelManager levels;
+    std::vector<Bird> birds;
+    std::vector<Human> humans;
+    std::vector<ScorePopup> scoreFeedback;
+    float dangerTime=0;
     std::vector<Target> targets;
     std::vector<Projectile> projectiles;
     std::vector<SceneObject> staticObjects;
@@ -28,6 +36,12 @@ public:
     std::vector<SoundEvent> soundEvents;
     void reset();
     void resetTargets();
+    void startChallenge(int firstLevel=1);
+    bool nextLevel();
+    void restartLevel();
+    bool gameplayActive() const;
+    int remainingTargets() const;
+    void applyNpcHit(bool human, std::size_t index, std::uint64_t shotId);
     void movePlayer(float forward, float right, float dt, bool fast);
     void update(float dt);
     bool fire();
@@ -42,5 +56,8 @@ private:
     std::uint64_t nextShot=1, nextDebris=1;
     void updateStep(float dt);
     bool canStand(Vec3 position) const;
+    void loadCurrentLevel();
+    void updateNpcs(float dt);
+    std::vector<NpcCollider> npcColliders() const;
 };
 }

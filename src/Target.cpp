@@ -54,6 +54,7 @@ std::vector<Target> createSandboxTargets() {
     return targets;
 }
 void updateTarget(Target& t, float elapsed, float dt) {
+    if (t.eliminated) return;
     t.hitTime=std::max(0.0f,t.hitTime-dt);
     if (t.respawn>0) {
         t.respawn=std::max(0.0f,t.respawn-dt);
@@ -63,6 +64,10 @@ void updateTarget(Target& t, float elapsed, float dt) {
     if (t.movement==0) t.position.x+=std::sin(elapsed*2.1f+t.phase)*4;
     if (t.movement==1) t.position.y+=std::sin(elapsed*2.8f+t.phase)*.8f;
     if (t.movement==2) t.yaw=std::fmod(elapsed*140+t.phase*30,360.0f);
+    if (t.movement==4) {
+        t.position=t.base+movementOffset(t.motion,elapsed);
+        t.yaw=std::fmod(elapsed*t.motion.spinSpeed,360.0f);
+    }
 }
 std::vector<SceneObject> createTargetObjects(const Target& t, std::size_t index) {
     std::vector<SceneObject> objects;
@@ -70,7 +75,7 @@ std::vector<SceneObject> createTargetObjects(const Target& t, std::size_t index)
     objects.push_back(makeCube(id+"_BASE","Target","Stand base",{t.position.x,.15f,t.position.z},{2,.3f,1.5f},{.25f,.29f,.32f}));
     const float height=std::max(.3f,t.position.y-Target::radius);
     objects.push_back(makeCube(id+"_STAND","Target","Stand",{t.position.x,height/2,t.position.z},{.24f,height,.24f},{.33f,.37f,.39f}));
-    if (t.respawn>0) return objects;
+    if (t.respawn>0 || t.eliminated) return objects;
     int i=0;
     for (const auto& slice:slices()) {
         auto part=makeCube(id+"_SLICE_"+std::to_string(i++),"Target","Cube-built six-ring plate",
@@ -79,6 +84,7 @@ std::vector<SceneObject> createTargetObjects(const Target& t, std::size_t index)
         part.patternScale={slice.scale.x/(2*Target::radius),slice.scale.y/(2*Target::radius),1};
         part.patternOffset={0,slice.position.y/(2*Target::radius),0};
         part.notes="32 transformed cube slices; printed front +Z; health="+std::to_string(t.health)+"/60; exact slice collider";
+        if (t.movement==4) part.notes+="; configured bounded sinusoidal X/Y/Z movement; spin degrees/sec="+std::to_string(t.motion.spinSpeed);
         objects.push_back(part);
     }
     return objects;

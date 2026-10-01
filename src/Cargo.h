@@ -6,4 +6,6 @@ struct CargoConfig {
     int rows=7;
 };
 std::vector<SceneObject> generateCargoLayout(unsigned seed, const CargoConfig& config={});
+struct LevelConfig;
+std::vector<SceneObject> generateChallengeCargo(const LevelConfig& level);
 }

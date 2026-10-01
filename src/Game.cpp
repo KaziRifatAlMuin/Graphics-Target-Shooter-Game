@@ -16,11 +16,18 @@ Game::Game() {
     reset();
 }
 void Game::resetTargets() {
+    if (challenge) { restartLevel(); return; }
     targets.clear(); projectiles.clear(); debris.clear(); soundEvents.clear(); feedbackTime=0; lastRing=-1;
     targets=createSandboxTargets();
     elapsed=0; cooldown=0; recoil=0;
 }
 void Game::reset() {
+    if (challenge) {
+        challenge=false; staticObjects=createArena();
+        for (const auto& group:{generateCargoLayout(2107042),createLightFixtures(),createEquipmentDisplay()})
+            staticObjects.insert(staticObjects.end(),group.begin(),group.end());
+    }
+    static_cast<RunStats&>(*this)=RunStats{}; birds.clear(); humans.clear(); scoreFeedback.clear(); dangerTime=0;
     player.position={0,1.7f,-5}; player.yaw=-90; player.pitch=3.8f;
     freeCamera=Camera{}; cameraMode=1; weapon=WeaponType::Pistol;
     // Entity IDs stay unique for the process lifetime, including restarted sessions.
@@ -29,6 +36,7 @@ void Game::reset() {
 }
 bool Game::canStand(Vec3 p) const { return canStandAt(p,staticObjects); }
 void Game::movePlayer(float forward, float right, float dt, bool fast) {
+    if (challenge && (!gameplayActive() || !levels.config.playerMovement)) return;
     Vec3 f=player.forward(); f.y=0; f=normalize(f);
     const Vec3 movement=normalize(f*forward+cross(f,{0,1,0})*right)*((fast?9.0f:5.0f)*dt);
     const int steps=std::max(1,int(std::ceil(length(movement)/.15f)));
@@ -56,22 +64,24 @@ int Game::aimedTarget(float& distance) const {
     int result=-1;
     for (const auto& o:staticObjects) nearest=std::min(nearest,intersectCube(player.position,player.forward(),o.transform,nearest));
     for (std::size_t i=0; i<targets.size(); ++i) {
-        if (targets[i].respawn>0) continue;
+        if (targets[i].respawn>0 || targets[i].eliminated) continue;
         const auto hit=intersectTarget(player.position,player.forward(),targets[i],nearest);
         if (hit.distance<nearest) { nearest=hit.distance; result=hit.ring>=0?int(i):-1; }
     }
+    if (intersectNpcs(player.position,player.forward(),nearest,npcColliders()).distance<nearest) result=-1;
     distance=result<0?0:length(targets[result].position-player.position);
     return result;
 }
 bool Game::fire() {
-    if (cooldown>0) return false;
+    if (cooldown>0 || !gameplayActive()) return false;
     const auto& spec=weaponSpec(weapon);
     const Vec3 muzzle=weaponMuzzle(weapon,player);
     float aimDistance=100;
     for (const auto& object:staticObjects)
         aimDistance=std::min(aimDistance,intersectCube(player.position,player.forward(),object.transform,aimDistance));
-    for (const auto& t:targets) if (t.respawn<=0)
+    for (const auto& t:targets) if (t.respawn<=0 && !t.eliminated)
         aimDistance=std::min(aimDistance,intersectTarget(player.position,player.forward(),t,aimDistance).distance);
+    aimDistance=std::min(aimDistance,intersectNpcs(player.position,player.forward(),aimDistance,npcColliders()).distance);
     const Vec3 direction=normalize(player.position+player.forward()*aimDistance-muzzle);
     const Vec3 right=normalize(cross(direction,{0,1,0})), up=normalize(cross(right,direction));
     // Reject a muzzle beyond nearby cover instead of shooting through the cover.
@@ -97,11 +107,18 @@ void Game::update(float dt) {
     while (dt>0) { const float step=std::min(dt,1.0f/120); updateStep(step); dt-=step; }
 }
 void Game::updateStep(float dt) {
-    elapsed+=dt; cooldown=std::max(0.0f,cooldown-dt); recoil=std::max(0.0f,recoil-dt*7);
+    ScoreSystem::update(scoreFeedback,dt); dangerTime=std::max(0.0f,dangerTime-dt);
+    if (challenge && !gameplayActive()) { levels.updateTransition(dt); return; }
+    elapsed+=dt; if (challenge) levels.levelTime+=dt;
+    cooldown=std::max(0.0f,cooldown-dt); recoil=std::max(0.0f,recoil-dt*7);
     feedbackTime=std::max(0.0f,feedbackTime-dt);
-    for (auto& t:targets) updateTarget(t,elapsed,dt);
+    for (auto& t:targets) updateTarget(t,challenge?levels.levelTime:elapsed,dt);
+    if (challenge) updateNpcs(dt);
     updateProjectiles(projectiles,targets,staticObjects,dt,
-        [this](std::size_t index,int ring,std::uint64_t shot) { applyTargetHit(index,ring,shot); });
+        [this](std::size_t index,int ring,std::uint64_t shot) { applyTargetHit(index,ring,shot); },
+        projectiles.empty()?std::vector<NpcCollider>{}:npcColliders(),
+        [this](bool human,std::size_t index,std::uint64_t shot) { applyNpcHit(human,index,shot); });
+    if (challenge && levels.finishIfComplete(targets,*this)) projectiles.clear();
     for (auto& piece:debris) {
         piece.life-=dt; piece.velocity.y-=7*dt;
         piece.position=piece.position+piece.velocity*dt;
@@ -111,18 +128,19 @@ void Game::updateStep(float dt) {
 }
 void Game::applyTargetHit(std::size_t index,int ring,std::uint64_t shotId) {
     auto& t=targets.at(index);
-    if (t.respawn>0 || ring<0 || ring>5) return;
+    if (!gameplayActive() || t.eliminated || t.respawn>0 || ring<0 || ring>5) return;
     const int damage=ringDamage(ring);
     int& previous=t.damageByShot[shotId];
     if (damage<=previous) return;
     if (previous==0) { ++hits; soundEvents.push_back(SoundEvent::Hit); }
     // A shotgun trigger counts once: later pellets may upgrade to a better ring,
     // but their damage is never summed as if they were separate shots.
-    t.health-=damage-previous; score+=damage-previous; previous=damage;
+    t.health-=damage-previous; if (!challenge) score+=damage-previous; previous=damage;
     t.hitTime=.25f; lastRing=ring; feedbackTime=.9f;
     if (t.health<=0) {
-        t.health=0; t.respawn=1.8f; ++destroyed; score+=100;
-        if (ring==0) ++bullseyes;
+        t.health=0;
+        if (challenge) { t.eliminated=true; ScoreSystem::target(*this,scoreFeedback,t.damageByShot.size()==1); }
+        else { t.respawn=1.8f; ++destroyed; score+=100; if (ring==0) ++bullseyes; }
         soundEvents.push_back(SoundEvent::Break);
         for (int i=0;i<12;++i) {
             const float angle=i*2*pi/12;
@@ -156,6 +174,12 @@ std::vector<SceneObject> Game::scene(bool includePlayer) const {
         const auto parts=createTargetObjects(targets[i],i);
         objects.insert(objects.end(),parts.begin(),parts.end());
     }
+    for (std::size_t i=0;i<birds.size();++i) if (birds[i].active) {
+        const auto parts=createBirdObjects(birds[i],i); objects.insert(objects.end(),parts.begin(),parts.end());
+    }
+    for (std::size_t i=0;i<humans.size();++i) if (humans[i].active) {
+        const auto parts=createHumanObjects(humans[i],i); objects.insert(objects.end(),parts.begin(),parts.end());
+    }
     if (includePlayer) {
         objects.push_back(makeCube("PLAYER_BODY","Player","Shooter body",player.position+Vec3{0,-.8f,0},{.65f,.95f,.4f},{.18f,.40f,.45f},-player.yaw-90));
         objects.push_back(makeCube("PLAYER_HEAD","Player","Shooter head",player.position+Vec3{0,.05f,0},{.4f,.4f,.4f},{.75f,.62f,.46f}));
@@ -168,6 +192,11 @@ std::vector<SceneObject> Game::scene(bool includePlayer) const {
     for (const auto& p:debris) {
         auto o=makeCube("TARGET_FRAGMENT_"+std::to_string(p.id),"Hit effect","Break fragment",p.position,{.12f,.12f,.05f},{.95f,.4f,.14f});
         o.transform.rotation=p.rotation; objects.push_back(o);
+    }
+    if (challenge) for (auto& object:objects) {
+        object.level=levels.config.number;
+        object.id="L"+std::to_string(object.level)+"_"+object.id;
+        object.notes+="; challenge level "+std::to_string(object.level)+"; level time="+std::to_string(levels.levelTime);
     }
     return objects;
 }

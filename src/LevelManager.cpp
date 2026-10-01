@@ -1,0 +1,41 @@
+#include "LevelManager.h"
+#include "levels/Level1.h"
+#include "levels/Level2.h"
+#include "levels/Level3.h"
+#include "levels/Level4.h"
+#include "levels/Level5.h"
+#include "levels/Level6.h"
+#include "levels/Level7.h"
+#include <algorithm>
+#include <stdexcept>
+namespace shooter {
+LevelConfig levelConfiguration(int number) {
+    switch (number) {
+    case 1:return Level1{}.configure(); case 2:return Level2{}.configure();
+    case 3:return Level3{}.configure(); case 4:return Level4{}.configure();
+    case 5:return Level5{}.configure(); case 6:return Level6{}.configure();
+    case 7:return Level7{}.configure();
+    default:throw std::invalid_argument("Level must be 1 through 7.");
+    }
+}
+void LevelManager::load(int number) {
+    config=levelConfiguration(number); stage=LevelStage::Intro; transition=0; levelTime=0;
+}
+void LevelManager::updateTransition(float dt) {
+    if (stage==LevelStage::Active) return;
+    transition+=dt;
+    if (stage==LevelStage::Intro && transition>=1.5f) { stage=LevelStage::Active; transition=0; }
+}
+bool LevelManager::finishIfComplete(const std::vector<Target>& targets, RunStats& stats) {
+    if (stage!=LevelStage::Active || targets.empty() ||
+        !std::all_of(targets.begin(),targets.end(),[](const Target& t) { return t.eliminated; })) return false;
+    ++stats.levelsCleared; completedStats=stats; transition=0;
+    stage=config.number==7?LevelStage::Finished:LevelStage::Complete;
+    return true;
+}
+bool LevelManager::readyToAdvance() const { return stage==LevelStage::Complete && transition>=1.0f; }
+bool LevelManager::advance() {
+    if (!readyToAdvance()) return false;
+    load(config.number+1); return true;
+}
+}
