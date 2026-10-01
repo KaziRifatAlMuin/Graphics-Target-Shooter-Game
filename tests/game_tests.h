@@ -2,6 +2,8 @@
 #include "Game.h"
 #include "Interface.h"
 #include "Sound.h"
+#include "CsvLogger.h"
+#include <fstream>
 
 void gameTests() {
     const auto cargo=generateCargoLayout(2107042), same=generateCargoLayout(2107042), other=generateCargoLayout(17);
@@ -10,10 +12,17 @@ void gameTests() {
     for (std::size_t i=0;i<cargo.size();++i) {
         near(cargo[i].transform.position.x,same[i].transform.position.x);
         near(cargo[i].transform.position.z,same[i].transform.position.z);
-        require(std::abs(cargo[i].transform.position.x)>16,"Cargo obstructs the center lane.");
+        require(std::abs(cargo[i].transform.position.x)>12,"Cargo obstructs reserved target corridors.");
         if (i<other.size()) changed|=cargo[i].transform.position.x!=other[i].transform.position.x;
     }
     require(changed,"Cargo seed has no effect.");
+    require(cargo.size()>900,"Cargo foundation is too sparse.");
+    for (const auto& o:cargo) if (o.component=="Crate") near(o.transform.scale.y,.6f);
+    // Walking routes connect every target area, including the far rifle lane.
+    Game routes;
+    for (float z=-5;z>=-95;z-=1) require(canStandAt({0,1.7f,z},routes.staticObjects),"Central walking route blocked.");
+    for (float z:{-15.f,-25.f,-35.f,-45.f,-55.f,-75.f,-85.f})
+        for (float x=-21;x<=21;x+=.5f) require(canStandAt({x,1.7f,z},routes.staticObjects),"Cross aisle blocked.");
     Transform box; box.position={0,0,-5}; box.scale={2,2,.3f}; box.rotation.y=45;
     near(intersectCube({0,0,0},{0,0,-1},box,10),5-.15f/std::cos(radians(45)));
     require(!std::isfinite(intersectCube({5,0,0},{0,0,-1},box,10)),"Ray outside box should miss.");
@@ -59,6 +68,10 @@ void gameTests() {
     require(hit.destroyed==1 && hit.targets[0].respawn>0,"Target destruction did not trigger respawn.");
     hit.update(2);
     require(hit.targets[0].health==60 && hit.targets[0].respawn==0,"Target did not reset after hit.");
+    auto restarted=controlled(); restarted.fire();
+    const auto firstId=restarted.projectiles.front().id;
+    restarted.reset(); restarted.fire();
+    require(restarted.projectiles.front().id>firstId,"New session reuses an ID retained by CSV history.");
 
     auto blocked=controlled();
     obstacle.transform.position={0,1.7f,-9}; obstacle.transform.scale={4,4,.2f}; blocked.staticObjects.push_back(obstacle);
@@ -83,6 +96,18 @@ void gameTests() {
     require(createWeapon(WeaponType::Shotgun,rifle.player).size()!=createWeapon(WeaponType::Pistol,rifle.player).size(),"Weapon models are not distinct.");
 
     Game snapshot;
+    for (const char* display:{"DISPLAY_PISTOL_BODY","DISPLAY_SHOTGUN_BODY","DISPLAY_RIFLE_BODY","DISPLAY_PROJECTILE_0","DISPLAY_PROJECTILE_1","DISPLAY_PROJECTILE_2"}) {
+        const auto initialScene=snapshot.scene();
+        require(std::any_of(initialScene.begin(),initialScene.end(),[&](const SceneObject& o) { return o.id==display; }),
+                "A required starting CSV representative is not actually rendered in the scene.");
+    }
+    CsvLogger logger;
+    // Only real scene instances are exported: select/fire all weapons to observe them.
+    for (auto weapon:{WeaponType::Pistol,WeaponType::Shotgun,WeaponType::Rifle}) {
+        snapshot.weapon=weapon; snapshot.cooldown=0;
+        require(snapshot.fire(),"Snapshot test could not fire a real projectile.");
+        logger.observe(snapshot.calculationObjects(),snapshot.elapsed,snapshot.night);
+    }
     std::set<std::string> ids;
     bool target=false,cargoRow=false,pistol=false,shotgunRow=false,rifleRow=false,projectile=false;
     for (const auto& o:snapshot.calculationObjects()) {
@@ -90,7 +115,18 @@ void gameTests() {
         target|=o.type=="Target"; cargoRow|=o.type=="Cargo"; projectile|=o.type=="Projectile";
         pistol|=o.id=="PISTOL_BODY"; shotgunRow|=o.id=="SHOTGUN_BODY"; rifleRow|=o.id=="RIFLE_BODY";
     }
-    require(target&&cargoRow&&pistol&&shotgunRow&&rifleRow&&projectile,"CSV snapshot is missing a major object category.");
+    require(target&&cargoRow&&!pistol&&!shotgunRow&&rifleRow&&projectile,"Snapshot contains fabricated inactive weapon rows.");
+    snapshot.projectiles.clear();
+    logger.observe(snapshot.calculationObjects(),snapshot.elapsed,snapshot.night);
+    const auto csvPath=std::filesystem::temp_directory_path()/"shooter-phase1-test.csv";
+    logger.save(csvPath);
+    std::ifstream csv(csvPath); const std::string contents((std::istreambuf_iterator<char>(csv)),{}); csv.close();
+    require(contents.find("Phase,Object_ID") == 0,"CSV phase metadata missing.");
+    for (const char* id:{"PISTOL_BODY","SHOTGUN_BODY","RIFLE_BODY","PROJECTILE_"})
+        require(contents.find(id)!=std::string::npos,"Observed weapon/projectile missing from CSV.");
+    require(contents.find("retained last actual observation")!=std::string::npos,"Transient observation lost.");
+    require(contents.find("Unit Disk")==std::string::npos && contents.find("SAMPLE_PROJECTILE")==std::string::npos,"CSV contains invented geometry.");
+    std::filesystem::remove(csvPath);
     require(clickedAction(Screen::Menu,150,420)==Action::Start,"Start button does not activate.");
     require(clickedAction(Screen::Menu,150,490)==Action::Controls,"Controls button does not activate.");
     require(clickedAction(Screen::Paused,150,420)==Action::Resume,"Resume button does not activate.");

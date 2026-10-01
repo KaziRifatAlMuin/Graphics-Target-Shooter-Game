@@ -1,8 +1,8 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -Iinclude
 LDFLAGS = -Llib -lglfw3 -lopengl32 -lgdi32 -lwinmm
-CORE = src/Arena.cpp src/Camera.cpp src/Game.cpp src/Weapon.cpp src/Interface.cpp src/Lighting.cpp src/Sound.cpp
-SRC = src/main.cpp $(CORE) src/Renderer.cpp src/glad.c
+CORE = src/Arena.cpp src/Camera.cpp src/Game.cpp src/Weapon.cpp src/Interface.cpp src/Lighting.cpp src/Sound.cpp src/Collision.cpp src/CsvLogger.cpp src/Cargo.cpp src/Environment.cpp src/Target.cpp src/Projectile.cpp
+SRC = src/main.cpp src/Application.cpp $(CORE) src/Renderer.cpp src/glad.c
 HEADERS = $(wildcard src/*.h)
 TARGET = main.exe
 

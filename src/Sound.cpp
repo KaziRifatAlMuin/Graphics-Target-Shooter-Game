@@ -1,4 +1,6 @@
 #include "Sound.h"
+#include "Transform.h"
+#include <cstdint>
 #include <algorithm>
 #include <array>
 #include <cmath>

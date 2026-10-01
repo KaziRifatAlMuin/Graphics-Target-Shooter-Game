@@ -60,6 +60,8 @@ void Renderer::initialize(const std::filesystem::path& directory) {
     emissionLocation=glGetUniformLocation(program,"emission");
     patternLocation=glGetUniformLocation(program,"targetPattern");
     flashLocation=glGetUniformLocation(program,"targetFlash");
+    patternScaleLocation=glGetUniformLocation(program,"patternScale");
+    patternOffsetLocation=glGetUniformLocation(program,"patternOffset");
     if (modelLocation<0 || viewLocation<0 || projectionLocation<0 || colorLocation<0)
         throw std::runtime_error("Required shader uniform missing.");
 
@@ -77,19 +79,6 @@ void Renderer::initialize(const std::filesystem::path& directory) {
         const Vec3 n=normals[face];
         vertices.insert(vertices.end(),{p.x,p.y,p.z,n.x,n.y,n.z});
     }
-    // Circular targets use a thin 96-sided disk; other models retain the unit cube.
-    auto appendVertex=[&](Vec3 p,Vec3 n) { vertices.insert(vertices.end(),{p.x,p.y,p.z,n.x,n.y,n.z}); };
-    for (int i=0;i<96;++i) {
-        const float a=i*2*pi/96,b=(i+1)*2*pi/96;
-        const Vec3 na{std::cos(a),std::sin(a),0},nb{std::cos(b),std::sin(b),0};
-        const Vec3 af{na.x*.5f,na.y*.5f,.5f},bf{nb.x*.5f,nb.y*.5f,.5f};
-        const Vec3 ab{af.x,af.y,-.5f},bb{bf.x,bf.y,-.5f};
-        appendVertex({0,0,.5f},{0,0,1}); appendVertex(af,{0,0,1}); appendVertex(bf,{0,0,1});
-        appendVertex({0,0,-.5f},{0,0,-1}); appendVertex(bb,{0,0,-1}); appendVertex(ab,{0,0,-1});
-        appendVertex(af,na); appendVertex(ab,na); appendVertex(bb,nb);
-        appendVertex(af,na); appendVertex(bb,nb); appendVertex(bf,nb);
-    }
-    diskVertices=static_cast<GLsizei>(vertices.size()/6)-36;
     glGenVertexArrays(1,&vao); glGenBuffers(1,&vbo);
     glBindVertexArray(vao); glBindBuffer(GL_ARRAY_BUFFER,vbo);
     glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(float)),vertices.data(),GL_STATIC_DRAW);
@@ -135,9 +124,10 @@ void Renderer::drawTransformedCube(const SceneObject& object) {
     glUniform3f(colorLocation,object.color.x,object.color.y,object.color.z);
     glUniform1f(specularLocation,object.specular); glUniform1f(shininessLocation,object.shininess);
     glUniform1f(emissionLocation,object.emission); glUniform1f(flashLocation,object.flash);
-    const bool disk=object.primitive==Primitive::RoundTarget;
-    glUniform1i(patternLocation,disk);
-    glDrawArrays(GL_TRIANGLES,disk?36:0,disk?diskVertices:36);
+    glUniform1i(patternLocation,object.targetPattern);
+    glUniform3f(patternScaleLocation,object.patternScale.x,object.patternScale.y,object.patternScale.z);
+    glUniform3f(patternOffsetLocation,object.patternOffset.x,object.patternOffset.y,object.patternOffset.z);
+    glDrawArrays(GL_TRIANGLES,0,36);
 }
 void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection,Vec3 eye,bool night) {
     glDisable(GL_DEPTH_TEST); glDepthMask(GL_FALSE);

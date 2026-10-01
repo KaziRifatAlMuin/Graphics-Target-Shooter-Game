@@ -11,5 +11,4 @@ struct LightingRig {
 };
 LightingRig createLighting(bool night);
 std::vector<SceneObject> createLightFixtures();
-std::vector<SceneObject> createCelestialObjects(bool night);
 }

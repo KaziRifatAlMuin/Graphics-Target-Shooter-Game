@@ -37,11 +37,4 @@ std::vector<SceneObject> createLightFixtures() {
     }
     return objects;
 }
-std::vector<SceneObject> createCelestialObjects(bool night) {
-    Transform t; t.position={25,35,-80}; t.scale=night?Vec3{3,3,3}:Vec3{4,4,4}; t.rotation={0,25,15};
-    SceneObject body{night?"MOON_VIS":"SUN_VIS","Environment",night?"Moon visual":"Sun visual",t,
-        night?Vec3{.55f,.67f,.90f}:Vec3{1,.82f,.38f},night?"Emissive moon; dim directional fill":"Emissive sun; daytime directional source"};
-    body.emission=1;
-    return {body};
-}
 }

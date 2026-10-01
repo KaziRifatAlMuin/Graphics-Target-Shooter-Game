@@ -1,4 +1,4 @@
-#include "Game.h"
+#include "Weapon.h"
 
 namespace shooter {
 const WeaponSpec& weaponSpec(WeaponType type) {

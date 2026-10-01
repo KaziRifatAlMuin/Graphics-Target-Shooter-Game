@@ -1,5 +1,6 @@
 #pragma once
-#include "Game.h"
+#include "SoundEvent.h"
+#include <vector>
 #include <memory>
 
 namespace shooter {

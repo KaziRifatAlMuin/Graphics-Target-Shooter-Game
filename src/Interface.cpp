@@ -82,7 +82,7 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
     Painter p;
     if (screen!=Screen::Playing) {
         p.rect(56,66,530,668,{.035f,.065f,.09f}); p.rect(56,66,5,668,teal);
-        p.text(96,104,"RANGE / 2107042",2,teal);
+        p.text(96,104,"PHASE 1 / TRAINING SANDBOX",2,teal);
         if (screen==Screen::Controls) {
             p.text(96,158,"CONTROLS",4,ink);
             const char* lines[]={"WASD       WALK / FREE CAMERA","MOUSE      LOOK AND AIM","LEFT CLICK / SPACE    FIRE",
