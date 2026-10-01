@@ -1,5 +1,6 @@
 #pragma once
 #include "SceneObject.h"
+#include "Movement.h"
 #include <cstdint>
 #include <unordered_map>
 
@@ -7,6 +8,8 @@ namespace shooter {
 struct Target {
     Vec3 base, position;
     int movement=0;
+    MovementPattern motion;
+    bool eliminated=false;
     static constexpr float radius=.8f, thickness=.16f;
     float phase=0, yaw=0, health=60, hitTime=0, respawn=0;
     std::unordered_map<std::uint64_t,int> damageByShot;

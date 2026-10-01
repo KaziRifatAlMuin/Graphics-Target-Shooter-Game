@@ -59,7 +59,7 @@ double verifyFrame(int width,int height,const fs::path& capture,bool checkScene)
     return brightness/(width*height);
 }
 void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path& csvPath,
-              bool smoke,const fs::path& capture) {
+              bool smoke,const fs::path& capture,bool challengeSmoke) {
     CsvLogger calculations;
     Renderer renderer;
     renderer.initialize(root/"shaders");
@@ -69,7 +69,7 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
     std::cout<<(game.soundAvailable?"Audio: output device opened.\n":"Audio: no output device; continuing with sound unavailable.\n");
     sound.setEnabled(game.soundEnabled&&!smoke);
     glEnable(GL_DEPTH_TEST);
-    Screen screen=Screen::Menu,controlsReturn=Screen::Menu;
+    Screen screen=game.challenge?Screen::Playing:Screen::Menu,controlsReturn=Screen::Menu;
     bool pointerUnlocked=false,captured=false,previousClick=false,snapshotDirty=false,fireArmed=false;
     std::array<bool,GLFW_KEY_LAST+1> previousKeys{};
     double previous=glfwGetTime(),lastX=0,lastY=0;
@@ -78,7 +78,9 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
     double dayBrightness=0;
     auto action=[&](Action a) {
         switch (a) {
-        case Action::Start: game.reset(); screen=Screen::Playing; pointerUnlocked=false; fireArmed=false; snapshotDirty=true; break;
+        case Action::Start: game.startChallenge(); screen=Screen::Playing; pointerUnlocked=false; fireArmed=false; snapshotDirty=true; break;
+        case Action::Practice: game.reset(); screen=Screen::Playing; pointerUnlocked=false; fireArmed=false; snapshotDirty=true; break;
+        case Action::NextLevel: if (game.nextLevel()) { screen=Screen::Playing; pointerUnlocked=false; fireArmed=false; snapshotDirty=true; } break;
         case Action::Resume: screen=Screen::Playing; pointerUnlocked=false; fireArmed=false; break;
         case Action::Controls: controlsReturn=screen; screen=Screen::Controls; break;
         case Action::Back: screen=controlsReturn; break;
@@ -113,12 +115,14 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
             if (screen==Screen::Playing) action(Action::Menu);
             else if (screen==Screen::Paused) action(Action::Resume);
             else if (screen==Screen::Controls) action(Action::Back);
+            else if (screen==Screen::LevelComplete || screen==Screen::Victory) action(Action::Menu);
             else action(Action::Exit);
             consumed=true;
         }
         if (pressed(GLFW_KEY_ENTER) && (screen==Screen::Menu || screen==Screen::Paused)) {
             action(screen==Screen::Menu?Action::Start:Action::Resume); consumed=true;
         }
+        if (pressed(GLFW_KEY_ENTER) && screen==Screen::LevelComplete) { action(Action::NextLevel); consumed=true; }
         double mouseX,mouseY;
         glfwGetCursorPos(window,&mouseX,&mouseY);
         int windowW,windowH;
@@ -173,7 +177,7 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
             // Exercise the same menu actions as pointer/keyboard input, then each view/weapon.
             if (frame==1) action(Action::Controls);
             if (frame==2) action(Action::Back);
-            if (frame==3) action(Action::Start);
+            if (frame==3) action(Action::Practice);
             if (frame==4) { aimAtPractice(); game.fire(); }
             if (frame==30) { action(Action::Shotgun); aimAtPractice(); game.fire(); }
             if (frame==90) { action(Action::Rifle); aimAtPractice(); game.fire(); }
@@ -194,10 +198,23 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
                 game.freeCamera.position=game.targets[0].base+Vec3{0,0,frame==136?3.0f:-3.0f};
                 game.freeCamera.yaw=frame==136?-90:90; game.freeCamera.pitch=0;
             }
+            if (challengeSmoke && frame>=139) {
+                const int phase=(frame-139)%240,level=(frame-139)/240+1;
+                if (phase==0) {
+                    action(level==1?Action::Start:Action::NextLevel);
+                    if (!game.challenge || game.levels.config.number!=level) throw std::runtime_error("Challenge progression failed.");
+                }
+                if (phase==100) { game.setCamera(2); if (!game.birds.empty()) game.applyNpcHit(false,0,10000+level); }
+                if (phase==110 && !game.humans.empty()) game.applyNpcHit(true,0,20000+level);
+                // Lifecycle test injection; separate CPU tests cover actual swept projectile contacts.
+                if (phase==150) for (std::size_t i=0;i<game.targets.size();++i) game.applyTargetHit(i,0,30000+level*100+i);
+            }
         }
-        if (screen==Screen::Playing) {
+        if (screen==Screen::Playing || screen==Screen::LevelComplete || screen==Screen::Victory) {
             game.update(dt); sinceSnapshot+=dt;
             if (sinceSnapshot>=1) snapshotDirty=true;
+            if (game.challenge && game.levels.stage==LevelStage::Complete) screen=Screen::LevelComplete;
+            if (game.challenge && game.levels.stage==LevelStage::Finished) screen=Screen::Victory;
         }
         for (auto event:game.soundEvents) sound.play(event);
         game.soundEvents.clear(); sound.update(); game.soundAvailable=sound.available();
@@ -221,6 +238,12 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
             if (frame==127 && brightness>=dayBrightness*.9) throw std::runtime_error("Night lighting did not visibly change the scene.");
         }
         renderer.drawInterface(buildInterface(game,screen,ux,uy,pointerFree));
+        if (challengeSmoke && frame>=139 && ((frame-139)%240==140 || (frame-139)%240==180)) {
+            fs::path output;
+            if (!capture.empty()) output=capture.parent_path()/(capture.stem().string()+"-level-"+
+                std::to_string(game.levels.config.number)+((frame-139)%240==180?"-complete":"")+capture.extension().string());
+            verifyFrame(width,height,output,true);
+        }
         if (smoke && (frame==0 || frame==1 || frame==10 || frame==35 || frame==120 || frame==125 || frame==127 || frame==129 || frame==136 || frame==137)) {
             fs::path output;
             if (!capture.empty()) {
@@ -235,6 +258,12 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
                 throw std::runtime_error("Smoke gameplay did not hit with all three weapons and demonstrate target destruction.");
             if (audioOpened&&!sound.available()) throw std::runtime_error("Audio device failed while queuing playback buffers.");
             std::cout<<"PASS: menus, cameras, all three weapon hits, target destruction, day/night lighting, cube target front/back, sound toggles, scene and UI rendering.\n";
+            if (!challengeSmoke) glfwSetWindowShouldClose(window,GLFW_TRUE);
+        }
+        if (challengeSmoke && frame==139+6*240+225) {
+            if (game.levels.stage!=LevelStage::Finished || game.levelsCleared!=7 || game.destroyed!=46 || game.score!=6400)
+                throw std::runtime_error("Seven-level smoke statistics failed.");
+            std::cout<<"PASS: all seven Challenge levels rendered and cleared sequentially; 46 targets, 3 bird penalties, 1 human penalty, score 6400.\n";
             glfwSetWindowShouldClose(window,GLFW_TRUE);
         }
         glfwSwapBuffers(window); ++frame;
@@ -245,22 +274,27 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
 int shooter::Application::run(int argc,char** argv) {
     GLFWwindow* window=nullptr; bool initialized=false;
     try {
-        bool exportOnly=false,smoke=false;
+        bool exportOnly=false,smoke=false,challengeSmoke=false;
+        int testLevel=0;
         fs::path csvPath,capture;
         for (int i=1;i<argc;++i) {
             const std::string arg=argv[i];
             if (arg=="--export-calc") exportOnly=true;
             else if (arg=="--smoke-test") smoke=true;
+            else if (arg=="--challenge-smoke-test") smoke=challengeSmoke=true;
+            else if (arg=="--test-level" && i+1<argc) testLevel=std::stoi(argv[++i]);
             else if ((arg=="--calc" || arg=="--capture") && i+1<argc) (arg=="--calc"?csvPath:capture)=argv[++i];
             else if (arg=="--help") {
-                std::cout<<"3D Target Shooter - Phase 1 of 4 - Playable Sandbox\n"
-                    "Start menu: START SESSION / VIEW CONTROLS / EXIT. Enter starts; Esc pauses.\n"
+                std::cout<<"3D Target Shooter - Phase 2 of 4 - Seven Level Challenge\n"
+                    "Enter starts Challenge; Practice Sandbox preserves Phase 1. Esc pauses.\n"
                     "WASD move, mouse aim, click/Space fire, 1/2/3 weapons, Shift sprint, Tab pointer.\n"
-                    "F1 player, F2 arena, F3 side, F4 free camera, Q/E fly, R reset targets, F5 snapshot.\n"
+                    "F1 player, F2 arena, F3 side, F4 free camera, Q/E fly, R restart level, F5 snapshot.\n"
                     "N day/night, M sound on/off. Front-only scoring: 1 center shot through 6 outer-ring shots.\n"
                     "--export-calc : export a deterministic starting snapshot without OpenGL\n"
                     "--calc PATH   : override calculation output (default: project root/calc.csv)\n"
                     "--smoke-test  : run scripted menu/gameplay rendering checks in a hidden window\n"
+                    "--challenge-smoke-test : also render and exercise all seven level lifecycles\n"
+                    "--test-level N: independently test a Challenge level (1-7); no saved progress\n"
                     "--capture PATH: with --smoke-test, save player/menu/controls/arena PPM previews\n";
                 return 0;
             } else throw std::runtime_error("Unknown or incomplete argument: "+arg);
@@ -268,6 +302,7 @@ int shooter::Application::run(int argc,char** argv) {
         if ((!capture.empty()&&!smoke)||(exportOnly&&smoke)) throw std::runtime_error("Use --capture with --smoke-test; run --export-calc separately.");
         const auto root=projectDirectory(argv[0]);
         Game game;
+        if (testLevel) game.startChallenge(testLevel);
         if (csvPath.empty()) csvPath=root/"calc.csv";
         const auto calculations=game.calculationObjects();
         writeCalculations(calculations,csvPath);
@@ -286,7 +321,7 @@ int shooter::Application::run(int argc,char** argv) {
             throw std::runtime_error("OpenGL 3.3 is required.");
         glfwSwapInterval(smoke?0:1);
         std::cout<<"OpenGL: "<<glGetString(GL_VERSION)<<"\nRenderer: "<<glGetString(GL_RENDERER)<<'\n';
-        runScene(window,root,game,csvPath,smoke,capture);
+        runScene(window,root,game,csvPath,smoke,capture,challengeSmoke);
         glfwDestroyWindow(window); glfwTerminate(); return 0;
     } catch (const std::exception& error) {
         std::cerr<<"Error: "<<error.what()<<'\n';

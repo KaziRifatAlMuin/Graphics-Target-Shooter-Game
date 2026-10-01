@@ -3,6 +3,7 @@
 #include <cstdint>
 #include "Target.h"
 #include <functional>
+#include "Npc.h"
 
 namespace shooter {
 struct Projectile {
@@ -14,6 +15,8 @@ struct Projectile {
 };
 SceneObject projectileObject(const Projectile& projectile);
 using TargetHitCallback=std::function<void(std::size_t,int,std::uint64_t)>;
+using NpcHitCallback=std::function<void(bool,std::size_t,std::uint64_t)>;
 void updateProjectiles(std::vector<Projectile>& projectiles, const std::vector<Target>& targets,
-                       const std::vector<SceneObject>& obstacles, float dt, const TargetHitCallback& hit);
+                       const std::vector<SceneObject>& obstacles, float dt, const TargetHitCallback& hit,
+                       const std::vector<NpcCollider>& npcs={}, const NpcHitCallback& npcHit={});
 }

@@ -2,8 +2,8 @@
 #include "Game.h"
 
 namespace shooter {
-enum class Screen { Menu, Controls, Playing, Paused };
-enum class Action { None, Start, Resume, Controls, Back, Menu, Exit, Pistol, Shotgun, Rifle, DayNight, Sound };
+enum class Screen { Menu, Controls, Playing, Paused, LevelComplete, Victory };
+enum class Action { None, Start, Practice, NextLevel, Resume, Controls, Back, Menu, Exit, Pistol, Shotgun, Rifle, DayNight, Sound };
 struct UiVertex { float x,y,r,g,b; };
 struct Button { float x,y,w,h; const char* text; Action action; };
 std::vector<Button> screenButtons(Screen screen);

@@ -2,8 +2,41 @@
 #include <algorithm>
 #include <random>
 #include <stdexcept>
+#include "levels/LevelBase.h"
 
 namespace shooter {
+std::vector<SceneObject> generateChallengeCargo(const LevelConfig& level) {
+    auto objects=generateCargoLayout(level.seed,{1.8f,level.number<4?4:7});
+    if (level.number<4) return objects;
+    // Short warehouse screens block spawn sightlines but leave both ends walkable.
+    // Additional screens appear as the target population expands.
+    const int screens=2*(level.number-3);
+    for (int group=0;group<screens;++group) {
+        const auto& t=level.targets[group];
+        const float x=t.base.x*.75f,z=t.base.z+6;
+        for (int column=0;column<7;++column) {
+            const int height=column==0||column==6?4:5;
+            for (int layer=0;layer<height;++layer) {
+                const auto id="COVER_"+std::to_string(group)+"_"+std::to_string(column)+"_"+std::to_string(layer);
+                auto box=makeCube(id,"Cargo","Crate",{x+(column-3)*.605f,.3f+.6f*layer,z},
+                    {.6f,.6f,.6f},{.39f+.025f*(group%3),.34f,.24f});
+                box.notes="Challenge cargo screen; clear ends and reserved central route; group="+std::to_string(group);
+                objects.push_back(box);
+                objects.push_back(makeCube(id+"_BAND","Cargo","Crate band",box.transform.position,
+                    {.609f,.035f,.609f},{.20f,.23f,.24f}));
+            }
+        }
+    }
+    // Remove entire generated stack columns conflicting with a target's swept area.
+    // Includes stands and safety margin; deterministic filtering preserves the seed.
+    objects.erase(std::remove_if(objects.begin(),objects.end(),[&](const SceneObject& o) {
+        for (const auto& t:level.targets)
+            if (std::abs(o.transform.position.x-t.base.x)<t.motion.amplitude.x+1.5f &&
+                std::abs(o.transform.position.z-t.base.z)<t.motion.amplitude.z+1.2f) return true;
+        return false;
+    }),objects.end());
+    return objects;
+}
 std::vector<SceneObject> generateCargoLayout(unsigned seed, const CargoConfig& config) {
     if (config.humanHeight<1 || config.humanHeight>2.4f || config.rows<1 || config.rows>8)
         throw std::invalid_argument("Cargo configuration exceeds sandbox reserved zones.");
