@@ -16,7 +16,14 @@
 #include <optional>
 
 namespace shooter {
-struct Debris { std::uint64_t id; Vec3 position, velocity, rotation; float life; };
+struct Debris {
+    std::uint64_t id;
+    Vec3 position, velocity, rotation;
+    float life;
+    Vec3 color{.95f,.4f,.14f};
+    Vec3 scale{.12f,.12f,.05f};
+    bool isBlood=false;
+};
 class Game : public RunStats {
 public:
     Game();
@@ -52,6 +59,7 @@ public:
     bool gameplayActive() const;
     int remainingTargets() const;
     void applyNpcHit(bool human, std::size_t index, std::uint64_t shotId);
+    void spawnBlood(Vec3 position, int count);
     void movePlayer(float forward, float right, float dt, bool fast);
     void update(float dt);
     bool fire();
@@ -75,6 +83,7 @@ private:
     bool canStand(Vec3 position) const;
     void loadCurrentLevel();
     void updateNpcs(float dt);
+    void updateNpcDeaths(float dt);
     std::vector<NpcCollider> npcColliders() const;
 };
 }

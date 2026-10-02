@@ -36,6 +36,17 @@ Human createHuman(std::size_t zone, Vec3 home, unsigned seed, const std::vector<
     h.destination=humanDestination(h); return h;
 }
 void updateHuman(Human& h, float dt, const std::vector<SceneObject>& obstacles, const std::vector<Target>& targets) {
+    if (h.dying) {
+        h.deathTime+=dt;
+        const float progress=std::min(1.f,h.deathTime/.75f);
+        h.deathPitch=90*progress*progress;
+        if (h.deathTime>=0.75f) {
+            h.dying=false;
+            h.dead=true;
+        }
+        return;
+    }
+    if (h.dead) return;
     if (!h.active) return;
     // Moving stands are kinematic obstacles. Resolve overlap before the walk step.
     if (!clearHumanPosition(h.position,obstacles,targets)) {
@@ -63,18 +74,18 @@ void updateHuman(Human& h, float dt, const std::vector<SceneObject>& obstacles, 
     else { h.position=next; h.heading=std::atan2(-velocity.x,-velocity.z)*180/pi; }
 }
 std::vector<SceneObject> createHumanObjects(const Human& h, std::size_t index) {
-    if (!h.active) return {};
-    const auto id="HUMAN_"+std::to_string(index);
+    if (!h.active && !h.dying && !h.dead) return {};
+    const auto id=(h.dead?"DEAD_HUMAN_":h.dying?"DYING_HUMAN_":"HUMAN_")+std::to_string(index);
     const Vec3 skins[]={{.65f,.47f,.33f},{.84f,.66f,.49f},{.40f,.27f,.19f}};
     const Vec3 skin=skins[(index/3)%3], trousers{.15f,.20f,.28f};
     const Vec3 shirts[]={{.76f,.48f,.16f},{.21f,.47f,.53f},{.56f,.30f,.28f}};
     const Vec3 shirt=shirts[index%3];
-    const float walk=h.pause>0?0:std::sin(h.animation)*22;
+    const float walk=(h.dying || h.dead)?0.0f:(h.pause>0?0:std::sin(h.animation)*22);
     std::vector<SceneObject> parts;
     const float proportion=h.height/1.82f;
     auto add=[&](std::string name,Vec3 p,Vec3 s,Vec3 c,float rx=0) {
         parts.push_back(npcPart(h,id,"Human",name,p*proportion,s*proportion,c,rx));
-        parts.back().notes+="; standing height="+std::to_string(h.height)+" m; same cube transforms used by projectile collider";
+        parts.back().notes+="; standing height="+std::to_string(h.height)+(h.active?" m; live cube projectile collider":" m; cosmetic fallen body; no collider");
         parts.back().specular=.06f;
     };
     add("Torso",{0,1.12f,0},{.46f,.58f,.25f},shirt);
@@ -94,6 +105,7 @@ std::vector<SceneObject> createHumanObjects(const Human& h, std::size_t index) {
         add("Shin"+suffix,{side*.14f,.26f,std::sin(radians(swing))*.22f},{.15f,.35f,.17f},trousers,-swing*.5f);
         add("Shoe"+suffix,{side*.14f,.075f,-.04f+std::sin(radians(swing))*.22f},{.18f,.12f,.29f},{.10f,.11f,.12f});
     }
+    if(h.dying || h.dead) groundNpcParts(parts);
     return parts;
 }
 }

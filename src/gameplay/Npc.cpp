@@ -16,11 +16,23 @@ Vec3 npcDestination(NpcState& n, bool flying) {
 }
 SceneObject npcPart(const NpcState& n, const std::string& id, const std::string& type,
                    const std::string& component, Vec3 offset, Vec3 size, Vec3 color, float rx) {
-    const auto p=asVec3(transformPoint(makeRotationY(n.heading),{offset.x,offset.y,offset.z,0}));
+    const float fall=(n.dying || n.dead)?n.deathPitch:0;
+    const auto p=asVec3(transformPoint(makeRotationY(n.heading)*makeRotationX(fall),{offset.x,offset.y,offset.z,0}));
     auto part=makeCube(id+"_"+component,type,component,n.position+p,size,color,n.heading);
-    part.transform.rotation.x=rx; part.parent=id;
+    part.transform.rotation.x=rx+fall; part.parent=id;
     part.notes="Bounded target-zone NPC; zone="+std::to_string(n.zone+1)+"; animated cube assembly";
+    part.notes+="; life="+std::string(n.dead?"dead":n.dying?"falling":"alive")+"; death time="+std::to_string(n.deathTime);
     return part;
+}
+void groundNpcParts(std::vector<SceneObject>& parts,float ground) {
+    float lowest=ground;
+    for (const auto& part:parts) {
+        const auto model=composeModelMatrix(part.transform);
+        // Lowest transformed cube corner, computed analytically from the Y row.
+        const float extent=.5f*(std::abs(model.at(1,0))+std::abs(model.at(1,1))+std::abs(model.at(1,2)));
+        lowest=std::min(lowest,part.transform.position.y-extent);
+    }
+    for (auto& part:parts) part.transform.position.y+=ground-lowest;
 }
 NpcContact intersectNpcs(Vec3 o, Vec3 d, float maximum, const std::vector<NpcCollider>& colliders) {
     NpcContact result{std::numeric_limits<float>::infinity(),-1};

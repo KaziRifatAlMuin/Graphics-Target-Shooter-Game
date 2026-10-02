@@ -10,6 +10,7 @@ void writeCalculations(const std::vector<SceneObject>& objects, const std::files
 class CsvLogger {
 public:
     void observe(const std::vector<SceneObject>& objects, double time, bool night);
+    void observeTransient(const std::vector<SceneObject>& objects, double time, bool night);
     void save(const std::filesystem::path& path) const;
     std::vector<SceneObject> snapshot() const;
 private:

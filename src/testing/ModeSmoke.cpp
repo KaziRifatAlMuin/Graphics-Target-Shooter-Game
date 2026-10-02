@@ -40,11 +40,16 @@ float modeSmokeStep(int frame,SessionController& session,Game& game,Leaderboard&
         for (std::size_t i=0;i<game.targets.size();++i) game.applyTargetHit(i,0,60000+i);
         game.applyNpcHit(false,0,70000); game.applyNpcHit(true,0,70001);
         require(game.score==1500,"Free target/penalty scoring failed.");
+        game.setCamera(4); game.freeCamera.position=game.humans[0].position+Vec3{3,3,6};
+        game.freeCamera.yaw=-116.565f; game.freeCamera.pitch=-16;
+        return .1f;
     }
+    if (frame==797) game.setCamera(1);
     if (frame==822) require(game.targets[0].respawn>0 && !game.targets[0].eliminated,"Free target respawned early.");
     if (frame==825) {
         require(game.targets[0].health==60 && game.targets[0].respawn<=0,"Free target did not respawn after 30 seconds.");
         require(game.birds.size()==48 && game.humans.size()==36,"Free NPC zones were removed.");
+        require(game.birds[0].dead && game.humans[0].dead && !game.birds[0].active && !game.humans[0].active,"Dead NPC respawned with a target.");
         game.applyTargetHit(0,0,80000);
     }
     if (frame>=794 && frame<976) return 1; // Full 180 seconds of shared simulation, accelerated for automation.
@@ -64,11 +69,21 @@ float modeSmokeStep(int frame,SessionController& session,Game& game,Leaderboard&
     if (frame==987) { session.action(Action::Overview); game.birdEye.pan(1,1,.1f); game.birdEye.zoom(1); }
     if (frame==990) { session.action(Action::Menu); session.action(Action::Menu); click(session,game,Action::Leaderboard); }
     if (frame==992) click(session,game,Action::BoardFree);
+    if(frame==995) { session.action(Action::Menu); session.action(Action::Start); }
+    if(frame==997) { click(session,game,Action::ConfirmChallenge); require(session.ui.duplicateConfirmation,"Existing name did not require confirmation."); }
+    if(frame==999) { click(session,game,Action::RewriteName); for(char c:std::string("New Pilot")) session.type(c); require(!session.ui.nameExistsWarning,"Rewrite did not clear duplicate warning."); }
+    if(frame==1003) { session.action(Action::RewriteName); for(char c:game.playerName) session.type(c); session.action(Action::ConfirmChallenge); }
+    if(frame==1005) { click(session,game,Action::ConfirmChallenge); require(session.ui.screen==Screen::Playing && game.levels.config.number==1,"Confirmed existing name failed to restart Challenge."); }
     return 1.f/60;
 }
 std::string modeSmokeCapture(int frame) {
     if (frame==0) return "developer-menu";
     if (frame>=1 && frame<=700 && (frame-1)%100==92) return "developer-"+std::to_string((frame-1)/100+1);
+    if(frame==794) return "npc-death-impact";
+    if(frame==795) return "npc-fallen";
+    if(frame==995) return "challenge-name";
+    if(frame==998) return "duplicate-confirmation";
+    if(frame==1001) return "rewritten-name";
     if (frame==793) return "free-playing";
     if (frame==792) return "human-model";
     if (frame==821) return "free-respawn-warning";
@@ -80,11 +95,11 @@ std::string modeSmokeCapture(int frame) {
     return {};
 }
 bool modeSmokeFinished(int frame,SessionController&,Game& game,Leaderboard& board) {
-    if (frame!=995) return false;
+    if (frame!=1010) return false;
     board.load();
     require(board.rank(game.playerName,GameMode::Challenge)>0 && board.rank(game.playerName,GameMode::Free)>0,"Leaderboard reload lost results.");
     require(board.sorted(GameMode::Developer).empty() && board.sorted(GameMode::BirdsEye).empty(),"Inspection mode wrote a competitive record.");
-    std::cout<<"PASS: seven clickable Developer levels, full 180-second Free simulation and 30-second respawn, Free leaderboard, overhead picking/observation, persistent reload.\n";
+    std::cout<<"PASS: seven clickable Developer levels, full 180-second Free simulation and 30-second respawn, Free leaderboard, overhead picking/observation, persistent reload, permanent NPC deaths and Challenge name confirmation/rewrite.\n";
     return true;
 }
 }

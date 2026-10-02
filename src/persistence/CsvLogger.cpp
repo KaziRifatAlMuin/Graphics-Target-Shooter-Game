@@ -84,10 +84,21 @@ void CsvLogger::observe(const std::vector<SceneObject>& objects, double time, bo
         o.notes+="; observed at simulation time="+std::to_string(time)+" s; mode="+(night?"NIGHT":"DAY");
         // Bound history by component, not by projectile ID: unlimited play stays small.
         {
-            const bool transient=(o.type=="Projectile"||o.type=="Hit effect") && o.id.find("DISPLAY_")==std::string::npos;
+            const bool transient=(o.type=="Projectile"||o.type=="Hit effect"||o.type=="Blood") && o.id.find("DISPLAY_")==std::string::npos;
             const auto key=transient?o.mode+std::to_string(o.level)+o.type+o.component:o.id;
             observed[key]=o;
         }
+    }
+}
+void CsvLogger::observeTransient(const std::vector<SceneObject>& objects,double time,bool night) {
+    // Preserve short-lived effects and NPC death poses without copying every static crate each frame.
+    for(const auto& source:objects) {
+        const bool effect=source.type=="Projectile" || source.type=="Hit effect" || source.type=="Blood";
+        if(!effect && source.type!="Weapon" && source.type!="Celebration" && source.type!="Bird" && source.type!="Human") continue;
+        auto o=source; o.observedTime=time;
+        o.notes+="; observed at simulation time="+std::to_string(time)+" s; mode="+(night?"NIGHT":"DAY");
+        const auto key=effect&&o.id.find("DISPLAY_")==std::string::npos?o.mode+std::to_string(o.level)+o.type+o.component:o.id;
+        observed[key]=std::move(o);
     }
 }
 std::vector<SceneObject> CsvLogger::snapshot() const {

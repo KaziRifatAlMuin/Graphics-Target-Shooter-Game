@@ -9,6 +9,26 @@ Bird createBird(std::size_t zone, Vec3 home, unsigned seed) {
     return b;
 }
 void updateBird(Bird& b, float dt, const std::vector<SceneObject>& obstacles) {
+    if (b.dying) {
+        b.deathTime+=dt;
+        b.deathVelocity.y-=14.0f*dt;
+        b.position=b.position+b.deathVelocity*dt;
+        b.deathPitch+=260.0f*dt;
+        b.position.x=std::clamp(b.position.x,-28.f,28.f);
+        b.position.z=std::clamp(b.position.z,-98.f,-2.f);
+        if (b.position.y<=0.08f) {
+            b.position.y=0.08f;
+            b.deathVelocity={0,0,0};
+            b.deathPitch=90;
+            b.dying=false;
+            b.dead=true;
+        }
+        return;
+    }
+    if (b.dead) {
+        b.position.y=0.08f;
+        return;
+    }
     if (!b.active) return;
     b.animation+=dt*(8+b.speed);
     const Vec3 delta=b.destination-b.position;
@@ -25,18 +45,21 @@ void updateBird(Bird& b, float dt, const std::vector<SceneObject>& obstacles) {
     else { b.position=next; b.heading=std::atan2(-velocity.z,velocity.x)*180/pi; }
 }
 std::vector<SceneObject> createBirdObjects(const Bird& b, std::size_t index) {
-    if (!b.active) return {};
-    const auto id="BIRD_"+std::to_string(index);
+    if (!b.active && !b.dying && !b.dead) return {};
+    const auto id=(b.dead?"DEAD_BIRD_":b.dying?"DYING_BIRD_":"BIRD_")+std::to_string(index);
     const Vec3 feather=index%2?Vec3{.28f,.30f,.34f}:Vec3{.48f,.36f,.23f};
     std::vector<SceneObject> parts;
-    auto add=[&](const char* name,Vec3 p,Vec3 s,Vec3 c,float rx=0) { parts.push_back(npcPart(b,id,"Bird",name,p,s,c,rx)); };
-    const float bob=.045f*std::sin(b.animation*.5f);
+    auto add=[&](const char* name,Vec3 p,Vec3 s,Vec3 c,float rx=0) {
+        auto obj=npcPart(b,id,"Bird",name,p,s,c,rx);
+        parts.push_back(obj);
+    };
+    const float bob=(b.dying || b.dead)?0.0f:(.045f*std::sin(b.animation*.5f));
     add("Body",{0,bob,0},{.62f,.26f,.28f},feather);
     add("Head",{.32f,.12f+bob,0},{.24f,.24f,.23f},{.68f,.64f,.52f});
     add("Beak",{.49f,.09f+bob,0},{.17f,.07f,.10f},{.9f,.62f,.13f});
     add("Tail",{-.4f,bob,0},{.3f,.07f,.24f},feather);
     for (int side:{-1,1}) {
-        const float flap=std::sin(b.animation)*35*side;
+        const float flap=(b.dying || b.dead)?side*(15+60*std::min(1.f,b.deathTime/.5f)):(std::sin(b.animation)*35*side);
         const float a=radians(flap);
         add(side<0?"WingLeft":"WingRight",{-.03f,bob-std::sin(a)*side*.35f,std::cos(a)*side*.35f},
             {.38f,.055f,.64f},feather,flap);
@@ -45,6 +68,7 @@ std::vector<SceneObject> createBirdObjects(const Bird& b, std::size_t index) {
     }
     add("Eye",{.42f,.18f+bob,.12f},{.035f,.045f,.025f},{.03f,.03f,.03f});
     add("OtherEye",{.42f,.18f+bob,-.12f},{.035f,.045f,.025f},{.03f,.03f,.03f});
+    if (b.dead) groundNpcParts(parts);
     return parts;
 }
 }

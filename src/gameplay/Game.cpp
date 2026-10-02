@@ -16,6 +16,7 @@ Game::Game() {
     reset();
 }
 void Game::resetTargets() {
+    cachedAimFrame=-1;
     if (usesLevel()) { restartLevel(); return; }
     targets.clear(); projectiles.clear(); debris.clear(); soundEvents.clear(); feedbackTime=0; lastRing=-1;
     targets=createSandboxTargets();
@@ -117,17 +118,58 @@ bool Game::fire() {
     return true;
 }
 void Game::update(float dt) {
+    cachedAimFrame=-1;
     // Small simulation steps avoid tunnelling and keep motion stable across frame rates.
     while (dt>0) { const float step=std::min(dt,1.0f/120); updateStep(step); dt-=step; }
 }
+void Game::spawnBlood(Vec3 position, int count) {
+    constexpr std::size_t limit=250;
+    count=std::clamp(count,0,int(limit));
+    if (debris.size()+count>limit) debris.erase(debris.begin(),debris.begin()+(debris.size()+count-limit));
+    static unsigned seed = 133742;
+    for (int i=0; i<count; ++i) {
+        seed = seed * 1664525u + 1013904223u;
+        float rx = float((seed >> 8) & 255) / 127.5f - 1.0f;
+        seed = seed * 1664525u + 1013904223u;
+        float ry = float((seed >> 8) & 255) / 255.0f;
+        seed = seed * 1664525u + 1013904223u;
+        float rz = float((seed >> 8) & 255) / 127.5f - 1.0f;
+        seed = seed * 1664525u + 1013904223u;
+        float rl = 1.0f + float((seed >> 8) & 255) / 255.0f * .6f;
+
+        Vec3 vel{ rx * 3.4f, 0.8f + ry * 3.2f, rz * 3.4f };
+        float size = 0.035f + float((seed >> 8) & 63) / 63.0f * 0.035f;
+        Vec3 bloodColor = (i % 3 == 0) ? Vec3{.68f, .02f, .02f} : (i % 3 == 1) ? Vec3{.88f, .06f, .05f} : Vec3{.52f, .01f, .01f};
+        debris.push_back({nextDebris++, position, vel, {float(rx*180), float(ry*180), float(rz*180)}, rl, bloodColor, {size, size, size}, true});
+    }
+}
 void Game::updateStep(float dt) {
     for (auto& piece:debris) {
-        piece.life-=dt; piece.velocity.y-=7*dt;
-        piece.position=piece.position+piece.velocity*dt;
-        piece.rotation=piece.rotation+Vec3{120,80,50}*dt;
+        piece.life-=dt;
+        if (piece.isBlood) {
+            if (piece.position.y > 0.03f) {
+                piece.velocity.y -= 13.5f * dt;
+                piece.position = piece.position + piece.velocity * dt;
+                piece.rotation = piece.rotation + Vec3{80, 160, 60} * dt;
+            } else {
+                piece.position.y = 0.02f;
+                piece.velocity = {0, 0, 0};
+                piece.rotation = {0,piece.rotation.y,0};
+                piece.scale.y = 0.012f;
+                piece.scale.x = piece.scale.z = std::min(0.28f, piece.scale.x * 1.35f);
+            }
+        } else {
+            piece.velocity.y-=7*dt;
+            piece.position=piece.position+piece.velocity*dt;
+            piece.rotation=piece.rotation+Vec3{120,80,50}*dt;
+        }
+    }
+    if (debris.size() > 250) {
+        debris.erase(debris.begin(), debris.begin() + (debris.size() - 250));
     }
     debris.erase(std::remove_if(debris.begin(),debris.end(),[](const Debris& p) { return p.life<=0; }),debris.end());
     ScoreSystem::update(scoreFeedback,dt); dangerTime=std::max(0.0f,dangerTime-dt);
+    if (usesLevel()) updateNpcDeaths(dt); // Cosmetic falls finish even after the final target/time-up.
     if (usesLevel() && !gameplayActive()) { levels.updateTransition(dt); return; }
     if (mode==GameMode::Free) dt=static_cast<float>(std::min(double(dt),freeRemaining));
     elapsed+=dt; if (usesLevel()) levels.levelTime+=dt;
@@ -178,6 +220,7 @@ void Game::applyTargetHit(std::size_t index,int ring,std::uint64_t shotId) {
             debris.push_back({nextDebris++,t.position,{std::cos(angle)*2.4f,2+std::sin(angle)*2,1.5f},
                               {0,float(i)*30,0},.75f});
         }
+        if(debris.size()>250) debris.erase(debris.begin(),debris.begin()+(debris.size()-250));
     }
 }
 }

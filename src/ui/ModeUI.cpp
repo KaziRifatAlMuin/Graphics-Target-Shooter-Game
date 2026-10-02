@@ -76,7 +76,7 @@ void drawModeHud(ui::Painter& p,const Game& game,const UiState& state) {
     if (game.mode==GameMode::Developer) {
         p.rect(956,112,290,478,{.035f,.065f,.09f});
         p.text(970,128,"LEVEL "+std::to_string(game.levels.config.number)+" / FPS "+std::to_string(int(state.fps)),1.7f,teal);
-        p.text(970,156,"BIRDS "+std::to_string(game.birds.size())+" HUMANS "+std::to_string(game.humans.size()),1.6f,ink);
+        p.text(970,156,"BIRDS "+std::to_string(std::count_if(game.birds.begin(),game.birds.end(),[](const Bird& b){return b.active;}))+" HUMANS "+std::to_string(std::count_if(game.humans.begin(),game.humans.end(),[](const Human& h){return h.active;})),1.6f,ink);
         p.text(970,184,"PLAYER X "+std::to_string(int(game.player.position.x))+" Z "+std::to_string(int(game.player.position.z)),1.6f,ink);
         for (std::size_t i=0;i<game.targets.size();++i) {
             const auto& t=game.targets[i]; const auto a=t.motion.amplitude;

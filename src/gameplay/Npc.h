@@ -9,8 +9,14 @@ struct NpcState {
     float speed=1, heading=0, animation=0, pause=0;
     unsigned random=1;
     bool active=true;
+    bool dying=false;
+    bool dead=false;
+    float deathTime=0;
+    Vec3 deathVelocity{0,0,0};
+    float deathPitch=0;
     std::unordered_set<std::uint64_t> penalizedShots;
 };
+void groundNpcParts(std::vector<SceneObject>& parts,float ground=.015f);
 float npcRandom(NpcState& npc);
 Vec3 npcDestination(NpcState& npc, bool flying);
 SceneObject npcPart(const NpcState& npc, const std::string& id, const std::string& type,
