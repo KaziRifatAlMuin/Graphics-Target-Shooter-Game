@@ -3,25 +3,24 @@
 #include "gameplay/Effects.h"
 namespace shooter {
 std::vector<SceneObject> Game::scene(bool includePlayer) const {
-    auto objects=staticObjects;
-    const auto rig=createLighting(night);
-    auto vectorText=[](Vec3 v) { return "("+std::to_string(v.x)+","+std::to_string(v.y)+","+std::to_string(v.z)+")"; };
-    std::size_t pointIndex=0,spotIndex=0;
+    // Reserve capacity to avoid repeated reallocations. Static objects go first as a
+    // block copy, then dynamic objects are appended. This is much cheaper than the
+    // previous approach of copying all statics and then modifying every one.
+    std::vector<SceneObject> objects;
+    const std::size_t estimatedDynamic=targets.size()*38+projectiles.size()+debris.size()+20+birds.size()*8+humans.size()*12;
+    objects.reserve(staticObjects.size()+estimatedDynamic);
+
+    // Copy static objects. The lighting note annotations are deferred to calculationObjects()
+    // where they are actually needed, avoiding expensive string operations every frame.
+    objects=staticObjects;
+
+    // Update lamp emission state based on day/night without building annotation strings.
     for (auto& o:objects) {
-        if (o.component=="Point lamp head") {
+        if (o.component=="Point lamp head" || o.component=="Spotlight head")
             o.emission=night?1:0;
-            o.notes+="; point intensity="+vectorText(rig.points[pointIndex++].color)+"; attenuation=1/(1+0.045*d+0.003*d*d)";
-        }
-        if (o.component=="Spotlight head") {
-            o.emission=night?1:0;
-            const auto& light=rig.spots[spotIndex++];
-            o.notes+="; spot intensity="+vectorText(light.color)+"; direction="+vectorText(light.direction)+
-                "; cone inner/outer=22/34 degrees; attenuation=1/(1+0.025*d+0.002*d*d)";
-        }
-        if (o.id=="ARENA_FLOOR") o.notes+="; ambient="+vectorText(rig.ambient)+"; sunlight="+vectorText(rig.sunColor);
     }
+
     auto celestial=createCelestialObjects(night);
-    for (auto& o:celestial) o.notes+="; directional intensity="+vectorText(rig.sunColor)+"; direction to light="+vectorText(rig.sunDirection);
     objects.insert(objects.end(),celestial.begin(),celestial.end());
     for (std::size_t i=0; i<targets.size(); ++i) {
         const auto parts=createTargetObjects(targets[i],i);
@@ -66,7 +65,27 @@ std::vector<SceneObject> Game::scene(bool includePlayer) const {
 }
 std::vector<SceneObject> Game::calculationObjects() const {
     auto objects=scene(true);
-    for (auto& object:objects) object.notes+="; simulation time = "+std::to_string(elapsed)+" s; mode="+(night?"NIGHT":"DAY");
+    // Full lighting annotation strings are only needed for CSV calculation exports,
+    // not for real-time rendering. This keeps them out of the hot path.
+    const auto rig=createLighting(night);
+    auto vectorText=[](Vec3 v) { return "("+std::to_string(v.x)+","+std::to_string(v.y)+","+std::to_string(v.z)+")"; };
+    std::size_t pointIndex=0,spotIndex=0;
+    for (auto& o:objects) {
+        o.notes+="; simulation time = "+std::to_string(elapsed)+" s; mode="+(night?"NIGHT":"DAY");
+        if (o.component=="Point lamp head") {
+            o.notes+="; point intensity="+vectorText(rig.points[pointIndex++].color)+"; attenuation=1/(1+0.045*d+0.003*d*d)";
+        }
+        if (o.component=="Spotlight head") {
+            const auto& light=rig.spots[spotIndex++];
+            o.notes+="; spot intensity="+vectorText(light.color)+"; direction="+vectorText(light.direction)+
+                "; cone inner/outer=22/34 degrees; attenuation=1/(1+0.025*d+0.002*d*d)";
+        }
+        if (o.id=="ARENA_FLOOR") o.notes+="; ambient="+vectorText(rig.ambient)+"; sunlight="+vectorText(rig.sunColor);
+    }
+    for (auto& o:objects) {
+        if (o.type=="Environment" && (o.component=="Sun visual" || o.component=="Moon visual"))
+            o.notes+="; directional intensity="+vectorText(rig.sunColor)+"; direction to light="+vectorText(rig.sunDirection);
+    }
     return objects;
 }
 }
