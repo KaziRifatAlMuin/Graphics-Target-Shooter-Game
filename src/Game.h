@@ -11,6 +11,9 @@
 #include "LevelManager.h"
 #include "Bird.h"
 #include "Human.h"
+#include "GameMode.h"
+#include "BirdEyeCamera.h"
+#include <optional>
 
 namespace shooter {
 struct Debris { std::uint64_t id; Vec3 position, velocity, rotation; float life; };
@@ -23,7 +26,10 @@ public:
     float feedbackTime=0;
     bool night=false, soundEnabled=true, soundAvailable=true;
     float cooldown=0, recoil=0;
-    bool challenge=false;
+    GameMode mode=GameMode::Practice;
+    std::string playerName="Player";
+    BirdEyeCamera birdEye;
+    double freeRemaining=freeSessionSeconds;
     LevelManager levels;
     std::vector<Bird> birds;
     std::vector<Human> humans;
@@ -37,6 +43,9 @@ public:
     void reset();
     void resetTargets();
     void startChallenge(int firstLevel=1);
+    void startMode(GameMode selected,int level=1);
+    bool usesLevel() const { return mode!=GameMode::Practice; }
+    std::optional<EligibleResult> takeResult();
     bool nextLevel();
     void restartLevel();
     bool gameplayActive() const;
@@ -54,6 +63,8 @@ public:
 private:
     std::uint64_t nextProjectile=1;
     std::uint64_t nextShot=1, nextDebris=1;
+    bool challengeFromStart=true;
+    std::optional<EligibleResult> pendingResult;
     void updateStep(float dt);
     bool canStand(Vec3 position) const;
     void loadCurrentLevel();

@@ -1,4 +1,4 @@
-param([string]$Path = 'calc.csv', [switch]$RequirePlayedCoverage, [switch]$RequireChallengeCoverage)
+param([string]$Path = 'calc.csv', [switch]$RequirePlayedCoverage, [switch]$RequireChallengeCoverage, [switch]$RequireModeCoverage)
 $ErrorActionPreference = 'Stop'
 $culture = [Globalization.CultureInfo]::InvariantCulture
 function Numbers([string]$text) {
@@ -8,7 +8,7 @@ $rows = @(Import-Csv -LiteralPath $Path)
 if ($rows.Count -eq 0) { throw 'CSV has no scene rows.' }
 $ids = @{}
 foreach ($row in $rows) {
-    if ($row.Phase -ne '2' -or $row.Primitive -ne 'Unit Cube' -or $row.Matrix_Order -ne 'T*Rz*Ry*Rx*H*S') { throw "Incorrect pipeline metadata: $($row.Object_ID)" }
+    if ($row.Phase -ne '3' -or $row.Primitive -ne 'Unit Cube' -or $row.Matrix_Order -ne 'T*Rz*Ry*Rx*H*S') { throw "Incorrect pipeline metadata: $($row.Object_ID)" }
     if ($ids.ContainsKey($row.Object_ID)) { throw "Duplicate ID: $($row.Object_ID)" }
     $ids[$row.Object_ID] = $true
     $p = Numbers $row.Local_Point; $s = Numbers $row.Scale; $h = Numbers $row.Shear; $t = Numbers $row.Translation
@@ -34,7 +34,7 @@ if ($RequirePlayedCoverage) {
         if (-not ($rows | Where-Object { $_.Object_ID -like 'PROJECTILE_*' -and $_.Component -eq $weapon })) { throw "Missing observed projectile: $weapon" }
     }
 }
-Write-Output "PASS: $($rows.Count) unique Phase 2 cube rows; independently recomputed S/H/Rx/Ry/Rz/T world points and scene coverage."
+Write-Output "PASS: $($rows.Count) unique Phase 3 cube rows; independently recomputed S/H/Rx/Ry/Rz/T world points and scene coverage."
 if ($RequireChallengeCoverage) {
     foreach ($level in 1..7) {
         if (-not ($rows | Where-Object { $_.Level -eq $level -and $_.Object_Type -eq 'Target' })) { throw "Missing visited level: $level" }
@@ -43,4 +43,11 @@ if ($RequireChallengeCoverage) {
         if (-not ($rows | Where-Object Object_Type -eq $type)) { throw "Missing NPC: $type" }
     }
     Write-Output 'PASS: actual observed transforms cover Levels 1-7, birds and humans.'
+}
+if ($RequireModeCoverage) {
+    foreach ($mode in @('Challenge','Free','Developer','BirdsEye')) {
+        if (-not ($rows | Where-Object Mode -eq $mode)) { throw "Missing observed mode: $mode" }
+    }
+    if (-not ($rows | Where-Object { $_.Mode -eq 'BirdsEye' -and $_.Object_Type -eq 'Camera reference' })) { throw 'Missing actual observation camera marker.' }
+    Write-Output 'PASS: actual observed transforms cover all modes and observation camera reference cubes.'
 }

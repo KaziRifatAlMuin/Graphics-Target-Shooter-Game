@@ -75,7 +75,16 @@ std::vector<SceneObject> createTargetObjects(const Target& t, std::size_t index)
     objects.push_back(makeCube(id+"_BASE","Target","Stand base",{t.position.x,.15f,t.position.z},{2,.3f,1.5f},{.25f,.29f,.32f}));
     const float height=std::max(.3f,t.position.y-Target::radius);
     objects.push_back(makeCube(id+"_STAND","Target","Stand",{t.position.x,height/2,t.position.z},{.24f,height,.24f},{.33f,.37f,.39f}));
-    if (t.respawn>0 || t.eliminated) return objects;
+    if (t.respawn>0 || t.eliminated) {
+        if (!t.eliminated && t.respawn<=3 && t.movement==4) {
+            const float pulse=.5f+.5f*std::sin(t.respawn*12);
+            auto beacon=makeCube(id+"_RESPAWN","Target","Respawn warning",t.position,
+                {.15f+pulse*.15f,.15f+pulse*.15f,.15f+pulse*.15f},{1,.7f,.15f},t.yaw);
+            beacon.emission=1; beacon.notes="Inactive target; respawns in "+std::to_string(t.respawn)+" seconds; warning is not hittable";
+            objects.push_back(beacon);
+        }
+        return objects;
+    }
     int i=0;
     for (const auto& slice:slices()) {
         auto part=makeCube(id+"_SLICE_"+std::to_string(i++),"Target","Cube-built six-ring plate",

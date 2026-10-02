@@ -14,6 +14,7 @@ struct SceneObject {
     bool targetPattern=false;
     Vec3 patternScale{1,1,1}, patternOffset{};
     int level=0;
+    std::string mode="Practice";
 };
 inline Vec3 asVec3(Vec4 v) { return {v.x,v.y,v.z}; }
 inline float length(Vec3 v) { return std::sqrt(dot(v,v)); }

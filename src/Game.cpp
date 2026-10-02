@@ -16,18 +16,19 @@ Game::Game() {
     reset();
 }
 void Game::resetTargets() {
-    if (challenge) { restartLevel(); return; }
+    if (usesLevel()) { restartLevel(); return; }
     targets.clear(); projectiles.clear(); debris.clear(); soundEvents.clear(); feedbackTime=0; lastRing=-1;
     targets=createSandboxTargets();
     elapsed=0; cooldown=0; recoil=0;
 }
 void Game::reset() {
-    if (challenge) {
-        challenge=false; staticObjects=createArena();
+    if (usesLevel()) {
+        mode=GameMode::Practice; staticObjects=createArena();
         for (const auto& group:{generateCargoLayout(2107042),createLightFixtures(),createEquipmentDisplay()})
             staticObjects.insert(staticObjects.end(),group.begin(),group.end());
     }
     static_cast<RunStats&>(*this)=RunStats{}; birds.clear(); humans.clear(); scoreFeedback.clear(); dangerTime=0;
+    pendingResult.reset(); freeRemaining=freeSessionSeconds;
     player.position={0,1.7f,-5}; player.yaw=-90; player.pitch=3.8f;
     freeCamera=Camera{}; cameraMode=1; weapon=WeaponType::Pistol;
     // Entity IDs stay unique for the process lifetime, including restarted sessions.
@@ -36,7 +37,7 @@ void Game::reset() {
 }
 bool Game::canStand(Vec3 p) const { return canStandAt(p,staticObjects); }
 void Game::movePlayer(float forward, float right, float dt, bool fast) {
-    if (challenge && (!gameplayActive() || !levels.config.playerMovement)) return;
+    if (mode==GameMode::BirdsEye || (usesLevel() && (!gameplayActive() || !levels.config.playerMovement))) return;
     Vec3 f=player.forward(); f.y=0; f=normalize(f);
     const Vec3 movement=normalize(f*forward+cross(f,{0,1,0})*right)*((fast?9.0f:5.0f)*dt);
     const int steps=std::max(1,int(std::ceil(length(movement)/.15f)));
@@ -48,10 +49,12 @@ void Game::movePlayer(float forward, float right, float dt, bool fast) {
     }
 }
 void Game::setCamera(int mode) {
+    if (this->mode==GameMode::BirdsEye) { if (mode==2) birdEye.overview(); return; }
     if (mode==4 && cameraMode!=4) freeCamera=activeCamera();
     cameraMode=mode;
 }
 Camera Game::activeCamera() const {
+    if (mode==GameMode::BirdsEye) return birdEye.activeCamera();
     if (cameraMode==1) return player;
     if (cameraMode==4) return freeCamera;
     Camera camera;
@@ -73,7 +76,7 @@ int Game::aimedTarget(float& distance) const {
     return result;
 }
 bool Game::fire() {
-    if (cooldown>0 || !gameplayActive()) return false;
+    if (mode==GameMode::BirdsEye || cooldown>0 || !gameplayActive()) return false;
     const auto& spec=weaponSpec(weapon);
     const Vec3 muzzle=weaponMuzzle(weapon,player);
     float aimDistance=100;
@@ -108,17 +111,28 @@ void Game::update(float dt) {
 }
 void Game::updateStep(float dt) {
     ScoreSystem::update(scoreFeedback,dt); dangerTime=std::max(0.0f,dangerTime-dt);
-    if (challenge && !gameplayActive()) { levels.updateTransition(dt); return; }
-    elapsed+=dt; if (challenge) levels.levelTime+=dt;
+    if (usesLevel() && !gameplayActive()) { levels.updateTransition(dt); return; }
+    if (mode==GameMode::Free) dt=static_cast<float>(std::min(double(dt),freeRemaining));
+    elapsed+=dt; if (usesLevel()) levels.levelTime+=dt;
     cooldown=std::max(0.0f,cooldown-dt); recoil=std::max(0.0f,recoil-dt*7);
     feedbackTime=std::max(0.0f,feedbackTime-dt);
-    for (auto& t:targets) updateTarget(t,challenge?levels.levelTime:elapsed,dt);
-    if (challenge) updateNpcs(dt);
+    for (auto& t:targets) updateTarget(t,usesLevel()?levels.levelTime:float(elapsed),dt);
+    if (usesLevel()) updateNpcs(dt);
     updateProjectiles(projectiles,targets,staticObjects,dt,
         [this](std::size_t index,int ring,std::uint64_t shot) { applyTargetHit(index,ring,shot); },
         projectiles.empty()?std::vector<NpcCollider>{}:npcColliders(),
         [this](bool human,std::size_t index,std::uint64_t shot) { applyNpcHit(human,index,shot); });
-    if (challenge && levels.finishIfComplete(targets,*this)) projectiles.clear();
+    if ((mode==GameMode::Challenge || mode==GameMode::Developer) && levels.finishIfComplete(targets,*this)) {
+        projectiles.clear();
+        if (mode==GameMode::Challenge && challengeFromStart) pendingResult=EligibleResult{playerName,mode,*this};
+    }
+    if (mode==GameMode::Free) {
+        freeRemaining=std::max(0.0,freeRemaining-dt);
+        if (freeRemaining<1e-6) {
+            freeRemaining=0; elapsed=freeSessionSeconds; levels.stage=LevelStage::Finished; levels.transition=0;
+            projectiles.clear(); levels.completedStats=*this; pendingResult=EligibleResult{playerName,mode,*this};
+        }
+    }
     for (auto& piece:debris) {
         piece.life-=dt; piece.velocity.y-=7*dt;
         piece.position=piece.position+piece.velocity*dt;
@@ -128,18 +142,21 @@ void Game::updateStep(float dt) {
 }
 void Game::applyTargetHit(std::size_t index,int ring,std::uint64_t shotId) {
     auto& t=targets.at(index);
-    if (!gameplayActive() || t.eliminated || t.respawn>0 || ring<0 || ring>5) return;
+    if (mode==GameMode::BirdsEye || !gameplayActive() || t.eliminated || t.respawn>0 || ring<0 || ring>5) return;
     const int damage=ringDamage(ring);
     int& previous=t.damageByShot[shotId];
     if (damage<=previous) return;
     if (previous==0) { ++hits; soundEvents.push_back(SoundEvent::Hit); }
     // A shotgun trigger counts once: later pellets may upgrade to a better ring,
     // but their damage is never summed as if they were separate shots.
-    t.health-=damage-previous; if (!challenge) score+=damage-previous; previous=damage;
+    t.health-=damage-previous; if (!usesLevel()) score+=damage-previous; previous=damage;
     t.hitTime=.25f; lastRing=ring; feedbackTime=.9f;
     if (t.health<=0) {
         t.health=0;
-        if (challenge) { t.eliminated=true; ScoreSystem::target(*this,scoreFeedback,t.damageByShot.size()==1); }
+        if (usesLevel()) {
+            if (mode==GameMode::Free) t.respawn=freeRespawnSeconds; else t.eliminated=true;
+            ScoreSystem::target(*this,scoreFeedback,t.damageByShot.size()==1);
+        }
         else { t.respawn=1.8f; ++destroyed; score+=100; if (ring==0) ++bullseyes; }
         soundEvents.push_back(SoundEvent::Break);
         for (int i=0;i<12;++i) {
@@ -193,10 +210,15 @@ std::vector<SceneObject> Game::scene(bool includePlayer) const {
         auto o=makeCube("TARGET_FRAGMENT_"+std::to_string(p.id),"Hit effect","Break fragment",p.position,{.12f,.12f,.05f},{.95f,.4f,.14f});
         o.transform.rotation=p.rotation; objects.push_back(o);
     }
-    if (challenge) for (auto& object:objects) {
+    if (mode==GameMode::BirdsEye) {
+        const auto reference=birdEye.referenceObjects(); objects.insert(objects.end(),reference.begin(),reference.end());
+    }
+    for (auto& object:objects) object.mode=modeName(mode);
+    if (usesLevel()) for (auto& object:objects) {
         object.level=levels.config.number;
-        object.id="L"+std::to_string(object.level)+"_"+object.id;
-        object.notes+="; challenge level "+std::to_string(object.level)+"; level time="+std::to_string(levels.levelTime);
+        const std::string prefix=mode==GameMode::Challenge?"":std::string(modeName(mode))+"_";
+        object.id=prefix+"L"+std::to_string(object.level)+"_"+object.id;
+        object.notes+="; mode="+object.mode+"; level="+std::to_string(object.level)+"; level time="+std::to_string(levels.levelTime);
     }
     return objects;
 }

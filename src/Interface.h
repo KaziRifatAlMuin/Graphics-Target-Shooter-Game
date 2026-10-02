@@ -1,12 +1,11 @@
 #pragma once
 #include "Game.h"
+#include "UiState.h"
+#include "UiPainter.h"
 
 namespace shooter {
-enum class Screen { Menu, Controls, Playing, Paused, LevelComplete, Victory };
-enum class Action { None, Start, Practice, NextLevel, Resume, Controls, Back, Menu, Exit, Pistol, Shotgun, Rifle, DayNight, Sound };
-struct UiVertex { float x,y,r,g,b; };
-struct Button { float x,y,w,h; const char* text; Action action; };
-std::vector<Button> screenButtons(Screen screen);
-Action clickedAction(Screen screen, float x, float y);
-std::vector<UiVertex> buildInterface(const Game& game, Screen screen, float mouseX, float mouseY, bool pointerFree);
+struct Button { float x,y,w,h; std::string text; Action action; };
+std::vector<Button> screenButtons(Screen screen,GameMode mode=GameMode::Practice);
+Action clickedAction(Screen screen, float x, float y,GameMode mode=GameMode::Practice);
+std::vector<UiVertex> buildInterface(const Game& game, Screen screen, float mouseX, float mouseY, bool pointerFree,const UiState* state=nullptr);
 }

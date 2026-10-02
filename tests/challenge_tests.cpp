@@ -42,7 +42,7 @@ int main(int argc,char** argv) {
         game.startChallenge();
         std::uint64_t shot=1000;
         int expected=0,destroyed=0;
-        float elapsed=0;
+        double elapsed=0;
         for (int n=1;n<=7;++n) {
             check(game.levels.config.number==n,"Sequential progression skipped a level.");
             check(!game.nextLevel() && !game.fire(),"Intro permits firing or skipping.");
@@ -125,7 +125,7 @@ int main(int argc,char** argv) {
                 for (const auto& t:game.targets) check(std::abs(h.position.x-t.position.x)>=1.4f || std::abs(h.position.z-t.position.z)>=1.2f,"Human overlapped a moving target stand.");
             }
         }
-        game.reset(); check(!game.challenge && game.score==0 && game.birds.empty() && game.targets.size()==7,"Practice reset failed.");
+        game.reset(); check(game.mode==GameMode::Practice && game.score==0 && game.birds.empty() && game.targets.size()==7,"Practice reset failed.");
         // Fire from the actual player muzzle with live motion and normal weapon timing.
         // Fixed levels use the original spawn; movable levels use validated close firing lanes.
         for (int level=1;level<=7;++level) {

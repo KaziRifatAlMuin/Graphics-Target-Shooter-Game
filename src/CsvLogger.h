@@ -9,7 +9,7 @@ void writeCalculations(const std::vector<SceneObject>& objects, const std::files
 // Cleared at process startup; never imports stale CSV.
 class CsvLogger {
 public:
-    void observe(const std::vector<SceneObject>& objects, float time, bool night);
+    void observe(const std::vector<SceneObject>& objects, double time, bool night);
     void save(const std::filesystem::path& path) const;
 private:
     std::vector<SceneObject> current;
