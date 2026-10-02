@@ -133,7 +133,7 @@ void failedSave(const fs::path& path) {
     fs::remove(path); Leaderboard board(path); board.load(); Game game; SessionController session(game,board);
     auto temporary=path; temporary+=".tmp";
     fs::create_directory(temporary); // Deliberately prevent an atomic-save temporary file from opening.
-    session.action(Action::Start); session.update(1.51f); clear(game); session.update(.01f);
+    session.action(Action::Start); session.action(Action::ConfirmChallenge); session.update(1.51f); clear(game); session.update(.01f);
     check(session.ui.screen==Screen::LevelComplete && session.ui.saveFailed && board.records().empty(),"Save failure lost playable result/error state.");
     fs::remove(temporary); session.action(Action::RetrySave);
     check(!session.ui.saveFailed && session.ui.personalBest && board.records().size()==1 && board.records()[0].stats.score==450,"Retry failed to persist retained completed stats.");
@@ -144,7 +144,7 @@ void sessions(const fs::path& path,CsvLogger& logger) {
     writeAtomicText(path,"Name,Mode,BestScore,LevelsCleared,TargetsDestroyed,Bullseyes,BirdKills,HumanKills,BestTimeSeconds,LastUpdated\n");
     Game game; Leaderboard board(path); SessionController session(game,board);
     session.ui.name="  Test Pilot  "; session.acceptName(); check(session.ui.name=="Test Pilot","Name trimming failed.");
-    session.action(Action::Start); session.update(1.51f); session.update(.2f);
+    session.action(Action::Start); session.action(Action::ConfirmChallenge); session.update(1.51f); session.update(.2f);
     logger.observe(game.scene(),game.elapsed,false);
     const double elapsed=game.elapsed; session.action(Action::Menu); session.update(100);
     check(game.elapsed==elapsed && board.records().empty(),"Pause advanced time or submitted incomplete run.");

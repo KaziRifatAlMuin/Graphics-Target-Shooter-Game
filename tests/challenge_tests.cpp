@@ -114,11 +114,11 @@ int main(int argc,char** argv) {
         check(game.score==-300 && game.destroyed==0,"Negative score / NPC separation failed.");
         for (int frame=0;frame<900;++frame) {
             game.update(1.0f/60);
-            for (const auto& b:game.birds) {
+            for (const auto& b:game.birds) if (b.active) {
                 const auto d=b.position-b.home;
                 check(std::abs(d.x)<=3.51f && std::abs(d.z)<=3.51f && b.position.y>=1.2f && b.position.y<=7.1f,"Bird escaped bounded 3D zone.");
             }
-            for (const auto& h:game.humans) {
+            for (const auto& h:game.humans) if (h.active) {
                 const auto d=h.position-h.home;
                 check(std::abs(d.x)<=3.01f && std::abs(d.z)<=3.01f && h.position.y==0,"Human escaped ground zone.");
                 check(canStandAt(h.position,game.staticObjects),"Human entered cargo/boundary.");

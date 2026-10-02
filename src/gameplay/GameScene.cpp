@@ -26,10 +26,10 @@ std::vector<SceneObject> Game::scene(bool includePlayer) const {
         const auto parts=createTargetObjects(targets[i],i);
         objects.insert(objects.end(),parts.begin(),parts.end());
     }
-    for (std::size_t i=0;i<birds.size();++i) if (birds[i].active) {
+    for (std::size_t i=0;i<birds.size();++i) if (birds[i].active || birds[i].dying || birds[i].dead) {
         const auto parts=createBirdObjects(birds[i],i); objects.insert(objects.end(),parts.begin(),parts.end());
     }
-    for (std::size_t i=0;i<humans.size();++i) if (humans[i].active) {
+    for (std::size_t i=0;i<humans.size();++i) if (humans[i].active || humans[i].dying || humans[i].dead) {
         const auto parts=createHumanObjects(humans[i],i); objects.insert(objects.end(),parts.begin(),parts.end());
     }
     if (includePlayer) {
@@ -42,7 +42,10 @@ std::vector<SceneObject> Game::scene(bool includePlayer) const {
     objects.insert(objects.end(),gun.begin(),gun.end());
     for (const auto& p:projectiles) objects.push_back(projectileObject(p));
     for (const auto& p:debris) {
-        auto o=makeCube("TARGET_FRAGMENT_"+std::to_string(p.id),"Hit effect","Break fragment",p.position,{.12f,.12f,.05f},{.95f,.4f,.14f});
+        auto o=makeCube(p.isBlood?("BLOOD_"+std::to_string(p.id)):("TARGET_FRAGMENT_"+std::to_string(p.id)),
+                        p.isBlood?"Blood":"Hit effect",
+                        p.isBlood?"Blood droplet":"Break fragment",
+                        p.position,p.scale,p.color);
         o.transform.rotation=p.rotation; objects.push_back(o);
     }
     if (usesLevel() && levels.stage==LevelStage::Finished && mode!=GameMode::BirdsEye) {

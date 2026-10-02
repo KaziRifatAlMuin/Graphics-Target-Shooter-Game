@@ -23,6 +23,7 @@ std::optional<EligibleResult> Game::takeResult() {
     auto result=pendingResult; pendingResult.reset(); return result;
 }
 void Game::loadCurrentLevel() {
+    cachedAimFrame=-1;
     staticObjects=createLevelWorld(levels.config); targets=levels.config.targets;
     for (auto& target:targets) updateTarget(target,0,0);
     player.position={0,1.7f,-5}; player.yaw=-90; player.pitch=3.8f;
@@ -49,12 +50,17 @@ void Game::restartLevel() {
     static_cast<RunStats&>(*this)=levels.completedStats;
     levels.load(levels.config.number); loadCurrentLevel();
 }
+void Game::updateNpcDeaths(float dt) {
+    for (auto& b:birds) if (b.dying) updateBird(b,dt,staticObjects);
+    for (auto& h:humans) if (h.dying) updateHuman(h,dt,staticObjects,targets);
+}
 void Game::updateNpcs(float dt) {
     std::vector<std::size_t> active;
     for (std::size_t i=0;i<targets.size();++i) if (!targets[i].eliminated) active.push_back(i);
-    if (active.empty()) return;
     for (std::size_t i=0;i<birds.size();++i) {
         auto& b=birds[i];
+        if (!b.active) continue; // Fatal hits are permanent for this level/session.
+        if (active.empty()) continue;
         if (targets[b.zone].eliminated) {
             if (levels.config.birdsPerTarget) { b.active=false; continue; }
             const auto remembered=std::move(b.penalizedShots);
@@ -64,6 +70,8 @@ void Game::updateNpcs(float dt) {
         updateBird(b,dt,staticObjects);
     }
     for (auto& h:humans) {
+        if (!h.active) continue;
+        if (active.empty()) continue;
         if (targets[h.zone].eliminated) { h.active=false; continue; }
         updateHuman(h,dt,staticObjects,targets);
     }
@@ -87,14 +95,22 @@ void Game::applyNpcHit(bool human,std::size_t index,std::uint64_t shotId) {
     NpcState& npc=human?static_cast<NpcState&>(humans.at(index)):static_cast<NpcState&>(birds.at(index));
     if (!npc.active || !npc.penalizedShots.insert(shotId).second) return;
     ScoreSystem::penalty(*this,scoreFeedback,human); dangerTime=human?1.5f:1.f; dangerHuman=human;
-    soundEvents.push_back(human?SoundEvent::HumanPenalty:SoundEvent::Penalty);
-    // Replace a struck NPC immediately, preserving the required active population.
+    cachedAimFrame=-1;
+    npc.active=false;
+    npc.dying=true;
+    npc.dead=false;
+    npc.deathTime=0;
     if (human) {
-        auto replacement=createHuman(npc.zone,npc.home,npc.random,staticObjects,targets);
-        replacement.penalizedShots=std::move(npc.penalizedShots); humans[index]=std::move(replacement);
+        auto& h=humans.at(index);
+        soundEvents.push_back(SoundEvent::HumanDie);
+        soundEvents.push_back(SoundEvent::HumanPenalty);
+        spawnBlood(h.position+Vec3{0,h.height*.65f,0},24);
     } else {
-        auto replacement=createBird(npc.zone,npc.home,npc.random);
-        replacement.penalizedShots=std::move(npc.penalizedShots); birds[index]=std::move(replacement);
+        auto& b=birds.at(index);
+        soundEvents.push_back(SoundEvent::BirdDie);
+        soundEvents.push_back(SoundEvent::Penalty);
+        b.deathVelocity=Vec3{(npcRandom(b)-.5f)*2.4f,1.2f+npcRandom(b)*1.8f,(npcRandom(b)-.5f)*2.4f};
+        spawnBlood(b.position,14);
     }
 }
 }

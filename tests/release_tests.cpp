@@ -4,6 +4,7 @@
 #include "persistence/CsvFile.h"
 #include "audio/Sound.h"
 #include "ui/Presentation.h"
+#include "gameplay/SessionController.h"
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -112,9 +113,77 @@ void presentation() {
     game.update(1);
     check(!drawPresentation(p,game,Screen::LevelComplete,state),"Completion animation never reveals results.");
 }
+void deaths() {
+    Game g; g.startMode(GameMode::Free); g.update(1.51f);
+    const auto living=createHumanObjects(g.humans[0],0);
+    const float spacing=length(living[0].transform.position-living[1].transform.position);
+    g.applyNpcHit(true,0,1); g.applyNpcHit(false,0,2);
+    check(g.score==-300 && !g.humans[0].active && !g.birds[0].active,"Fatal hit did not remove live collider.");
+    check(g.humans[0].dying && g.birds[0].dying && g.debris.size()==38,"Death burst is absent or unbounded.");
+    check(std::count(g.soundEvents.begin(),g.soundEvents.end(),SoundEvent::HumanDie)==1 &&
+          std::count(g.soundEvents.begin(),g.soundEvents.end(),SoundEvent::BirdDie)==1,"Death cues absent.");
+    g.applyNpcHit(true,0,999); g.applyNpcHit(false,0,999);
+    check(g.score==-300 && g.humanHits==1 && g.birdHits==1,"Dead NPC awarded another penalty.");
+    CsvLogger logger; logger.observe(g.scene(),g.elapsed,false);
+    for(int i=0;i<60;++i) {
+        g.update(1.f/60);
+        const auto body=createHumanObjects(g.humans[0],0);
+        check(std::abs(length(body[0].transform.position-body[1].transform.position)-spacing)<.001f,"Falling human parts disconnect.");
+        for(const auto& part:body) for(float x:{-.5f,.5f}) for(float y:{-.5f,.5f}) for(float z:{-.5f,.5f})
+            check(transformPoint(composeModelMatrix(part.transform),{x,y,z,1}).y>=.014f,"Human sinks through floor.");
+    }
+    g.update(2); check(g.humans[0].dead && g.birds[0].dead && g.debris.empty(),"Fall/blood never settle/expire.");
+    for(const auto& part:createBirdObjects(g.birds[0],0)) for(float x:{-.5f,.5f}) for(float y:{-.5f,.5f}) for(float z:{-.5f,.5f}) {
+        const float height=transformPoint(composeModelMatrix(part.transform),{x,y,z,1}).y;
+        check(height>=.014f && height<.9f,"Fallen bird should rest on the ground with folded wings.");
+    }
+    for(std::size_t i=0;i<g.targets.size();++i) g.applyTargetHit(i,0,100+i);
+    g.update(31);
+    check(g.targets[0].health==60 && g.humans[0].dead && g.birds[0].dead,"Target respawn resurrected NPCs.");
+    logger.observe(g.scene(),g.elapsed,false); bool blood=false,corpse=false;
+    for(const auto& o:logger.snapshot()) { blood|=o.type=="Blood"; corpse|=o.id.find("DEAD_HUMAN_")!=std::string::npos; }
+    check(blood&&corpse,"Blood/corpse actual transforms missing from CSV snapshots.");
+    for(std::size_t i=0;i<g.humans.size();++i) g.applyNpcHit(true,i,1000+i);
+    for(std::size_t i=0;i<g.birds.size();++i) g.applyNpcHit(false,i,2000+i);
+    check(g.debris.size()<=250,"Simultaneous deaths exceed particle budget.");
+    g.update(3); check(g.debris.empty(),"Particles leak after a mass hit.");
+    g.restartLevel(); check(g.birds[0].active && !g.birds[0].dead && g.humans[0].active && g.score==0,"Explicit session restart failed to reset NPCs.");
+    g.startMode(GameMode::Developer,7); g.update(1.51f); g.applyNpcHit(true,0,1); g.applyNpcHit(false,0,2);
+    for(std::size_t i=0;i<g.targets.size();++i) g.applyTargetHit(i,0,10+i);
+    g.update(.01f); auto elapsed=g.elapsed; g.update(3);
+    check(g.elapsed==elapsed && g.birds[0].dead && g.humans[0].dead,"Results screen freezes falls or advances score clock.");
+    std::cout<<"PASS: fatal NPC hits, coherent grounded falls, death audio, permanent absence, bounded expiring blood and cosmetic result updates.\n";
+}
+void names(const fs::path& path) {
+    auto file=path.string()+".names.csv"; fs::remove(file);
+    Leaderboard board(file); board.load(); RunStats best; best.score=900; best.levelsCleared=2; best.elapsed=25;
+    board.submit({"Ace",GameMode::Challenge,best});
+    best.elapsed=180; best.levelsCleared=0;
+    check(board.submit({"FreeOnly",GameMode::Free,best}),"Free name fixture was not eligible.");
+    const auto preserved=read(file); Game game; SessionController session(game,board);
+    session.ui.name="  Ace  "; session.action(Action::Start); session.update(10);
+    check(session.ui.screen==Screen::ChallengeName && session.ui.nameExistsWarning && session.ui.existingRank==1 && game.elapsed==0,"Existing normalized Challenge name not warned before play.");
+    session.action(Action::ConfirmChallenge);
+    check(session.ui.screen==Screen::ChallengeName && session.ui.duplicateConfirmation && read(file)==preserved,"Duplicate name bypassed explicit confirmation or changed board.");
+    session.action(Action::RewriteName); session.action(Action::ConfirmChallenge);
+    check(session.ui.screen==Screen::ChallengeName && !session.ui.message.empty(),"Blank Challenge name starts gameplay.");
+    for(char c:std::string("FreeOnly")) session.type(c);
+    check(!session.ui.nameExistsWarning,"Free record collided with Challenge name.");
+    session.action(Action::ConfirmChallenge);
+    check(session.ui.screen==Screen::Playing && game.playerName=="FreeOnly","New name failed to launch Level 1.");
+    session.action(Action::Replay); session.action(Action::RewriteName);
+    for(char c:std::string("Ace")) session.type(c);
+    session.action(Action::ConfirmChallenge); check(session.ui.duplicateConfirmation,"Replay skipped name confirmation.");
+    session.action(Action::UseExistingName); session.update(1.51f);
+    for(std::size_t i=0;i<game.targets.size();++i) game.applyTargetHit(i,0,10+i);
+    session.update(.02f); check(read(file)==preserved,"Inferior eligible run overwrote existing best.");
+    Leaderboard restarted(file); restarted.load();
+    check(restarted.records().size()==2 && restarted.sorted(GameMode::Challenge)[0].stats.score==900,"Confirmation broke mode key/restart persistence.");
+    std::cout<<"PASS: required name entry, trimmed same-mode duplicate warning, separate confirmation/rewrite, blank rejection and best-record preservation.\n";
+}
 }
 int main(int argc,char** argv) {
-    try { check(argc==2,"Expected isolated CSV test path."); humans(); cargo(); snapshots(argv[1]); presentation();
+    try { check(argc==2,"Expected isolated CSV test path."); humans(); cargo(); snapshots(argv[1]); presentation(); deaths(); names(argv[1]);
         std::cout<<"PASS: reference-sized cargo, final presentation clocks and all audio cues.\n"; return 0;
     } catch(const std::exception& e) { std::cerr<<"FAIL: "<<e.what()<<'\n'; return 1; }
 }

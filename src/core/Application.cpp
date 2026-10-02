@@ -91,6 +91,10 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
     double dayBrightness=0;
     auto action=[&](Action a) {
         session.action(a);
+        if(smoke && a==Action::Start) {
+            session.action(Action::ConfirmChallenge);
+            if(session.ui.duplicateConfirmation) session.action(Action::UseExistingName);
+        }
         if (session.exitRequested) glfwSetWindowShouldClose(window,GLFW_TRUE);
         sound.setEnabled(game.soundEnabled&&!smoke);
         if (a!=Action::None) sound.play(SoundEvent::Click);
@@ -115,17 +119,23 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
         const bool focused=glfwGetWindowAttrib(window,GLFW_FOCUSED)!=0;
         if (!focused && !smoke && screen==Screen::Playing) screen=Screen::Paused;
         bool consumed=false;
-        if (editing && (pressed(GLFW_KEY_ENTER)||pressed(GLFW_KEY_ESCAPE))) { session.acceptName(); consumed=true; }
+        if (editing && (pressed(GLFW_KEY_ENTER)||pressed(GLFW_KEY_ESCAPE))) {
+            if(screen==Screen::ChallengeName) {
+                if(pressed(GLFW_KEY_ESCAPE)) action(Action::Back);
+                else action(Action::ConfirmChallenge);
+            } else session.acceptName();
+            consumed=true;
+        }
         if (!consumed && pressed(GLFW_KEY_ESCAPE)) {
             if (screen==Screen::Playing) action(Action::Menu);
             else if (screen==Screen::Paused) action(Action::Resume);
-            else if (screen==Screen::Controls || screen==Screen::Leaderboard) action(Action::Back);
+            else if (screen==Screen::Controls || screen==Screen::Leaderboard || screen==Screen::ChallengeName) action(Action::Back);
             else if (resultScreen(screen) || screen==Screen::Developer) action(Action::Menu);
             else action(Action::Exit);
             consumed=true;
         }
-        if (!consumed && pressed(GLFW_KEY_ENTER) && (screen==Screen::Menu || screen==Screen::Paused)) {
-            action(screen==Screen::Menu?Action::Start:Action::Resume); consumed=true;
+        if (!consumed && pressed(GLFW_KEY_ENTER) && (screen==Screen::Menu || screen==Screen::Paused || screen==Screen::ChallengeName)) {
+            action(screen==Screen::Menu?Action::Start:screen==Screen::ChallengeName?(session.ui.duplicateConfirmation?Action::UseExistingName:Action::ConfirmChallenge):Action::Resume); consumed=true;
         }
         if (!consumed && pressed(GLFW_KEY_ENTER) && screen==Screen::LevelComplete && game.mode==GameMode::Challenge) { action(Action::NextLevel); consumed=true; }
         if (game.mode==GameMode::Developer && resultScreen(screen) && pressed(GLFW_KEY_R)) action(Action::Replay);
@@ -254,8 +264,8 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
         const Camera camera=screen==Screen::Playing?game.activeCamera():Camera{};
         const auto objects=game.scene(screen!=Screen::Playing || game.cameraMode!=1);
-        // Only observe objects for CSV when a snapshot is actually being written.
-        // This avoids per-frame string operations and map lookups on 400+ objects.
+        calculations.observeTransient(objects,game.elapsed,game.night);
+        // Full static-scene copies happen on scheduled/event snapshots; short effects survive between them.
         if (snapshotDirty || frame==0) {
             calculations.observe(objects,game.elapsed,game.night);
             snapshots.submit(calculations.snapshot());
@@ -306,6 +316,7 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
         }
         glfwSwapBuffers(window); ++frame;
     }
+    calculations.observe(game.scene(screen!=Screen::Playing || game.cameraMode!=1),game.elapsed,game.night);
     snapshots.submit(calculations.snapshot()); snapshots.flush();
 }
 }

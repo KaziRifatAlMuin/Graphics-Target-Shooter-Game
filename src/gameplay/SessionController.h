@@ -15,6 +15,7 @@ public:
     void backspace();
     void acceptName();
     void refreshBoard();
+    void checkChallengeName();
 private:
     Screen animatedScreen=Screen::Menu;
     Game& game;

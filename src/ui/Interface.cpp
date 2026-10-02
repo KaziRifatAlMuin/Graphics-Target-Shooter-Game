@@ -20,6 +20,12 @@ std::vector<Button> screenButtons(Screen screen,GameMode mode) {
         {96,552,245,52,"CONTROLS",Action::Controls},{355,552,241,52,"PRACTICE",Action::Practice},
         {650,552,560,52,"LEADERBOARD",Action::Leaderboard},{96,628,500,52,"EXIT",Action::Exit},
         {650,628,264,52,"",Action::DayNight},{932,628,278,52,"",Action::Sound}};
+    if (screen==Screen::ChallengeName) return {
+        {96,240,640,56,"",Action::EditName},
+        {96,440,400,60,"CHECK NAME / START",Action::ConfirmChallenge},
+        {520,440,240,60,"REWRITE NAME",Action::RewriteName},
+        {784,440,240,60,"BACK TO MENU",Action::Back},
+        {96,628,264,52,"",Action::DayNight},{380,628,278,52,"",Action::Sound}};
     if (screen==Screen::Developer) {
         std::vector<Button> buttons;
         for (int i=0;i<7;++i) buttons.push_back({float(56+396*(i%3)),float(205+130*(i/3)),376,110,
@@ -65,6 +71,25 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
     if (resultScreen(screen) && drawPresentation(p,game,screen,state)) return p.vertices;
     if (drawModePage(p,game,screen,state)) {
         // Mode pages share the same button hit testing and painter as the gameplay HUD.
+    } else if (screen==Screen::ChallengeName) {
+        p.rect(56,66,1168,668,{.035f,.065f,.09f}); p.rect(56,66,5,668,teal);
+        p.text(96,104,"CHALLENGE MODE / 7-LEVEL GAUNTLET",2,teal);
+        p.text(96,154,"PLAYER CALLSIGN REGISTRATION",4,ink);
+        p.text(96,204,"ENTER YOUR NAME (1-24 CHARACTERS). BACKSPACE TO EDIT. ENTER TO CONTINUE.",1.8f,muted);
+        if (state.nameExistsWarning) {
+            p.rect(96,316,1088,116,{.16f,.06f,.06f}); p.rect(96,316,5,116,amber);
+            p.text(118,337,"NAME ALREADY EXISTS IN CHALLENGE / RANK "+std::to_string(state.existingRank),2.2f,amber);
+            p.text(118,364,state.name,2,ink);
+            p.text(118,385,"EXISTING BEST RECORD: SCORE "+std::to_string(state.existingScore)+"   /   LEVELS CLEARED: "+std::to_string(state.existingLevels),1.9f,ink);
+            p.text(118,415,"ONLY A BETTER ELIGIBLE RESULT REPLACES THE SAVED BEST.",1.7f,muted);
+        } else {
+            p.rect(96,316,1088,88,{.04f,.12f,.12f}); p.rect(96,316,5,88,teal);
+            p.text(118,344,state.name.empty()?"ENTER YOUR NAME TO CONTINUE":"NEW CHALLENGE NAME: "+state.name,2.2f,teal);
+            p.text(118,380,"PRESS ENTER OR CHECK NAME / START TO CONTINUE.",1.8f,ink);
+        }
+        p.rect(96,524,1088,84,{.025f,.045f,.07f});
+        p.text(118,548,"COMPETITIVE RULES: SEVEN SEQUENTIAL LEVELS WITH PROGRESSIVE TARGET SPEEDS & DISTANCES.",1.8f,ink);
+        p.text(118,576,"ACCURACY PENALTIES: BIRDS -100 PTS  |  CIVILIANS -200 PTS. STRIKES ARE FATAL AND DO NOT RESPAWN!",1.8f,amber);
     } else if (screen!=Screen::Playing) {
         p.rect(56,66,530,668,{.035f,.065f,.09f}); p.rect(56,66,5,668,teal);
         p.text(96,104,"ARENA / CONTROLS AND SETTINGS",2,teal);
@@ -179,13 +204,13 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
         const bool hover=pointerFree&&inside(b,mx,my);
         const bool selected=(b.action==Action::Pistol&&game.weapon==WeaponType::Pistol)
             ||(b.action==Action::Shotgun&&game.weapon==WeaponType::Shotgun)||(b.action==Action::Rifle&&game.weapon==WeaponType::Rifle);
-        const bool primary=b.action==Action::Start||b.action==Action::Resume;
+        const bool primary=b.action==Action::Start||b.action==Action::Resume||b.action==Action::ConfirmChallenge;
         p.rect(b.x,b.y,b.w,b.h,primary||selected?teal:(hover?Vec3{.20f,.32f,.36f}:Vec3{.10f,.16f,.20f}));
         if (hover) {
             p.rect(b.x,b.y,4+2*std::sin(state.animationTime*7),b.h,amber);
             p.rect(b.x,b.y+b.h-2,b.w,2,teal);
         }
-        const std::string label=b.action==Action::NextLevel&&!game.levels.readyToAdvance()?"LEVEL CLEARED...":b.action==Action::DayNight?(game.night?"N  NIGHT":"N  DAY"):
+        const std::string label=b.action==Action::ConfirmChallenge&&state.duplicateConfirmation?"USE EXISTING NAME":b.action==Action::NextLevel&&!game.levels.readyToAdvance()?"LEVEL CLEARED...":b.action==Action::DayNight?(game.night?"N  NIGHT":"N  DAY"):
             b.action==Action::Sound?(!game.soundAvailable?"NO AUDIO DEVICE":game.soundEnabled?"M  SOUND ON":"M  SOUND OFF"):
             b.action==Action::EditName?"NAME: "+state.name+(state.editingName?"_":""):b.text;
         p.text(b.x+18,b.y+(b.h-14)/2,label,2,primary||selected?Vec3{.03f,.08f,.10f}:ink);

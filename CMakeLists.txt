@@ -51,6 +51,10 @@ add_library(scene_core
 target_include_directories(scene_core PUBLIC src)
 target_link_libraries(scene_core PUBLIC Threads::Threads)
 
+# Optional documentation audit; uses the real scene builders without opening a window.
+add_executable(scene_reference EXCLUDE_FROM_ALL tools/scene_reference.cpp)
+target_link_libraries(scene_reference PRIVATE scene_core)
+
 add_executable(main src/main.cpp src/core/Application.cpp src/testing/ModeSmoke.cpp src/rendering/Renderer.cpp src/third_party/glad.c)
 target_include_directories(main PRIVATE include)
 target_compile_definitions(main PRIVATE SHOOTER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

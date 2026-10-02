@@ -17,8 +17,8 @@ namespace shooter {
 namespace { constexpr int sampleRate=22050, blockSamples=512; }
 std::vector<float> synthesizeSound(SoundEvent event) {
     const int kind=static_cast<int>(event);
-    const float durations[]={.16f,.28f,.11f,.13f,.34f,.05f,.4f,.65f,.45f,.65f,1.25f,.8f};
-    const float frequencies[]={170,95,230,1250,650,850,160,95,520,660,880,330};
+    const float durations[]={.16f,.28f,.11f,.13f,.34f,.05f,.4f,.65f,.45f,.65f,1.25f,.8f,.42f,.70f};
+    const float frequencies[]={170,95,230,1250,650,850,160,95,520,660,880,330,1400,240};
     const float duration=durations[kind];
     std::vector<float> samples(static_cast<std::size_t>(duration*sampleRate));
     std::uint32_t random=2107042+kind;
@@ -31,8 +31,10 @@ std::vector<float> synthesizeSound(SoundEvent event) {
         if (event==SoundEvent::Victory || event==SoundEvent::Complete || event==SoundEvent::Start)
             frequency*=1+float(int(u*4))*.25f;
         if (event==SoundEvent::HumanPenalty) frequency*=1+.3f*std::sin(t*32);
+        if (event==SoundEvent::BirdDie) frequency=(1500.0f*(1.0f-u*0.75f))*(1.0f+0.35f*std::sin(t*140.0f));
+        if (event==SoundEvent::HumanDie) frequency=(240.0f*(1.0f-u*0.65f))*(1.0f+0.15f*std::sin(t*28.0f));
         const float tone=std::sin(2*pi*frequency*(t-.32f*t*t/duration));
-        const float noisy=kind<3?.78f:kind==4?.65f:kind==3?.10f:0;
+        const float noisy=kind<3?.78f:kind==4?.65f:kind==3?.10f:event==SoundEvent::BirdDie?.35f:event==SoundEvent::HumanDie?.42f:0;
         samples[i]=.38f*envelope*(noisy*noise+(1-noisy)*tone);
     }
     return samples;
