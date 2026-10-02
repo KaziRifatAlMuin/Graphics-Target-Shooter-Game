@@ -1,4 +1,5 @@
 #include "Interface.h"
+#include "ModeUI.h"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -6,65 +7,39 @@
 #include <sstream>
 
 namespace shooter {
+using namespace ui;
 namespace {
-const Vec3 ink{.88f,.92f,.94f}, muted{.53f,.63f,.69f}, teal{.26f,.82f,.71f}, amber{.98f,.70f,.31f};
-// Small built-in 5x7 font. No OS fonts, texture downloads, or extra dependencies.
-std::array<unsigned char,7> glyph(char character) {
-    switch (std::toupper(static_cast<unsigned char>(character))) {
-    case 'A': return {14,17,17,31,17,17,17}; case 'B': return {30,17,17,30,17,17,30};
-    case 'C': return {14,17,16,16,16,17,14}; case 'D': return {30,17,17,17,17,17,30};
-    case 'E': return {31,16,16,30,16,16,31}; case 'F': return {31,16,16,30,16,16,16};
-    case 'G': return {14,17,16,23,17,17,15}; case 'H': return {17,17,17,31,17,17,17};
-    case 'I': return {14,4,4,4,4,4,14}; case 'J': return {7,2,2,2,2,18,12};
-    case 'K': return {17,18,20,24,20,18,17}; case 'L': return {16,16,16,16,16,16,31};
-    case 'M': return {17,27,21,21,17,17,17}; case 'N': return {17,25,21,19,17,17,17};
-    case 'O': return {14,17,17,17,17,17,14}; case 'P': return {30,17,17,30,16,16,16};
-    case 'Q': return {14,17,17,17,21,18,13}; case 'R': return {30,17,17,30,20,18,17};
-    case 'S': return {15,16,16,14,1,1,30}; case 'T': return {31,4,4,4,4,4,4};
-    case 'U': return {17,17,17,17,17,17,14}; case 'V': return {17,17,17,17,17,10,4};
-    case 'W': return {17,17,17,21,21,21,10}; case 'X': return {17,17,10,4,10,17,17};
-    case 'Y': return {17,17,10,4,4,4,4}; case 'Z': return {31,1,2,4,8,16,31};
-    case '0': return {14,17,19,21,25,17,14}; case '1': return {4,12,4,4,4,4,14};
-    case '2': return {14,17,1,2,4,8,31}; case '3': return {30,1,1,14,1,1,30};
-    case '4': return {2,6,10,18,31,2,2}; case '5': return {31,16,16,30,1,1,30};
-    case '6': return {14,16,16,30,17,17,14}; case '7': return {31,1,2,4,8,8,8};
-    case '8': return {14,17,17,14,17,17,14}; case '9': return {14,17,17,15,1,1,14};
-    case ':': return {0,4,4,0,4,4,0}; case '.': return {0,0,0,0,0,6,6};
-    case '-': return {0,0,0,31,0,0,0}; case '/': return {1,1,2,4,8,16,16};
-    case '+': return {0,4,4,31,4,4,0}; case '>': return {16,8,4,2,4,8,16};
-    case '!': return {4,4,4,4,4,0,4};
-    case '(': return {2,4,8,8,8,4,2}; case ')': return {8,4,2,2,2,4,8};
-    default: return {};
-    }
-}
-struct Painter {
-    std::vector<UiVertex> vertices;
-    void rect(float x,float y,float w,float h,Vec3 c) {
-        for (auto p:std::array<std::array<float,2>,6>{{{x,y},{x+w,y},{x+w,y+h},{x,y},{x+w,y+h},{x,y+h}}})
-            vertices.push_back({p[0],p[1],c.x,c.y,c.z});
-    }
-    void text(float x,float y,const std::string& value,float scale,Vec3 c) {
-        for (char ch:value) {
-            const auto rows=glyph(ch);
-            for (int row=0; row<7; ++row) for (int col=0; col<5; ++col)
-                if (rows[row]&(1<<(4-col))) rect(x+col*scale,y+row*scale,scale,scale,c);
-            x+=6*scale;
-        }
-    }
-    void line(float x1,float y1,float x2,float y2,float thickness,Vec3 c) {
-        const float dx=x2-x1,dy=y2-y1, length=std::sqrt(dx*dx+dy*dy);
-        if (length==0) return;
-        const float x=-dy/length*thickness/2, y=dx/length*thickness/2;
-        const float points[][2]={{x1+x,y1+y},{x2+x,y2+y},{x2-x,y2-y},{x1+x,y1+y},{x2-x,y2-y},{x1-x,y1-y}};
-        for (auto& p:points) vertices.push_back({p[0],p[1],c.x,c.y,c.z});
-    }
-};
 bool inside(const Button& b,float x,float y) { return x>=b.x && x<=b.x+b.w && y>=b.y && y<=b.y+b.h; }
 }
-std::vector<Button> screenButtons(Screen screen) {
-    if (screen==Screen::LevelComplete || screen==Screen::Victory) return {
-        {96,544,430,56,screen==Screen::Victory?"PLAY CHALLENGE AGAIN":"NEXT LEVEL",screen==Screen::Victory?Action::Start:Action::NextLevel},
-        {96,616,430,56,"MAIN MENU",Action::Menu},{1000,110,210,52,"EXIT",Action::Exit}};
+std::vector<Button> screenButtons(Screen screen,GameMode mode) {
+    if (screen==Screen::Menu) return {
+        {96,194,500,52,"",Action::EditName},
+        {96,294,500,90,"FREE MODE / 3 MINUTES",Action::Free},{650,294,560,90,"DEVELOPER MODE",Action::Developer},
+        {96,400,500,90,"CHALLENGE / SEVEN LEVELS",Action::Start},{650,400,560,90,"BIRD'S-EYE VIEW",Action::BirdsEye},
+        {96,552,245,52,"CONTROLS",Action::Controls},{355,552,241,52,"PRACTICE",Action::Practice},
+        {650,552,560,52,"LEADERBOARD",Action::Leaderboard},{96,628,500,52,"EXIT",Action::Exit},
+        {650,628,264,52,"",Action::DayNight},{932,628,278,52,"",Action::Sound}};
+    if (screen==Screen::Developer) {
+        std::vector<Button> buttons;
+        for (int i=0;i<7;++i) buttons.push_back({float(56+396*(i%3)),float(205+130*(i/3)),376,110,
+            "LEVEL "+std::to_string(i+1)+" / "+std::to_string(levelConfiguration(i+1).targets.size())+" TARGETS",Action(int(Action::Level1)+i)});
+        buttons.push_back({56,654,376,48,"MAIN MENU",Action::Menu}); return buttons;
+    }
+    if (screen==Screen::Leaderboard) return {
+        {66,202,270,52,"CHALLENGE",Action::BoardChallenge},{354,202,270,52,"FREE",Action::BoardFree},
+        {96,698,250,40,"BACK",Action::Back},{410,698,250,40,"RETRY LOAD/SAVE",Action::RetrySave},
+        {900,662,140,32,"UP",Action::ScrollUp},{1050,662,140,32,"DOWN",Action::ScrollDown}};
+    if (resultScreen(screen)) {
+        if (mode==GameMode::Developer) return {{66,698,300,40,"RELOAD LEVEL",Action::Replay},
+            {400,698,340,40,"SELECT LEVEL",Action::Developer},{780,698,300,40,"MAIN MENU",Action::Menu}};
+        return {{66,698,300,40,screen==Screen::LevelComplete?"NEXT LEVEL":"PLAY AGAIN",screen==Screen::LevelComplete?Action::NextLevel:Action::Replay},
+            {384,698,230,40,"MAIN MENU",Action::Menu},{632,698,270,40,"RESTART RUN",Action::Replay},
+            {920,698,288,40,"RETRY SAVE",Action::RetrySave},{900,662,140,32,"UP",Action::ScrollUp},{1050,662,140,32,"DOWN",Action::ScrollDown}};
+    }
+    if (screen==Screen::Playing && mode==GameMode::BirdsEye) return {
+        {1000,22,122,40,"MENU",Action::Menu},{1134,22,112,40,"EXIT",Action::Exit},
+        {28,716,360,52,"B / F2  OVERHEAD",Action::Overview},
+        {802,716,208,52,"",Action::DayNight},{1024,716,224,52,"",Action::Sound}};
     if (screen==Screen::Playing) return {{1000,22,122,40,"MENU",Action::Menu},{1134,22,112,40,"EXIT",Action::Exit},
         {28,716,220,52,"1  PISTOL",Action::Pistol},{262,716,220,52,"2  SHOTGUN",Action::Shotgun},
         {496,716,274,52,"3  ASSAULT RIFLE",Action::Rifle},
@@ -75,18 +50,22 @@ std::vector<Button> screenButtons(Screen screen) {
     return {{96,400,430,56,paused?"RESUME SESSION":"START CHALLENGE",paused?Action::Resume:Action::Start},
             {96,472,430,56,"VIEW CONTROLS",Action::Controls},
             {96,544,430,56,paused?"MAIN MENU":"EXIT",paused?Action::Menu:Action::Exit},
-            {96,616,430,56,paused?"EXIT":"PRACTICE SANDBOX",paused?Action::Exit:Action::Practice},
+            {96,616,430,56,paused?(mode==GameMode::Developer?"SELECT LEVEL":"EXIT"):"PRACTICE SANDBOX",paused?(mode==GameMode::Developer?Action::Developer:Action::Exit):Action::Practice},
             {650,466,264,52,"",Action::DayNight},{932,466,278,52,"",Action::Sound}};
 }
-Action clickedAction(Screen screen,float x,float y) {
-    for (const auto& b:screenButtons(screen)) if (inside(b,x,y)) return b.action;
+Action clickedAction(Screen screen,float x,float y,GameMode mode) {
+    for (const auto& b:screenButtons(screen,mode)) if (inside(b,x,y)) return b.action;
     return Action::None;
 }
-std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,float my,bool pointerFree) {
+std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,float my,bool pointerFree,const UiState* supplied) {
     Painter p;
-    if (screen!=Screen::Playing) {
+    const UiState defaults;
+    const auto& state=supplied?*supplied:defaults;
+    if (drawModePage(p,game,screen,state)) {
+        // Mode pages share the same button hit testing and painter as the gameplay HUD.
+    } else if (screen!=Screen::Playing) {
         p.rect(56,66,530,668,{.035f,.065f,.09f}); p.rect(56,66,5,668,teal);
-        p.text(96,104,"PHASE 2 / SEVEN LEVEL CHALLENGE",2,teal);
+        p.text(96,104,"PHASE 3 / MODES AND LEADERBOARD",2,teal);
         if (screen==Screen::Controls) {
             p.text(96,158,"CONTROLS",4,ink);
             const char* lines[]={"WASD       WALK / FREE CAMERA","MOUSE      LOOK AND AIM","LEFT CLICK / SPACE    FIRE",
@@ -113,17 +92,14 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
         p.text(676,338,"TARGET +100 / FIRST SHOT KILL +150",2,teal);
         p.text(676,378,"BIRD -100 / HUMAN -200",2,amber);
         p.text(676,406,"LEVELS 1-3: FIXED PLAYER. 4-7: WALK.",1.8f,muted);
-        if (screen==Screen::LevelComplete || screen==Screen::Victory) {
-            p.rect(80,145,480,380,{.035f,.065f,.09f});
-            p.text(96,170,screen==Screen::Victory?"CHALLENGE":"LEVEL",4.5f,ink);
-            p.text(96,216,"COMPLETE!",4.5f,teal);
-            p.text(96,286,"SCORE  "+std::to_string(game.score),3,amber);
-            p.text(96,330,"TOTAL TIME  "+std::to_string(int(game.elapsed))+" S",2.5f,ink);
-            p.text(96,370,"TARGETS "+std::to_string(game.destroyed)+"  BULLSEYES "+std::to_string(game.bullseyes),2,ink);
-            p.text(96,408,"BIRDS "+std::to_string(game.birdHits)+"  HUMANS "+std::to_string(game.humanHits),2,ink);
-            p.text(96,446,"LEVELS CLEARED  "+std::to_string(game.levelsCleared),2,teal);
-            p.text(96,486,screen==Screen::Victory?"ALL SEVEN LEVELS CLEARED.":"ENTER TO CONTINUE WHEN READY.",1.9f,muted);
-            p.rect(96,518,430*std::min(1.0f,game.levels.transition),4,teal);
+        if (screen==Screen::Controls) {
+            p.rect(648,198,562,240,{.035f,.065f,.09f});
+            p.text(676,222,"BIRD'S-EYE / LEADERBOARD",2.5f,ink);
+            p.text(676,266,"CLICK OPEN GROUND TO OBSERVE",2,teal);
+            p.text(676,300,"WASD PAN / WALK. MOUSE LOOK.",1.9f,muted);
+            p.text(676,334,"WHEEL ZOOM. B / F2 RETURN OVERHEAD.",1.8f,muted);
+            p.text(676,372,"TABLE: WHEEL / PAGE UP / PAGE DOWN",1.8f,amber);
+            p.text(676,406,"DEVELOPER: PAUSE > SELECT LEVEL",1.8f,muted);
         }
     } else {
         p.rect(20,16,940,88,{.035f,.065f,.09f});
@@ -138,7 +114,7 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
         p.text(650,72,"HITS "+std::to_string(game.hits)+"  CLEARED "+std::to_string(game.destroyed),1.8f,ink);
         p.rect(20,112,630,44,{.035f,.065f,.09f});
         p.text(40,127,"SCORE "+std::to_string(game.score)+"  /  BULLSEYES "+std::to_string(game.bullseyes),2,amber);
-        if (game.challenge) {
+        if (game.usesLevel()) {
             p.rect(20,164,680,90,{.035f,.065f,.09f});
             p.text(40,178,"LEVEL "+std::to_string(game.levels.config.number)+" / 7   REMAINING "+std::to_string(game.remainingTargets()),2,teal);
             p.text(40,205,"TIME "+std::to_string(int(game.elapsed))+" S   BIRDS "+std::to_string(game.birdHits)+"   HUMANS "+std::to_string(game.humanHits),1.9f,ink);
@@ -147,10 +123,11 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
                 p.rect(350,300,620,120,{.035f,.065f,.09f});
                 p.text(385,320,"LEVEL "+std::to_string(game.levels.config.number)+" - GET READY",3,teal);
                 p.text(385,365,game.levels.config.title,2,ink);
-                p.text(385,396,"DESTROY ALL TARGETS TO CONTINUE",1.8f,muted);
+                p.text(385,396,game.mode==GameMode::Free?"180 SECONDS / TARGET RESPAWN 30 SECONDS":"DESTROY ALL TARGETS TO CONTINUE",1.8f,muted);
                 p.rect(350,416,620*std::min(1.0f,game.levels.transition/1.5f),4,teal);
             }
         }
+        drawModeHud(p,game,state);
         if (target>=0 && game.cameraMode==1) {
             p.rect(28,608,400,40,{.035f,.065f,.09f});
             p.text(42,620,"TARGET HEALTH "+std::to_string(int(game.targets[target].health))+" / 60",2,ink);
@@ -183,20 +160,21 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
         }
     }
     const Vec3 red{1,.23f,.20f};
-    if (game.dangerTime>0) {
+    if (screen==Screen::Playing && game.dangerTime>0) {
         const float edge=4+6*game.dangerTime;
         p.rect(0,0,1280,edge,red); p.rect(0,800-edge,1280,edge,red);
         p.rect(0,0,edge,800,red); p.rect(1280-edge,0,edge,800,red);
     }
-    float popupY=520; int popupIndex=0;
-    const bool completed=screen==Screen::LevelComplete || screen==Screen::Victory;
-    if (completed && !game.scoreFeedback.empty()) p.rect(648,448,562,120,{.035f,.065f,.09f});
-    for (const auto& popup:game.scoreFeedback) {
-        const float x=completed?676+260*(popupIndex/3):790;
-        const float y=completed?478+30*(popupIndex%3):popupY;
-        p.text(x,y-(1.5f-popup.life)*20,popup.text,completed?2.f:2.5f,popup.penalty?red:teal); popupY+=30; ++popupIndex;
+    float popupY=520;
+    if (screen==Screen::Playing) for (const auto& popup:game.scoreFeedback) {
+        p.text(790,popupY-(1.5f-popup.life)*20,popup.text,2.5f,popup.penalty?red:teal); popupY+=30;
     }
-    for (const auto& b:screenButtons(screen)) {
+    if (resultScreen(screen) && !game.scoreFeedback.empty()) {
+        const auto& popup=game.scoreFeedback.back();
+        p.text(810,226-(1.5f-popup.life)*8,popup.text,2,popup.penalty?red:teal);
+    }
+    if (screen!=Screen::Playing && !state.message.empty()) p.text(66,675,state.message.substr(0,78),1.6f,amber);
+    for (const auto& b:screenButtons(screen,game.mode)) {
         if (b.action==Action::None) continue;
         const bool hover=pointerFree&&inside(b,mx,my);
         const bool selected=(b.action==Action::Pistol&&game.weapon==WeaponType::Pistol)
@@ -205,7 +183,8 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
         p.rect(b.x,b.y,b.w,b.h,primary||selected?teal:(hover?Vec3{.20f,.32f,.36f}:Vec3{.10f,.16f,.20f}));
         if (hover) p.rect(b.x,b.y,4,b.h,amber);
         const std::string label=b.action==Action::NextLevel&&!game.levels.readyToAdvance()?"LEVEL CLEARED...":b.action==Action::DayNight?(game.night?"N  NIGHT":"N  DAY"):
-            b.action==Action::Sound?(!game.soundAvailable?"NO AUDIO DEVICE":game.soundEnabled?"M  SOUND ON":"M  SOUND OFF"):b.text;
+            b.action==Action::Sound?(!game.soundAvailable?"NO AUDIO DEVICE":game.soundEnabled?"M  SOUND ON":"M  SOUND OFF"):
+            b.action==Action::EditName?"NAME: "+state.name+(state.editingName?"_":""):b.text;
         p.text(b.x+18,b.y+(b.h-14)/2,label,2,primary||selected?Vec3{.03f,.08f,.10f}:ink);
     }
     return p.vertices;

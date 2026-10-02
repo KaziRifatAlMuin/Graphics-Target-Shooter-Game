@@ -2,6 +2,8 @@
 #include "CsvLogger.h"
 #include "Renderer.h"
 #include "Sound.h"
+#include "SessionController.h"
+#include "ModeSmoke.h"
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <algorithm>
@@ -59,7 +61,7 @@ double verifyFrame(int width,int height,const fs::path& capture,bool checkScene)
     return brightness/(width*height);
 }
 void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path& csvPath,
-              bool smoke,const fs::path& capture,bool challengeSmoke) {
+              bool smoke,const fs::path& capture,bool challengeSmoke,bool modesSmoke,const fs::path& boardPath) {
     CsvLogger calculations;
     Renderer renderer;
     renderer.initialize(root/"shaders");
@@ -69,69 +71,82 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
     std::cout<<(game.soundAvailable?"Audio: output device opened.\n":"Audio: no output device; continuing with sound unavailable.\n");
     sound.setEnabled(game.soundEnabled&&!smoke);
     glEnable(GL_DEPTH_TEST);
-    Screen screen=game.challenge?Screen::Playing:Screen::Menu,controlsReturn=Screen::Menu;
-    bool pointerUnlocked=false,captured=false,previousClick=false,snapshotDirty=false,fireArmed=false;
+    Leaderboard leaderboard(boardPath);
+    SessionController session(game,leaderboard);
+    auto& screen=session.ui.screen;
+    auto& pointerUnlocked=session.pointerUnlocked;
+    auto& snapshotDirty=session.snapshotDirty;
+    bool captured=false,previousClick=false,fireArmed=false;
+    struct Input { std::vector<unsigned int> text; double scroll=0; } input;
+    glfwSetWindowUserPointer(window,&input);
+    glfwSetCharCallback(window,[](GLFWwindow* w,unsigned int cp) { static_cast<Input*>(glfwGetWindowUserPointer(w))->text.push_back(cp); });
+    glfwSetScrollCallback(window,[](GLFWwindow* w,double,double y) { static_cast<Input*>(glfwGetWindowUserPointer(w))->scroll+=y; });
     std::array<bool,GLFW_KEY_LAST+1> previousKeys{};
     double previous=glfwGetTime(),lastX=0,lastY=0;
     float sinceSnapshot=0;
     int frame=0;
     double dayBrightness=0;
     auto action=[&](Action a) {
-        switch (a) {
-        case Action::Start: game.startChallenge(); screen=Screen::Playing; pointerUnlocked=false; fireArmed=false; snapshotDirty=true; break;
-        case Action::Practice: game.reset(); screen=Screen::Playing; pointerUnlocked=false; fireArmed=false; snapshotDirty=true; break;
-        case Action::NextLevel: if (game.nextLevel()) { screen=Screen::Playing; pointerUnlocked=false; fireArmed=false; snapshotDirty=true; } break;
-        case Action::Resume: screen=Screen::Playing; pointerUnlocked=false; fireArmed=false; break;
-        case Action::Controls: controlsReturn=screen; screen=Screen::Controls; break;
-        case Action::Back: screen=controlsReturn; break;
-        case Action::Menu: screen=screen==Screen::Playing?Screen::Paused:Screen::Menu; snapshotDirty=true; break;
-        case Action::Exit: glfwSetWindowShouldClose(window,GLFW_TRUE); break;
-        case Action::Pistol: game.weapon=WeaponType::Pistol; game.recoil=0; snapshotDirty=true; break;
-        case Action::Shotgun: game.weapon=WeaponType::Shotgun; game.recoil=0; snapshotDirty=true; break;
-        case Action::Rifle: game.weapon=WeaponType::Rifle; game.recoil=0; snapshotDirty=true; break;
-        case Action::DayNight: game.night=!game.night; snapshotDirty=true; break;
-        case Action::Sound: game.soundEnabled=!game.soundEnabled; break;
-        default: break;
-        }
+        session.action(a);
+        if (session.exitRequested) glfwSetWindowShouldClose(window,GLFW_TRUE);
         sound.setEnabled(game.soundEnabled&&!smoke);
         if (a!=Action::None) sound.play(SoundEvent::Click);
     };
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         const double now=glfwGetTime();
-        const float dt=smoke?1.0f/60:static_cast<float>(std::min(now-previous,.05));
+        const float dt=smoke?1.0f/60:static_cast<float>(now-previous);
         previous=now;
         std::array<bool,GLFW_KEY_LAST+1> keys{};
         for (int key=GLFW_KEY_SPACE;key<=GLFW_KEY_LAST;++key) keys[key]=glfwGetKey(window,key)==GLFW_PRESS;
         auto pressed=[&](int key) { return keys[key]&&!previousKeys[key]; };
-        if (pressed(GLFW_KEY_N)) action(Action::DayNight);
-        if (pressed(GLFW_KEY_M)) action(Action::Sound);
+        const bool editing=session.ui.editingName;
+        for (auto cp:input.text) session.type(cp);
+        input.text.clear();
+        if (editing && pressed(GLFW_KEY_BACKSPACE)) session.backspace();
+        if (!editing && pressed(GLFW_KEY_N)) action(Action::DayNight);
+        if (!editing && pressed(GLFW_KEY_M)) action(Action::Sound);
+        session.ui.fps=dt>0?1/dt:0;
         const bool click=glfwGetMouseButton(window,GLFW_MOUSE_BUTTON_LEFT)==GLFW_PRESS;
         const bool clickEdge=click&&!previousClick;
         const bool focused=glfwGetWindowAttrib(window,GLFW_FOCUSED)!=0;
         if (!focused && !smoke && screen==Screen::Playing) screen=Screen::Paused;
         bool consumed=false;
-        if (pressed(GLFW_KEY_ESCAPE)) {
+        if (editing && (pressed(GLFW_KEY_ENTER)||pressed(GLFW_KEY_ESCAPE))) { session.acceptName(); consumed=true; }
+        if (!consumed && pressed(GLFW_KEY_ESCAPE)) {
             if (screen==Screen::Playing) action(Action::Menu);
             else if (screen==Screen::Paused) action(Action::Resume);
-            else if (screen==Screen::Controls) action(Action::Back);
-            else if (screen==Screen::LevelComplete || screen==Screen::Victory) action(Action::Menu);
+            else if (screen==Screen::Controls || screen==Screen::Leaderboard) action(Action::Back);
+            else if (resultScreen(screen) || screen==Screen::Developer) action(Action::Menu);
             else action(Action::Exit);
             consumed=true;
         }
-        if (pressed(GLFW_KEY_ENTER) && (screen==Screen::Menu || screen==Screen::Paused)) {
+        if (!consumed && pressed(GLFW_KEY_ENTER) && (screen==Screen::Menu || screen==Screen::Paused)) {
             action(screen==Screen::Menu?Action::Start:Action::Resume); consumed=true;
         }
-        if (pressed(GLFW_KEY_ENTER) && screen==Screen::LevelComplete) { action(Action::NextLevel); consumed=true; }
+        if (!consumed && pressed(GLFW_KEY_ENTER) && screen==Screen::LevelComplete && game.mode==GameMode::Challenge) { action(Action::NextLevel); consumed=true; }
+        if (game.mode==GameMode::Developer && resultScreen(screen) && pressed(GLFW_KEY_R)) action(Action::Replay);
+        if (screen==Screen::Leaderboard || resultScreen(screen)) {
+            session.scroll(-int(input.scroll)*3);
+            if (pressed(GLFW_KEY_PAGE_UP)) session.scroll(-leaderboardVisibleRows);
+            if (pressed(GLFW_KEY_PAGE_DOWN)) session.scroll(leaderboardVisibleRows);
+        } else if (screen==Screen::Playing && game.mode==GameMode::BirdsEye && !game.birdEye.observing) game.birdEye.zoom(float(input.scroll));
+        input.scroll=0;
         double mouseX,mouseY;
         glfwGetCursorPos(window,&mouseX,&mouseY);
         int windowW,windowH;
         glfwGetWindowSize(window,&windowW,&windowH);
         const float ux=float(mouseX)*1280/std::max(1,windowW),uy=float(mouseY)*800/std::max(1,windowH);
-        bool pointerFree=screen!=Screen::Playing || pointerUnlocked || (game.cameraMode!=1 && game.cameraMode!=4);
+        bool pointerFree=screen!=Screen::Playing || pointerUnlocked || (game.mode==GameMode::BirdsEye?!game.birdEye.observing:(game.cameraMode!=1 && game.cameraMode!=4));
         if (clickEdge && pointerFree && !consumed) {
-            const auto selected=clickedAction(screen,ux,uy);
+            const auto selected=clickedAction(screen,ux,uy,game.mode);
             action(selected); consumed=selected!=Action::None;
+            if (!consumed && screen==Screen::Playing && game.mode==GameMode::BirdsEye && !game.birdEye.observing && uy>100 && uy<650) {
+                if (game.birdEye.observeAt(ux/1280,uy/800,float(windowW)/std::max(1,windowH),game.staticObjects,game.targets)) {
+                    session.ui.message.clear(); session.inputReset=true; snapshotDirty=true; pointerUnlocked=false;
+                } else session.ui.message="CHOOSE OPEN GROUND INSIDE THE WALLS, CLEAR OF CARGO.";
+                consumed=true;
+            }
         }
         if (screen==Screen::Playing && (focused || smoke)) {
             if (pressed(GLFW_KEY_TAB)) pointerUnlocked=!pointerUnlocked;
@@ -142,13 +157,20 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
             if (pressed(GLFW_KEY_R)) { game.resetTargets(); snapshotDirty=true; }
             if (pressed(GLFW_KEY_F5)) snapshotDirty=true;
             const bool fast=keys[GLFW_KEY_LEFT_SHIFT]||keys[GLFW_KEY_RIGHT_SHIFT];
-            if (game.cameraMode==4)
+            const float moveDt=std::min(dt,.05f);
+            if (game.mode==GameMode::BirdsEye) {
+                if (pressed(GLFW_KEY_B)) action(Action::Overview);
+                const float forward=float(keys[GLFW_KEY_W]-keys[GLFW_KEY_S]),right=float(keys[GLFW_KEY_D]-keys[GLFW_KEY_A]);
+                if (game.birdEye.observing) game.birdEye.moveObservation(forward,right,moveDt,fast,game.staticObjects,game.targets);
+                else game.birdEye.pan(forward,right,moveDt);
+            } else if (game.cameraMode==4)
                 game.freeCamera.move(float(keys[GLFW_KEY_W]-keys[GLFW_KEY_S]),float(keys[GLFW_KEY_D]-keys[GLFW_KEY_A]),
-                                     float(keys[GLFW_KEY_E]-keys[GLFW_KEY_Q]),dt,fast);
-            else game.movePlayer(float(keys[GLFW_KEY_W]-keys[GLFW_KEY_S]),float(keys[GLFW_KEY_D]-keys[GLFW_KEY_A]),dt,fast);
+                                     float(keys[GLFW_KEY_E]-keys[GLFW_KEY_Q]),moveDt,fast);
+            else game.movePlayer(float(keys[GLFW_KEY_W]-keys[GLFW_KEY_S]),float(keys[GLFW_KEY_D]-keys[GLFW_KEY_A]),moveDt,fast);
         }
-        pointerFree=screen!=Screen::Playing || pointerUnlocked || (game.cameraMode!=1 && game.cameraMode!=4);
+        pointerFree=screen!=Screen::Playing || pointerUnlocked || (game.mode==GameMode::BirdsEye?!game.birdEye.observing:(game.cameraMode!=1 && game.cameraMode!=4));
         const bool captureMouse=!pointerFree && focused && !smoke;
+        if (session.inputReset) { fireArmed=false; glfwGetCursorPos(window,&lastX,&lastY); session.inputReset=false; }
         if (captureMouse!=captured) {
             captured=captureMouse;
             glfwSetInputMode(window,GLFW_CURSOR,captured?GLFW_CURSOR_DISABLED:GLFW_CURSOR_NORMAL);
@@ -156,13 +178,13 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
         }
         if (captured) {
             double x,y; glfwGetCursorPos(window,&x,&y);
-            Camera& lookCamera=game.cameraMode==4?game.freeCamera:game.player;
+            Camera& lookCamera=game.mode==GameMode::BirdsEye?game.birdEye.observation:game.cameraMode==4?game.freeCamera:game.player;
             lookCamera.look(float(x-lastX),float(y-lastY)); lastX=x; lastY=y;
         }
         // A click used to resume or select UI must be released before it can fire.
         if (pointerFree || consumed) fireArmed=false;
         else if (!click && !keys[GLFW_KEY_SPACE]) fireArmed=true;
-        if (screen==Screen::Playing && focused && game.cameraMode==1 && !pointerUnlocked && !consumed && fireArmed) {
+        if (screen==Screen::Playing && focused && game.mode!=GameMode::BirdsEye && game.cameraMode==1 && !pointerUnlocked && !consumed && fireArmed) {
             const bool fire=game.weapon==WeaponType::Rifle?(click||keys[GLFW_KEY_SPACE]):(clickEdge||pressed(GLFW_KEY_SPACE));
             if (fire) game.fire();
         }
@@ -198,11 +220,11 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
                 game.freeCamera.position=game.targets[0].base+Vec3{0,0,frame==136?3.0f:-3.0f};
                 game.freeCamera.yaw=frame==136?-90:90; game.freeCamera.pitch=0;
             }
-            if (challengeSmoke && frame>=139) {
+            if (challengeSmoke && frame>=139 && frame<=1804) {
                 const int phase=(frame-139)%240,level=(frame-139)/240+1;
                 if (phase==0) {
                     action(level==1?Action::Start:Action::NextLevel);
-                    if (!game.challenge || game.levels.config.number!=level) throw std::runtime_error("Challenge progression failed.");
+                    if (game.mode!=GameMode::Challenge || game.levels.config.number!=level) throw std::runtime_error("Challenge progression failed.");
                 }
                 if (phase==100) { game.setCamera(2); if (!game.birds.empty()) game.applyNpcHit(false,0,10000+level); }
                 if (phase==110 && !game.humans.empty()) game.applyNpcHit(true,0,20000+level);
@@ -210,11 +232,12 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
                 if (phase==150) for (std::size_t i=0;i<game.targets.size();++i) game.applyTargetHit(i,0,30000+level*100+i);
             }
         }
-        if (screen==Screen::Playing || screen==Screen::LevelComplete || screen==Screen::Victory) {
-            game.update(dt); sinceSnapshot+=dt;
+        float simulationDt=dt;
+        if (modesSmoke && frame>1804) simulationDt=modeSmokeStep(frame-1805,session,game,leaderboard);
+        session.update(simulationDt);
+        if (screen==Screen::Playing || resultScreen(screen)) {
+            sinceSnapshot+=simulationDt;
             if (sinceSnapshot>=1) snapshotDirty=true;
-            if (game.challenge && game.levels.stage==LevelStage::Complete) screen=Screen::LevelComplete;
-            if (game.challenge && game.levels.stage==LevelStage::Finished) screen=Screen::Victory;
         }
         for (auto event:game.soundEvents) sound.play(event);
         game.soundEvents.clear(); sound.update(); game.soundAvailable=sound.available();
@@ -237,8 +260,8 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
             if (frame==120) dayBrightness=brightness;
             if (frame==127 && brightness>=dayBrightness*.9) throw std::runtime_error("Night lighting did not visibly change the scene.");
         }
-        renderer.drawInterface(buildInterface(game,screen,ux,uy,pointerFree));
-        if (challengeSmoke && frame>=139 && ((frame-139)%240==140 || (frame-139)%240==180)) {
+        renderer.drawInterface(buildInterface(game,screen,ux,uy,pointerFree,&session.ui));
+        if (challengeSmoke && frame>=139 && frame<=1804 && ((frame-139)%240==140 || (frame-139)%240==180)) {
             fs::path output;
             if (!capture.empty()) output=capture.parent_path()/(capture.stem().string()+"-level-"+
                 std::to_string(game.levels.config.number)+((frame-139)%240==180?"-complete":"")+capture.extension().string());
@@ -264,7 +287,15 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
             if (game.levels.stage!=LevelStage::Finished || game.levelsCleared!=7 || game.destroyed!=46 || game.score!=6400)
                 throw std::runtime_error("Seven-level smoke statistics failed.");
             std::cout<<"PASS: all seven Challenge levels rendered and cleared sequentially; 46 targets, 3 bird penalties, 1 human penalty, score 6400.\n";
-            glfwSetWindowShouldClose(window,GLFW_TRUE);
+            if (!modesSmoke) glfwSetWindowShouldClose(window,GLFW_TRUE);
+        }
+        if (modesSmoke && frame>1804) {
+            const auto label=modeSmokeCapture(frame-1805);
+            if (!label.empty()) {
+                const auto output=capture.empty()?fs::path{}:capture.parent_path()/(capture.stem().string()+"-"+label+capture.extension().string());
+                verifyFrame(width,height,output,true);
+            }
+            if (modeSmokeFinished(frame-1805,session,game,leaderboard)) glfwSetWindowShouldClose(window,GLFW_TRUE);
         }
         glfwSwapBuffers(window); ++frame;
     }
@@ -274,18 +305,26 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
 int shooter::Application::run(int argc,char** argv) {
     GLFWwindow* window=nullptr; bool initialized=false;
     try {
-        bool exportOnly=false,smoke=false,challengeSmoke=false;
+        bool exportOnly=false,smoke=false,challengeSmoke=false,modesSmoke=false;
+        std::string name="Player",startMode;
         int testLevel=0;
-        fs::path csvPath,capture;
+        fs::path csvPath,capture,boardPath;
         for (int i=1;i<argc;++i) {
             const std::string arg=argv[i];
             if (arg=="--export-calc") exportOnly=true;
             else if (arg=="--smoke-test") smoke=true;
             else if (arg=="--challenge-smoke-test") smoke=challengeSmoke=true;
-            else if (arg=="--test-level" && i+1<argc) testLevel=std::stoi(argv[++i]);
+            else if (arg=="--modes-smoke-test") smoke=challengeSmoke=modesSmoke=true;
+            else if (arg=="--name" && i+1<argc) name=argv[++i];
+            else if (arg=="--mode" && i+1<argc) startMode=argv[++i];
+            else if (arg=="--leaderboard" && i+1<argc) boardPath=argv[++i];
+            else if (arg=="--test-level" && i+1<argc) {
+                std::size_t parsed=0; const std::string value=argv[++i]; testLevel=std::stoi(value,&parsed);
+                if (parsed!=value.size() || testLevel<1 || testLevel>7) throw std::runtime_error("Level must be 1 through 7.");
+            }
             else if ((arg=="--calc" || arg=="--capture") && i+1<argc) (arg=="--calc"?csvPath:capture)=argv[++i];
             else if (arg=="--help") {
-                std::cout<<"3D Target Shooter - Phase 2 of 4 - Seven Level Challenge\n"
+                std::cout<<"3D Target Shooter - Phase 3 of 4 - Modes and Leaderboard\n"
                     "Enter starts Challenge; Practice Sandbox preserves Phase 1. Esc pauses.\n"
                     "WASD move, mouse aim, click/Space fire, 1/2/3 weapons, Shift sprint, Tab pointer.\n"
                     "F1 player, F2 arena, F3 side, F4 free camera, Q/E fly, R restart level, F5 snapshot.\n"
@@ -294,7 +333,11 @@ int shooter::Application::run(int argc,char** argv) {
                     "--calc PATH   : override calculation output (default: project root/calc.csv)\n"
                     "--smoke-test  : run scripted menu/gameplay rendering checks in a hidden window\n"
                     "--challenge-smoke-test : also render and exercise all seven level lifecycles\n"
-                    "--test-level N: independently test a Challenge level (1-7); no saved progress\n"
+                    "--test-level N: launch shared Developer level (1-7); no competitive record\n"
+                    "--modes-smoke-test: also test Free, Developer, Bird\'s-Eye and persistence\n"
+                    "--mode free|challenge|birds-eye : directly enter a mode\n"
+                    "--name NAME --leaderboard PATH : player name and persistent CSV path\n"
+                    "Bird\'s-Eye: click ground, mouse look, WASD pan/walk, wheel zoom, B/F2 overhead.\n"
                     "--capture PATH: with --smoke-test, save player/menu/controls/arena PPM previews\n";
                 return 0;
             } else throw std::runtime_error("Unknown or incomplete argument: "+arg);
@@ -302,7 +345,22 @@ int shooter::Application::run(int argc,char** argv) {
         if ((!capture.empty()&&!smoke)||(exportOnly&&smoke)) throw std::runtime_error("Use --capture with --smoke-test; run --export-calc separately.");
         const auto root=projectDirectory(argv[0]);
         Game game;
-        if (testLevel) game.startChallenge(testLevel);
+        if (name.empty() || name.size()>24 || std::any_of(name.begin(),name.end(),[](unsigned char c) { return c<32 || c>126; })) throw std::runtime_error("Use a player name of 1-24 characters.");
+        game.playerName=name;
+        if (testLevel) game.startMode(GameMode::Developer,testLevel);
+        if (!startMode.empty()) {
+            if (testLevel) throw std::runtime_error("Choose --mode or --test-level, not both.");
+            if (startMode=="free") game.startMode(GameMode::Free);
+            else if (startMode=="challenge") game.startChallenge();
+            else if (startMode=="birds-eye") game.startMode(GameMode::BirdsEye);
+            else throw std::runtime_error("Unknown mode: "+startMode);
+        }
+        if (boardPath.empty()) boardPath=smoke?root/"build"/"smoke-leaderboard.csv":root/"leaderboard.csv";
+        // Interactive load failures are shown by SessionController without blocking play.
+        if (exportOnly) {
+            try { Leaderboard initialBoard(boardPath); initialBoard.load(); }
+            catch (const std::exception& e) { std::cerr<<"Leaderboard: "<<e.what()<<'\n'; }
+        }
         if (csvPath.empty()) csvPath=root/"calc.csv";
         const auto calculations=game.calculationObjects();
         writeCalculations(calculations,csvPath);
@@ -321,7 +379,7 @@ int shooter::Application::run(int argc,char** argv) {
             throw std::runtime_error("OpenGL 3.3 is required.");
         glfwSwapInterval(smoke?0:1);
         std::cout<<"OpenGL: "<<glGetString(GL_VERSION)<<"\nRenderer: "<<glGetString(GL_RENDERER)<<'\n';
-        runScene(window,root,game,csvPath,smoke,capture,challengeSmoke);
+        runScene(window,root,game,csvPath,smoke,capture,challengeSmoke,modesSmoke,boardPath);
         glfwDestroyWindow(window); glfwTerminate(); return 0;
     } catch (const std::exception& error) {
         std::cerr<<"Error: "<<error.what()<<'\n';

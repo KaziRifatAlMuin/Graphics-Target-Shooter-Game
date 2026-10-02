@@ -128,13 +128,13 @@ void gameTests() {
     require(contents.find("Unit Disk")==std::string::npos && contents.find("SAMPLE_PROJECTILE")==std::string::npos,"CSV contains invented geometry.");
     std::filesystem::remove(csvPath);
     require(clickedAction(Screen::Menu,150,420)==Action::Start,"Start button does not activate.");
-    require(clickedAction(Screen::Menu,150,490)==Action::Controls,"Controls button does not activate.");
+    require(clickedAction(Screen::Menu,150,575)==Action::Controls,"Controls button does not activate.");
     require(clickedAction(Screen::Paused,150,420)==Action::Resume,"Resume button does not activate.");
     require(clickedAction(Screen::Playing,1040,40)==Action::Menu,"HUD menu button does not activate.");
     require(clickedAction(Screen::Playing,1200,40)==Action::Exit,"HUD exit button does not activate.");
     require(!buildInterface(snapshot,Screen::Controls,0,0,true).empty(),"Controls overlay is empty.");
     require(clickedAction(Screen::Playing,850,740)==Action::DayNight,"Day/night button failed.");
-    require(clickedAction(Screen::Menu,1040,490)==Action::Sound,"Menu sound button failed.");
+    require(clickedAction(Screen::Menu,1040,650)==Action::Sound,"Menu sound button failed.");
 
     // Each concentric band requires exactly its index+1 distinct shots, including shotgun triggers.
     for (int ring=0;ring<6;++ring) {

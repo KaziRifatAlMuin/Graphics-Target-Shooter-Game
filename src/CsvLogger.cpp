@@ -1,4 +1,5 @@
 #include "CsvLogger.h"
+#include "CsvFile.h"
 #include <fstream>
 #include <iomanip>
 #include <locale>
@@ -7,13 +8,6 @@
 #include <set>
 #include <chrono>
 #include <ctime>
-#ifdef _WIN32
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
 
 namespace shooter {
 namespace {
@@ -36,7 +30,7 @@ void writeCalculations(const std::vector<SceneObject>& objects, const std::files
     out.imbue(std::locale::classic());
     out << "Phase,Object_ID,Object_Type,Component,Primitive,Local_Point,Scale,Shear,Rotation_X_deg,"
            "Rotation_Y_deg,Rotation_Z_deg,Translation,Matrix_Order,Matrix_or_Operation,"
-           "Result_World_Point,Lighting_or_Use,Notes,Parent_or_Group,Purpose,Generated_UTC,Level\n";
+           "Result_World_Point,Lighting_or_Use,Notes,Parent_or_Group,Purpose,Generated_UTC,Level,Mode\n";
     const auto now=std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::ostringstream generated;
     generated<<std::put_time(std::gmtime(&now),"%Y-%m-%dT%H:%M:%SZ");
@@ -67,7 +61,7 @@ void writeCalculations(const std::vector<SceneObject>& objects, const std::files
             for (int col=0; col<4; ++col) { if (col) matrix << ' '; matrix << model.at(row,col); }
             matrix << ']';
         }
-        out << "2," << csvQuote(object.id) << ',' << csvQuote(object.type) << ',' << csvQuote(object.component)
+        out << "3," << csvQuote(object.id) << ',' << csvQuote(object.type) << ',' << csvQuote(object.component)
             << ",Unit Cube"
             << ',' << csvQuote(vectorText({local.x,local.y,local.z})) << ',' << csvQuote(vectorText(t.scale)) << ','
             << csvQuote(shear.str()) << ',' << t.rotation.x << ',' << t.rotation.y << ',' << t.rotation.z
@@ -76,25 +70,21 @@ void writeCalculations(const std::vector<SceneObject>& objects, const std::files
             << ',' << csvQuote("Ambient + Diffuse + Blinn-Phong Specular; ks="+std::to_string(object.specular)+
                 "; shininess="+std::to_string(object.shininess)+"; emission="+std::to_string(object.emission))
             << ',' << csvQuote(object.notes) << ',' << csvQuote(object.type)
-            << ',' << csvQuote(object.component+"; actual scene cube corner mapping") << ',' << generated.str() << ',' << object.level << '\n';
+            << ',' << csvQuote(object.component+"; actual scene cube corner mapping") << ',' << generated.str() << ',' << object.level << ',' << csvQuote(object.mode) << '\n';
     }
     out.close();
     if (!out) throw std::runtime_error("Failed to finish calculations: " + path.string());
-#ifdef _WIN32
-    if (!MoveFileExW(temporary.c_str(),path.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH))
-        throw std::runtime_error("Cannot replace calculations (close applications locking the CSV): " + path.string());
-#else
-    std::filesystem::rename(temporary,path);
-#endif
+    replaceFile(temporary,path);
 }
-void CsvLogger::observe(const std::vector<SceneObject>& objects, float time, bool night) {
+void CsvLogger::observe(const std::vector<SceneObject>& objects, double time, bool night) {
     current=objects;
     for (auto& o:current) {
         o.notes+="; observed at simulation time="+std::to_string(time)+" s; mode="+(night?"NIGHT":"DAY");
         // Bound history by component, not by projectile ID: unlimited play stays small.
-        if (o.type=="Weapon" || o.type=="Projectile" || o.type=="Hit effect" || o.type=="Environment" || o.targetPattern || o.type=="Bird" || o.type=="Human" || o.type=="Cargo") {
+        if (o.type=="Weapon" || o.type=="Projectile" || o.type=="Hit effect" || o.type=="Environment" || o.targetPattern ||
+            o.component=="Respawn warning" || o.type=="Bird" || o.type=="Human" || o.type=="Cargo" || o.type=="Camera reference" || o.type=="Arena") {
             const bool transient=(o.type=="Projectile"||o.type=="Hit effect") && o.id.find("DISPLAY_")==std::string::npos;
-            const auto key=(transient || o.type=="Cargo")?std::to_string(o.level)+o.type+o.component:o.id;
+            const auto key=(transient || o.type=="Cargo")?o.mode+std::to_string(o.level)+o.type+o.component:o.id;
             observed[key]=o;
         }
     }

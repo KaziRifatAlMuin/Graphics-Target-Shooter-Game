@@ -5,7 +5,7 @@ namespace shooter {
 struct RunStats {
     int score=0, shots=0, hits=0, destroyed=0, bullseyes=0;
     int birdHits=0, humanHits=0, levelsCleared=0;
-    float elapsed=0;
+    double elapsed=0;
 };
 struct ScorePopup { std::string text; float life=1.5f; bool penalty=false; };
 class ScoreSystem {

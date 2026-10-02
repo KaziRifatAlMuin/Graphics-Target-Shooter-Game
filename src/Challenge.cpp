@@ -2,14 +2,25 @@
 #include "LevelWorld.h"
 #include <algorithm>
 namespace shooter {
-bool Game::gameplayActive() const { return !challenge || levels.stage==LevelStage::Active; }
+bool Game::gameplayActive() const { return !usesLevel() || levels.stage==LevelStage::Active; }
 int Game::remainingTargets() const {
     return int(std::count_if(targets.begin(),targets.end(),[](const Target& t) { return !t.eliminated && t.respawn<=0; }));
 }
 void Game::startChallenge(int firstLevel) {
-    challenge=true; static_cast<RunStats&>(*this)=RunStats{};
-    levels.completedStats=RunStats{}; levels.load(firstLevel); weapon=WeaponType::Pistol;
+    startMode(GameMode::Challenge,firstLevel);
+}
+void Game::startMode(GameMode selected,int level) {
+    if (selected==GameMode::Practice) { reset(); return; }
+    const int number=(selected==GameMode::Free || selected==GameMode::BirdsEye)?7:level;
+    levels.load(number); mode=selected; static_cast<RunStats&>(*this)=RunStats{};
+    challengeFromStart=selected==GameMode::Challenge && level==1;
+    pendingResult.reset(); freeRemaining=freeSessionSeconds; birdEye.reset();
+    levels.completedStats=RunStats{}; weapon=WeaponType::Pistol;
     loadCurrentLevel();
+    if (mode==GameMode::BirdsEye) levels.stage=LevelStage::Active;
+}
+std::optional<EligibleResult> Game::takeResult() {
+    auto result=pendingResult; pendingResult.reset(); return result;
 }
 void Game::loadCurrentLevel() {
     staticObjects=createLevelWorld(levels.config); targets=levels.config.targets;
@@ -28,11 +39,12 @@ void Game::loadCurrentLevel() {
         humans.push_back(createHuman(zone,targets[zone].base,c.seed+unsigned(zone)*547+unsigned(i)*193,staticObjects,targets));
 }
 bool Game::nextLevel() {
-    if (!challenge || !levels.advance()) return false;
+    if (mode!=GameMode::Challenge || !levels.advance()) return false;
     loadCurrentLevel(); return true;
 }
 void Game::restartLevel() {
-    if (!challenge || (levels.stage!=LevelStage::Active && levels.stage!=LevelStage::Intro)) return;
+    if (mode==GameMode::Free || mode==GameMode::BirdsEye || mode==GameMode::Developer) { startMode(mode,levels.config.number); return; }
+    if (!usesLevel() || (levels.stage!=LevelStage::Active && levels.stage!=LevelStage::Intro)) return;
     static_cast<RunStats&>(*this)=levels.completedStats;
     levels.load(levels.config.number); loadCurrentLevel();
 }
@@ -70,7 +82,7 @@ std::vector<NpcCollider> Game::npcColliders() const {
     return result;
 }
 void Game::applyNpcHit(bool human,std::size_t index,std::uint64_t shotId) {
-    if (!challenge || !gameplayActive()) return;
+    if (!usesLevel() || mode==GameMode::BirdsEye || !gameplayActive()) return;
     NpcState& npc=human?static_cast<NpcState&>(humans.at(index)):static_cast<NpcState&>(birds.at(index));
     if (!npc.active || !npc.penalizedShots.insert(shotId).second) return;
     ScoreSystem::penalty(*this,scoreFeedback,human); dangerTime=1;
