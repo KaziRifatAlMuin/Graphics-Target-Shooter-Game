@@ -8,7 +8,10 @@ $rows = @(Import-Csv -LiteralPath $Path)
 if ($rows.Count -eq 0) { throw 'CSV has no scene rows.' }
 $ids = @{}
 foreach ($row in $rows) {
-    if ($row.Phase -ne '3' -or $row.Primitive -ne 'Unit Cube' -or $row.Matrix_Order -ne 'T*Rz*Ry*Rx*H*S') { throw "Incorrect pipeline metadata: $($row.Object_ID)" }
+    if ($row.Phase -ne '4' -or $row.Primitive -ne 'Unit Cube' -or $row.Matrix_Order -ne 'T*Rz*Ry*Rx*H*S') { throw "Incorrect pipeline metadata: $($row.Object_ID)" }
+    if (-not $row.Parent_or_Group -or -not $row.Color_RGB -or $row.Snapshot_State -notin @('Current','Last observed') -or -not $row.Observed_Time_seconds) {
+        throw "Missing assembly/material/observation metadata: $($row.Object_ID)"
+    }
     if ($ids.ContainsKey($row.Object_ID)) { throw "Duplicate ID: $($row.Object_ID)" }
     $ids[$row.Object_ID] = $true
     $p = Numbers $row.Local_Point; $s = Numbers $row.Scale; $h = Numbers $row.Shear; $t = Numbers $row.Translation
@@ -34,7 +37,7 @@ if ($RequirePlayedCoverage) {
         if (-not ($rows | Where-Object { $_.Object_ID -like 'PROJECTILE_*' -and $_.Component -eq $weapon })) { throw "Missing observed projectile: $weapon" }
     }
 }
-Write-Output "PASS: $($rows.Count) unique Phase 3 cube rows; independently recomputed S/H/Rx/Ry/Rz/T world points and scene coverage."
+Write-Output "PASS: $($rows.Count) unique Phase 4 cube rows; independently recomputed S/H/Rx/Ry/Rz/T world points and scene coverage."
 if ($RequireChallengeCoverage) {
     foreach ($level in 1..7) {
         if (-not ($rows | Where-Object { $_.Level -eq $level -and $_.Object_Type -eq 'Target' })) { throw "Missing visited level: $level" }

@@ -1,7 +1,7 @@
-#include "SessionController.h"
-#include "Interface.h"
-#include "CsvLogger.h"
-#include "CsvFile.h"
+#include "gameplay/SessionController.h"
+#include "ui/Interface.h"
+#include "persistence/CsvLogger.h"
+#include "persistence/CsvFile.h"
 #include <fstream>
 #include <iostream>
 #include <stdexcept>

@@ -1,8 +1,8 @@
 #pragma once
-#include "Game.h"
-#include "Interface.h"
-#include "Sound.h"
-#include "CsvLogger.h"
+#include "gameplay/Game.h"
+#include "ui/Interface.h"
+#include "audio/Sound.h"
+#include "persistence/CsvLogger.h"
 #include <fstream>
 
 void gameTests() {
@@ -17,7 +17,7 @@ void gameTests() {
     }
     require(changed,"Cargo seed has no effect.");
     require(cargo.size()>900,"Cargo foundation is too sparse.");
-    for (const auto& o:cargo) if (o.component=="Crate") near(o.transform.scale.y,.6f);
+    for (const auto& o:cargo) if (o.component=="Crate") near(o.transform.scale.y,dimensions::crateSize);
     // Walking routes connect every target area, including the far rifle lane.
     Game routes;
     for (float z=-5;z>=-95;z-=1) require(canStandAt({0,1.7f,z},routes.staticObjects),"Central walking route blocked.");

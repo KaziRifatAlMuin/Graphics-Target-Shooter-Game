@@ -1,5 +1,5 @@
 #pragma once
-#include "Target.h"
+#include "gameplay/Target.h"
 namespace shooter {
 struct LevelConfig {
     int number=1;
