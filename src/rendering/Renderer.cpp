@@ -64,6 +64,24 @@ void Renderer::initialize(const std::filesystem::path& directory) {
     patternOffsetLocation=glGetUniformLocation(program,"patternOffset");
     if (modelLocation<0 || viewLocation<0 || projectionLocation<0 || colorLocation<0)
         throw std::runtime_error("Required shader uniform missing.");
+    normalMatrixLocation=glGetUniformLocation(program,"normalMatrix");
+    eyePositionLocation=glGetUniformLocation(program,"eyePosition");
+    ambientColorLocation=glGetUniformLocation(program,"ambientColor");
+    sunDirectionLocation=glGetUniformLocation(program,"sunDirection");
+    sunColorLocation=glGetUniformLocation(program,"sunColor");
+    for (int i=0;i<8;++i) {
+        const std::string prefix="points["+std::to_string(i)+"].";
+        pointLocations[i]={glGetUniformLocation(program,(prefix+"position").c_str()),
+                           glGetUniformLocation(program,(prefix+"color").c_str())};
+    }
+    for (int i=0;i<6;++i) {
+        const std::string prefix="spots["+std::to_string(i)+"].";
+        spotLocations[i]={glGetUniformLocation(program,(prefix+"position").c_str()),
+                          glGetUniformLocation(program,(prefix+"direction").c_str()),
+                          glGetUniformLocation(program,(prefix+"color").c_str()),
+                          glGetUniformLocation(program,(prefix+"innerCos").c_str()),
+                          glGetUniformLocation(program,(prefix+"outerCos").c_str())};
+    }
 
     // Shared unit cube: 8 local corners, expanded to 36 triangle vertices.
     const Vec3 corners[] = {
@@ -122,6 +140,19 @@ void Renderer::drawInterface(const std::vector<UiVertex>& vertices) {
 void Renderer::drawTransformedCube(const SceneObject& object) {
     const Mat4 model=composeModelMatrix(object.transform);
     glUniformMatrix4fv(modelLocation,1,GL_FALSE,model.data.data());
+    // Compute normal matrix on CPU to avoid per-vertex transpose(inverse(mat3(model))) in the shader.
+    if (normalMatrixLocation>=0) {
+        const Vec3 a{model.at(0,0),model.at(1,0),model.at(2,0)}, b{model.at(0,1),model.at(1,1),model.at(2,1)},
+                   c{model.at(0,2),model.at(1,2),model.at(2,2)};
+        const float det=dot(a,cross(b,c));
+        if (std::abs(det)>1e-8f) {
+            const float invDet=1.0f/det;
+            const Vec3 r0=cross(b,c)*invDet, r1=cross(c,a)*invDet, r2=cross(a,b)*invDet;
+            // Column-major mat3: each column is one of the cofactor rows.
+            const float nm[9]={r0.x,r0.y,r0.z, r1.x,r1.y,r1.z, r2.x,r2.y,r2.z};
+            glUniformMatrix3fv(normalMatrixLocation,1,GL_FALSE,nm);
+        }
+    }
     glUniform3f(colorLocation,object.color.x,object.color.y,object.color.z);
     glUniform1f(specularLocation,object.specular); glUniform1f(shininessLocation,object.shininess);
     glUniform1f(emissionLocation,object.emission); glUniform1f(flashLocation,object.flash);
@@ -132,23 +163,29 @@ void Renderer::drawTransformedCube(const SceneObject& object) {
 }
 void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection,Vec3 eye,bool night) {
     glDisable(GL_DEPTH_TEST); glDepthMask(GL_FALSE);
-    glUseProgram(skyProgram); glUniform1i(glGetUniformLocation(skyProgram,"night"),night);
+    glUseProgram(skyProgram);
+    if (skyNightLocation<0) skyNightLocation=glGetUniformLocation(skyProgram,"night");
+    glUniform1i(skyNightLocation,night);
     glBindVertexArray(vao); glDrawArrays(GL_TRIANGLES,0,3);
     glEnable(GL_DEPTH_TEST); glDepthMask(GL_TRUE);
     glUseProgram(program);
     const auto lighting=createLighting(night);
-    auto vec=[&](const std::string& name,Vec3 v) { glUniform3f(glGetUniformLocation(program,name.c_str()),v.x,v.y,v.z); };
-    vec("eyePosition",eye); vec("ambientColor",lighting.ambient);
-    vec("sunDirection",lighting.sunDirection); vec("sunColor",lighting.sunColor);
+    // Use cached uniform locations instead of per-frame string lookups.
+    glUniform3f(eyePositionLocation,eye.x,eye.y,eye.z);
+    glUniform3f(ambientColorLocation,lighting.ambient.x,lighting.ambient.y,lighting.ambient.z);
+    glUniform3f(sunDirectionLocation,lighting.sunDirection.x,lighting.sunDirection.y,lighting.sunDirection.z);
+    glUniform3f(sunColorLocation,lighting.sunColor.x,lighting.sunColor.y,lighting.sunColor.z);
     for (std::size_t i=0;i<lighting.points.size();++i) {
-        const std::string prefix="points["+std::to_string(i)+"].";
-        vec(prefix+"position",lighting.points[i].position); vec(prefix+"color",lighting.points[i].color);
+        glUniform3f(pointLocations[i].position,lighting.points[i].position.x,lighting.points[i].position.y,lighting.points[i].position.z);
+        glUniform3f(pointLocations[i].color,lighting.points[i].color.x,lighting.points[i].color.y,lighting.points[i].color.z);
     }
     for (std::size_t i=0;i<lighting.spots.size();++i) {
-        const std::string prefix="spots["+std::to_string(i)+"]."; const auto& light=lighting.spots[i];
-        vec(prefix+"position",light.position); vec(prefix+"direction",light.direction); vec(prefix+"color",light.color);
-        glUniform1f(glGetUniformLocation(program,(prefix+"innerCos").c_str()),light.innerCos);
-        glUniform1f(glGetUniformLocation(program,(prefix+"outerCos").c_str()),light.outerCos);
+        const auto& light=lighting.spots[i];
+        glUniform3f(spotLocations[i].position,light.position.x,light.position.y,light.position.z);
+        glUniform3f(spotLocations[i].direction,light.direction.x,light.direction.y,light.direction.z);
+        glUniform3f(spotLocations[i].color,light.color.x,light.color.y,light.color.z);
+        glUniform1f(spotLocations[i].innerCos,light.innerCos);
+        glUniform1f(spotLocations[i].outerCos,light.outerCos);
     }
     glUniformMatrix4fv(viewLocation,1,GL_FALSE,view.data.data());
     glUniformMatrix4fv(projectionLocation,1,GL_FALSE,projection.data.data());
@@ -157,3 +194,4 @@ void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& vi
     glBindVertexArray(0);
 }
 }
+

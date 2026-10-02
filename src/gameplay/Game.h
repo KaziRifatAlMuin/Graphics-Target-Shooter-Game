@@ -58,6 +58,11 @@ public:
     Camera activeCamera() const;
     void setCamera(int mode);
     int aimedTarget(float& distance) const;
+    // Cached version avoids recomputing ray-vs-all-objects every frame.
+    mutable int cachedAimTarget=-1;
+    mutable float cachedAimDistance=0;
+    mutable Vec3 cachedAimPos{}, cachedAimDir{};
+    mutable int cachedAimFrame=-1;
     std::vector<SceneObject> scene(bool includePlayer=true) const;
     std::vector<SceneObject> calculationObjects() const;
     void applyTargetHit(std::size_t index, int ring, std::uint64_t shotId);

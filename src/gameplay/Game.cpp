@@ -63,16 +63,27 @@ Camera Game::activeCamera() const {
     return camera;
 }
 int Game::aimedTarget(float& distance) const {
+    // Return cached result if player aim hasn't changed since last query.
+    const Vec3 fwd=player.forward();
+    const Vec3 dp=player.position-cachedAimPos;
+    const Vec3 dd={fwd.x-cachedAimDir.x,fwd.y-cachedAimDir.y,fwd.z-cachedAimDir.z};
+    if (cachedAimFrame>=0 && dot(dp,dp)<1e-8f && dot(dd,dd)<1e-8f) {
+        distance=cachedAimDistance;
+        return cachedAimTarget;
+    }
     float nearest=150;
     int result=-1;
-    for (const auto& o:staticObjects) nearest=std::min(nearest,intersectCube(player.position,player.forward(),o.transform,nearest));
+    for (const auto& o:staticObjects) nearest=std::min(nearest,intersectCube(player.position,fwd,o.transform,nearest));
     for (std::size_t i=0; i<targets.size(); ++i) {
         if (targets[i].respawn>0 || targets[i].eliminated) continue;
-        const auto hit=intersectTarget(player.position,player.forward(),targets[i],nearest);
+        const auto hit=intersectTarget(player.position,fwd,targets[i],nearest);
         if (hit.distance<nearest) { nearest=hit.distance; result=hit.ring>=0?int(i):-1; }
     }
-    if (intersectNpcs(player.position,player.forward(),nearest,npcColliders()).distance<nearest) result=-1;
+    if (intersectNpcs(player.position,fwd,nearest,npcColliders()).distance<nearest) result=-1;
     distance=result<0?0:length(targets[result].position-player.position);
+    // Cache result.
+    cachedAimTarget=result; cachedAimDistance=distance;
+    cachedAimPos=player.position; cachedAimDir=fwd; cachedAimFrame=0;
     return result;
 }
 bool Game::fire() {

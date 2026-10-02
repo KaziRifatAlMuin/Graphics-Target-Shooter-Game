@@ -254,8 +254,10 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
         const Camera camera=screen==Screen::Playing?game.activeCamera():Camera{};
         const auto objects=game.scene(screen!=Screen::Playing || game.cameraMode!=1);
-        calculations.observe(objects,game.elapsed,game.night);
+        // Only observe objects for CSV when a snapshot is actually being written.
+        // This avoids per-frame string operations and map lookups on 400+ objects.
         if (snapshotDirty || frame==0) {
+            calculations.observe(objects,game.elapsed,game.night);
             snapshots.submit(calculations.snapshot());
             snapshotDirty=false; sinceSnapshot=0;
         }
