@@ -1,5 +1,5 @@
-#include "Arena.h"
-#include "Camera.h"
+#include "world/Arena.h"
+#include "camera/Camera.h"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -59,7 +59,9 @@ int main() {
         near(floor.x,30); near(floor.y,0); near(floor.z,0);
         const auto floorOther=transformPoint(composeModelMatrix(scene.front().transform),{-.5f,.5f,-.5f,1});
         near(floorOther.x,-30); near(floorOther.y,0); near(floorOther.z,-100);
-        const auto north=transformPoint(composeModelMatrix(scene[1].transform),{.5f,.5f,.5f,1});
+        const auto northWall=std::find_if(scene.begin(),scene.end(),[](const SceneObject& o) { return o.id=="WALL_N"; });
+        require(northWall!=scene.end(),"North boundary is missing.");
+        const auto north=transformPoint(composeModelMatrix(northWall->transform),{.5f,.5f,.5f,1});
         near(north.x,30); near(north.y,8); near(north.z,-99.5f);
         struct Bounds { Vec3 min, max; };
         auto bounds=[](const SceneObject& object) {

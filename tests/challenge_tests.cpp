@@ -1,6 +1,6 @@
-#include "Game.h"
-#include "CsvLogger.h"
-#include "LevelWorld.h"
+#include "gameplay/Game.h"
+#include "persistence/CsvLogger.h"
+#include "world/LevelWorld.h"
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
