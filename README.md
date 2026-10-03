@@ -94,6 +94,27 @@ Configurations live in [Level1.cpp](src/levels/Level1.cpp) through [Level7.cpp](
 
 ![Final level](docs/images/release-level-7.png)
 
+### Complete level gallery
+
+Each level has an intro, active-play, completion and results capture. The active-play
+images below show how the arena becomes progressively denser, more mobile and more
+NPC-heavy from Level 1 through the final Level 7 arena.
+
+| Level 1 | Level 2 | Level 3 |
+| --- | --- | --- |
+| ![Level 1](docs/images/release-level-1.png) | ![Level 2](docs/images/release-level-2.png) | ![Level 3](docs/images/release-level-3.png) |
+| [Intro](docs/images/release-level-1-intro.png) · [Complete](docs/images/release-level-1-complete.png) · [Results](docs/images/release-level-1-results.png) | [Intro](docs/images/release-level-2-intro.png) · [Complete](docs/images/release-level-2-complete.png) · [Results](docs/images/release-level-2-results.png) | [Intro](docs/images/release-level-3-intro.png) · [Complete](docs/images/release-level-3-complete.png) · [Results](docs/images/release-level-3-results.png) |
+
+| Level 4 | Level 5 | Level 6 |
+| --- | --- | --- |
+| ![Level 4](docs/images/release-level-4.png) | ![Level 5](docs/images/release-level-5.png) | ![Level 6](docs/images/release-level-6.png) |
+| [Intro](docs/images/release-level-4-intro.png) · [Complete](docs/images/release-level-4-complete.png) · [Results](docs/images/release-level-4-results.png) | [Intro](docs/images/release-level-5-intro.png) · [Complete](docs/images/release-level-5-complete.png) · [Results](docs/images/release-level-5-results.png) | [Intro](docs/images/release-level-6-intro.png) · [Complete](docs/images/release-level-6-complete.png) · [Results](docs/images/release-level-6-results.png) |
+
+| Level 7: final arena |
+| --- |
+| ![Level 7 final arena](docs/images/release-level-7.png) |
+| [Intro](docs/images/release-level-7-intro.png) · [Complete](docs/images/release-level-7-complete.png) · [Results](docs/images/release-level-7-results.png) |
+
 `configuredTarget` in [LevelBase.cpp](src/levels/LevelBase.cpp) sets amplitude, frequency, phase and signed spin. `movementOffset` in [Movement.cpp](src/gameplay/Movement.cpp) computes each axis as `amplitude * sin(time * frequency + phase)`. `updateTarget` in [Target.cpp](src/gameplay/Target.cpp) adds it to the base position and updates yaw. Practice retains its horizontal, vertical, rotating and stationary variations.
 
 `createTargetObjects` makes each face from 32 thin cube slices approximating a circle. Shared target-relative coordinates preserve the six-ring print; paper texture modulates it. Health, front-only hit rules, ring colors, flash, braces and warning stripes remain.
@@ -127,6 +148,97 @@ Targets have 60 health. `ringDamage` gives **60/30/20/15/12/10** damage from cen
 - Practice retains `Game::applyTargetHit`'s damage-points-plus-100 rule and 1.8-second target respawn.
 
 Crosshairs, hit markers, scores, red penalty feedback, sounds, recoil and fragments remain. Cumulative statistics remain on result pages.
+
+### NPC hit and death effect
+
+NPC hits are resolved before the projectile is removed. The live collider is
+disabled immediately, the appropriate bird or human penalty is applied once,
+and the presentation changes from a live animated assembly to a falling/tumbling
+dead body. A short red particle burst is simulated as bounded debris: each
+piece receives deterministic velocity, gravity and rotation, then settles on
+the ground. The effect is cosmetic and does not become a new collider.
+
+| Hit impact | Fallen body |
+| --- | --- |
+| ![NPC death impact](docs/images/release-npc-death-impact.png) | ![Fallen NPC](docs/images/release-npc-fallen.png) |
+
+The flow is implemented by `updateProjectiles` in [Projectile.cpp](src/gameplay/Projectile.cpp),
+the NPC lifecycle in [Npc.cpp](src/gameplay/Npc.cpp), and the debris simulation
+in [Game.cpp](src/gameplay/Game.cpp). Birds tumble under gravity; humans keep
+their connected cube parts and collapse onto the ground. Dead NPCs remain
+visible, but they cannot be shot again, block movement, or redistribute to
+another target zone.
+
+## Internal mechanism
+
+The game is organized as a deterministic simulation that produces a temporary
+list of cube objects for the renderer every frame. The main runtime path is:
+
+1. **Input and session state** — `runScene` in [Application.cpp](src/core/Application.cpp)
+   collects keyboard, mouse and window-focus events. [SessionController.cpp](src/gameplay/SessionController.cpp)
+   turns those events into menu, pause, intro, active, completion and results
+   transitions.
+2. **Fixed-size simulation steps** — [Game.cpp](src/gameplay/Game.cpp) splits
+   each frame's elapsed time into steps of at most `1/120` second. This keeps
+   movement, target animation, projectile travel and death falls stable when
+   the display frame rate changes.
+3. **Level construction** — `startMode` selects a `LevelConfig`; `loadCurrentLevel`
+   creates the seeded world, target list, birds and humans. [LevelManager.cpp](src/gameplay/LevelManager.cpp)
+   owns the 1.5-second intro, active timer, completion presentation and Level 7
+   finish state.
+4. **Target motion and hit state** — [Target.cpp](src/gameplay/Target.cpp)
+   evaluates sinusoidal motion and rotation from the target's base transform.
+   Each target is a 32-slice circular plate, so visible geometry and collision
+   geometry are the same. A front hit becomes ring damage; rear and edge
+   contacts are rejected.
+5. **Weapon and projectile pipeline** — `Game::fire` finds the first visible
+   aim point, checks that the muzzle is not inside cover, then creates one or
+   more projectiles. [Projectile.cpp](src/gameplay/Projectile.cpp) sweeps each
+   projectile over its travel segment against obstacles, target slices and
+   live NPC parts. The nearest contact wins, preventing fast shots from
+   tunneling through thin geometry.
+6. **Scoring and lifecycle** — target damage is accumulated per shot ID so
+   shotgun pellets cannot multiply-score one trigger. [ScoreSystem.cpp](src/gameplay/ScoreSystem.cpp)
+   applies target rewards and NPC penalties, while `LevelManager::finishIfComplete`
+   advances only after every target is permanently eliminated. Free mode instead
+   expires at 180 active seconds and allows timed target respawns.
+7. **Scene assembly** — [GameScene.cpp](src/gameplay/GameScene.cpp) copies
+   static cubes, then appends current targets, NPC assemblies, player/weapon,
+   projectiles, debris and celebration effects. This list is also what the
+   calculation snapshot system observes; object IDs and notes are extended with
+   mode, level and simulation time for traceability.
+8. **Rendering** — [Renderer.cpp](src/rendering/Renderer.cpp) draws each cube
+   from one shared 36-vertex cube buffer. The vertex shader builds the model
+   transform and face UVs; the fragment shader samples the texture array and
+   applies the selected flat, Gouraud or Phong lighting path. Day/night rigs
+   are cached and switched without rebuilding scene geometry.
+9. **Persistence** — completed eligible results are handed to
+   [Leaderboard.cpp](src/persistence/Leaderboard.cpp), which reloads the CSV,
+   compares the record, writes through a checked temporary file and atomically
+   replaces the saved leaderboard. Calculation snapshots are coalesced and
+   written outside the rendering hot path.
+
+### Per-frame ordering
+
+```text
+poll input
+  -> session/menu actions
+  -> fixed simulation steps
+       -> update effects and transitions
+       -> update targets and NPC movement
+       -> sweep projectiles and apply contacts
+       -> apply score, penalties and level completion
+  -> assemble Game::scene()
+  -> render arena and HUD
+  -> queue sound and coalesced calculation snapshot
+```
+
+The renderer does not decide gameplay outcomes: collision, health, score,
+respawn and NPC state are resolved on the CPU first. Conversely, visual
+effects do not silently change collision. Blood fragments, projectiles,
+celebration confetti and emissive flashes are renderable objects with
+lifetimes, but none are inserted into the obstacle or NPC collider lists.
+
 ## NPCs and spawning
 
 `Game::loadCurrentLevel` creates configured birds/humans around target zones. [Bird.cpp](src/gameplay/Bird.cpp), [Human.cpp](src/gameplay/Human.cpp) and [Npc.cpp](src/gameplay/Npc.cpp) implement bounded destinations, animation and cube assemblies. Birds fly and flap; humans walk/pause on the ground, avoiding cargo, walls and stands. Human heights vary from 2.05–2.20 m, scaling the whole assembly.
@@ -268,6 +380,30 @@ These documentation passes isolate each source using the final renderer, actual 
 
 ![Combined night rig and emissive fixtures](docs/images/release-night-arena.png)
 
+### Night lighting in context
+
+Night mode keeps the same geometry and materials but swaps the daytime sun for
+low ambient fill, eight point lamps and six cone-shaped stadium spotlights. The
+following captures show the complete night arena and the normal night scene from
+different presentation modes.
+
+| Night player view | Night arena lighting |
+| --- | --- |
+| ![Night player view](docs/images/release-night.png) | ![Night arena](docs/images/release-night-arena.png) |
+
+| Ambient contribution | Directional contribution |
+| --- | --- |
+| ![Ambient-only lighting](docs/images/release-lighting-ambient.png) | ![Directional-only lighting](docs/images/release-lighting-directional.png) |
+
+| Point-lamp contribution | Spotlight contribution |
+| --- | --- |
+| ![Point-lamp-only lighting](docs/images/release-lighting-point.png) | ![Spotlight-only lighting](docs/images/release-lighting-spot.png) |
+
+The isolated images are diagnostic passes, not separate gameplay rules: normal
+night play combines all four contributions. Emissive lenses, projectiles and
+hit effects are brightened in the material shader, but they do not illuminate
+nearby objects or cast shadows.
+
 ### Formulas and materials
 
 `addLight` uses normalized surface N, toward-eye V and toward-light L. Light color C is multiplied by attenuation and cone intensity where applicable:
@@ -341,15 +477,3 @@ powershell -File tests/verify_calc.ps1 -Path .release-work/smoke.csv -RequirePla
 ```
 
 Snapshots retain the 29-column transform schema in [src/persistence](src/persistence), describing current/visited cubes rather than invented unvisited scenes. `--export-calc` runs without OpenGL; `--calc`/`--leaderboard` redirect output. Texture layer/scaling are runtime fields, not new CSV columns. Root player records and `calc-init.csv` were preserved during checks.
-
-## Final screenshots and package
-
-README images are final OpenGL framebuffer captures, losslessly converted by [convert_captures.ps1](tools/convert_captures.ps1). They are not mockups or old-build screenshots. Source-isolated lighting examples are labeled above.
-
-- [Challenge name](docs/images/release-challenge-name.png), [duplicate confirmation](docs/images/release-duplicate-confirmation.png), [rewritten name](docs/images/release-rewritten-name.png).
-- [Introduction](docs/images/release-level-1-intro.png), [completion](docs/images/release-level-1-complete.png), [Victory](docs/images/release-level-7-complete.png).
-- [Free respawn](docs/images/release-free-respawn-warning.png), [Free ending](docs/images/release-free-ending.png).
-- [Developer diagnostics](docs/images/release-developer-7.png), [overhead marker](docs/images/release-overhead-marker.png).
-- [Night player view](docs/images/release-night.png), [NPC hit effect](docs/images/release-npc-death-impact.png).
-
-`build/` contains only `release/`: the executable, seven shaders and nine texture images. Old captures, test CSVs, debug/temporary builds and obsolete files were removed after verification. Playing the package can subsequently create legitimate calculation/leaderboard files. Use separate work folders for development and tests.
