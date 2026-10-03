@@ -181,9 +181,42 @@ void names(const fs::path& path) {
     check(restarted.records().size()==2 && restarted.sorted(GameMode::Challenge)[0].stats.score==900,"Confirmation broke mode key/restart persistence.");
     std::cout<<"PASS: required name entry, trimmed same-mode duplicate warning, separate confirmation/rewrite, blank rejection and best-record preservation.\n";
 }
+void lightingAndSurvivors(const fs::path& path) {
+    const auto day=createLighting(false),night=createLighting(true);
+    check(day.sunColor.x>0 && length(night.sunColor)==0,"Sun must switch off at night.");
+    for(const auto& light:day.points) check(length(light.color)==0,"Day point lamp is on.");
+    for(const auto& light:day.spots) check(length(light.color)==0,"Day floodlight is on.");
+    for(const auto& light:night.spots) check(light.direction.y<0 && std::abs(light.position.x)>=28,"Floodlight is not a downward boundary tower.");
+    Game g; g.startMode(GameMode::Developer,7); g.update(1.51f);
+    g.applyNpcHit(false,0,900); g.applyNpcHit(true,0,901);
+    for(std::size_t t=0;t+1<g.targets.size();++t) {
+        g.applyTargetHit(t,0,1000+t); g.update(.01f);
+        std::vector<int> birds(g.targets.size()),humans(g.targets.size());
+        int aliveBirds=0,aliveHumans=0;
+        for(const auto& b:g.birds) if(b.active) { ++aliveBirds; ++birds[b.zone]; }
+        for(const auto& h:g.humans) if(h.active) { ++aliveHumans; ++humans[h.zone]; }
+        check(aliveBirds==47 && aliveHumans==35,"Clearing a target removed surviving NPCs.");
+        for(std::size_t z=0;z<g.targets.size();++z) if(!g.targets[z].eliminated)
+            check(birds[z]<=10 && humans[z]<=10,"Live target exceeded NPC capacity.");
+        check(!g.birds[0].active && !g.humans[0].active,"Redistribution revived a killed NPC.");
+    }
+    Leaderboard board(path.string()+".required-name.csv");
+    Game blank; SessionController session(blank,board);
+    check(session.ui.name.empty(),"Default player name still exists.");
+    for(auto mode:{Action::Free,Action::Start,Action::Developer,Action::BirdsEye,Action::Practice}) {
+        session.action(mode); session.action(Action::ConfirmChallenge);
+        check(session.ui.screen==Screen::ChallengeName && session.ui.editingName,"Blank name bypassed registration.");
+        session.type(' '); session.action(Action::ConfirmChallenge);
+        check(session.ui.screen==Screen::ChallengeName,"Whitespace name bypassed registration.");
+        session.action(Action::RewriteName);
+    }
+    session.type('A'); session.action(Action::ConfirmChallenge);
+    check(session.ui.screen==Screen::Playing && blank.playerName=="A","Typed name did not launch requested mode.");
+    std::cout<<"PASS: day/night lights, boundary floodlights, survivor reassignment/caps, required names in every mode.\n";
+}
 }
 int main(int argc,char** argv) {
-    try { check(argc==2,"Expected isolated CSV test path."); humans(); cargo(); snapshots(argv[1]); presentation(); deaths(); names(argv[1]);
+    try { check(argc==2,"Expected isolated CSV test path."); humans(); cargo(); snapshots(argv[1]); presentation(); deaths(); names(argv[1]); lightingAndSurvivors(argv[1]);
         std::cout<<"PASS: reference-sized cargo, final presentation clocks and all audio cues.\n"; return 0;
     } catch(const std::exception& e) { std::cerr<<"FAIL: "<<e.what()<<'\n'; return 1; }
 }

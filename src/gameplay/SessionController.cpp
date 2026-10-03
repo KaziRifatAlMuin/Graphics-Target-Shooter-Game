@@ -5,12 +5,12 @@ SessionController::SessionController(Game& g,Leaderboard& b):game(g),leaderboard
     ui.name=game.playerName;
     if (game.usesLevel()) ui.screen=Screen::Playing;
     refreshBoard();
-    if(game.mode==GameMode::Challenge) action(Action::Start);
+    if(game.mode==GameMode::Challenge || (game.usesLevel() && ui.name.empty())) requestName(game.mode);
 }
 void SessionController::acceptName() {
     const auto first=ui.name.find_first_not_of(' '),last=ui.name.find_last_not_of(' ');
-    ui.name=first==std::string::npos?"Player":ui.name.substr(first,last-first+1);
-    ui.editingName=false;
+    ui.name=first==std::string::npos?"":ui.name.substr(first,last-first+1);
+    ui.editingName=ui.name.empty();
 }
 void SessionController::type(unsigned int codepoint) {
     if (ui.editingName && codepoint>=32 && codepoint<=126 && ui.name.size()<24) {
@@ -42,10 +42,22 @@ void SessionController::checkChallengeName() {
     }
 }
 void SessionController::begin(GameMode mode,int level) {
-    acceptName(); game.playerName=ui.name; game.startMode(mode,level);
+    acceptName();
+    if(ui.name.empty()) { requestName(mode); return; }
+    game.playerName=ui.name; game.startMode(mode,level);
     ui.screen=Screen::Playing; ui.screenTime=0; ui.hasResult=false; ui.personalBest=false;
     if (!ui.saveFailed) ui.message.clear();
     pointerUnlocked=false; snapshotDirty=inputReset=true;
+}
+void SessionController::requestName(GameMode mode) {
+    ui.pendingMode=mode; ui.screen=Screen::ChallengeName; ui.screenTime=0; ui.editingName=true;
+    ui.duplicateConfirmation=false; ui.boardMode=mode; ui.hasResult=false;
+    refreshBoard(); checkChallengeName(); inputReset=true;
+}
+void SessionController::launchNamedMode() {
+    if(ui.pendingMode==GameMode::Developer) {
+        acceptName(); game.playerName=ui.name; ui.screen=Screen::Developer; inputReset=true;
+    } else begin(ui.pendingMode);
 }
 void SessionController::refreshBoard() {
     try {
@@ -72,9 +84,7 @@ void SessionController::action(Action a) {
     if (a>=Action::Level1 && a<=Action::Level7) { begin(GameMode::Developer,1+int(a)-int(Action::Level1)); return; }
     switch (a) {
     case Action::Start:
-        ui.screen=Screen::ChallengeName; ui.screenTime=0; ui.editingName=true;
-        ui.duplicateConfirmation=false; ui.boardMode=GameMode::Challenge; ui.hasResult=false;
-        refreshBoard(); checkChallengeName(); inputReset=true;
+        requestName(GameMode::Challenge);
         break;
     case Action::ConfirmChallenge:
         if(ui.screen!=Screen::ChallengeName) break;
@@ -84,19 +94,19 @@ void SessionController::action(Action a) {
         }
         acceptName(); refreshBoard(); checkChallengeName();
         if(ui.nameExistsWarning) { ui.duplicateConfirmation=true; break; }
-        begin(GameMode::Challenge); break;
+        launchNamedMode(); break;
     case Action::UseExistingName:
-        if(ui.screen==Screen::ChallengeName && ui.duplicateConfirmation) begin(GameMode::Challenge);
+        if(ui.screen==Screen::ChallengeName && ui.duplicateConfirmation) launchNamedMode();
         break;
     case Action::RewriteName:
         ui.name.clear(); ui.duplicateConfirmation=false; ui.message.clear();
         ui.editingName=true;
         checkChallengeName();
         break;
-    case Action::Free:begin(GameMode::Free);break;
-    case Action::Practice:begin(GameMode::Practice);break;
-    case Action::BirdsEye:begin(GameMode::BirdsEye);break;
-    case Action::Developer:ui.screen=Screen::Developer; ui.editingName=false; inputReset=true;break;
+    case Action::Free:requestName(GameMode::Free);break;
+    case Action::Practice:requestName(GameMode::Practice);break;
+    case Action::BirdsEye:requestName(GameMode::BirdsEye);break;
+    case Action::Developer:requestName(GameMode::Developer);break;
     case Action::Replay:
         if(game.mode==GameMode::Challenge) action(Action::Start);
         else begin(game.mode,game.levels.config.number);
@@ -118,7 +128,7 @@ void SessionController::action(Action a) {
     case Action::DayNight:game.night=!game.night;break;
     case Action::Sound:game.soundEnabled=!game.soundEnabled;break;
     case Action::Overview:game.birdEye.overview(); pointerUnlocked=false; inputReset=true;break;
-    case Action::EditName:ui.editingName=!ui.editingName; ui.duplicateConfirmation=false;break;
+    case Action::EditName:ui.editingName=true; ui.duplicateConfirmation=false;break;
     case Action::Leaderboard:
         ui.boardReturn=ui.screen; ui.screen=Screen::Leaderboard; ui.editingName=false; ui.hasResult=false; ui.firstRow=0; refreshBoard();break;
     case Action::BoardFree:ui.boardMode=GameMode::Free; ui.firstRow=0;refreshBoard();break;

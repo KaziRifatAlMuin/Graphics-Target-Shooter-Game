@@ -32,17 +32,10 @@ std::vector<SceneObject> createEquipmentDisplay() {
     return result;
 }
 std::vector<SceneObject> createCelestialObjects(bool night) {
-    Transform t; t.position={25,35,-80}; t.scale=night?Vec3{3,3,3}:Vec3{4,4,4}; t.rotation={0,25,15};
-    SceneObject body{night?"MOON_VIS":"SUN_VIS","Environment",night?"Moon visual":"Sun visual",t,
-        night?Vec3{.55f,.67f,.90f}:Vec3{1,.82f,.38f},night?"Emissive moon; dim directional fill":"Emissive sun; daytime directional source"};
-    body.emission=1;
-    body.parent=night?"MOON":"SUN";
-    std::vector<SceneObject> objects{body};
-    if (night) for (int i=0;i<3;++i) {
-        auto patch=makeCube("MOON_PATCH_"+std::to_string(i),"Environment","Moon surface patch",
-            {24.2f+i*.7f,34.4f+i*.5f,-78.25f},{.45f,.4f,.1f},{.35f,.43f,.62f},25);
-        patch.emission=.6f; patch.parent="MOON"; objects.push_back(patch);
-    }
-    return objects;
+    if (night) return {}; // Night has no celestial light or visible moon.
+    Transform t; t.position={25,35,-80}; t.scale={4,4,4}; t.rotation={0,25,15};
+    SceneObject sun{"SUN_VIS","Environment","Sun visual",t,{1,.82f,.38f},"Emissive sun; daytime directional source"};
+    sun.emission=1; sun.parent="SUN";
+    return {sun};
 }
 }

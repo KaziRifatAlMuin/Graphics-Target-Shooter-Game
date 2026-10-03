@@ -178,8 +178,8 @@ void gameTests() {
     require(day.ambient.x>night.ambient.x && day.sunColor.x>night.sunColor.x,"Day/night illumination is unchanged.");
     snapshot.night=true;
     bool moon=false,glowing=false;
-    for (auto& o:snapshot.scene()) { moon|=o.id=="MOON_VIS"; glowing|=o.component=="Point lamp head"&&o.emission>0; }
-    require(moon&&glowing,"Night environment geometry is missing.");
+    for (auto& o:snapshot.scene()) { moon|=o.id=="MOON_VIS"; glowing|=o.component=="Lens"&&o.emission>0; }
+    require(!moon&&glowing && night.sunColor.x==0,"Night must use fixtures without moonlight.");
     for (int event=0;event<6;++event) {
         const auto samples=synthesizeSound(static_cast<SoundEvent>(event));
         require(samples.size()>500,"Sound effect has no duration.");

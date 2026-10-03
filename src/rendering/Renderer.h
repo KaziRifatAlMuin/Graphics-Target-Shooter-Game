@@ -13,9 +13,11 @@ public:
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
     void initialize(const std::filesystem::path& shaderDirectory);
+    int shadingMode=2;
     void drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection, Vec3 eye, bool night);
     void drawInterface(const std::vector<UiVertex>& vertices);
 private:
+    GLint shadingLocation=-1;
     GLuint program=0, vao=0, vbo=0;
     GLuint uiProgram=0, uiVao=0, uiVbo=0;
     GLuint skyProgram=0;

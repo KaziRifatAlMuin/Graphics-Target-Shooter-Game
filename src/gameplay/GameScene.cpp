@@ -16,8 +16,10 @@ std::vector<SceneObject> Game::scene(bool includePlayer) const {
 
     // Update lamp emission state based on day/night without building annotation strings.
     for (auto& o:objects) {
-        if (o.component=="Point lamp head" || o.component=="Spotlight head")
+        if (o.type=="Lighting" && o.component=="Lens") {
             o.emission=night?1:0;
+            if(!night) o.color={.22f,.25f,.28f};
+        }
     }
 
     auto celestial=createCelestialObjects(night);
@@ -75,13 +77,13 @@ std::vector<SceneObject> Game::calculationObjects() const {
     std::size_t pointIndex=0,spotIndex=0;
     for (auto& o:objects) {
         o.notes+="; simulation time = "+std::to_string(elapsed)+" s; mode="+(night?"NIGHT":"DAY");
-        if (o.component=="Point lamp head") {
-            o.notes+="; point intensity="+vectorText(rig.points[pointIndex++].color)+"; attenuation=1/(1+0.045*d+0.003*d*d)";
+        if (o.component=="Lens" && o.id.find("LAMP_")!=std::string::npos) {
+            o.notes+="; point intensity="+vectorText(rig.points[pointIndex++].color)+"; attenuation=1/(1+0.09*d+0.032*d*d)";
         }
-        if (o.component=="Spotlight head") {
-            const auto& light=rig.spots[spotIndex++];
+        if (o.component=="Lens" && o.id.find("FLOOD_")!=std::string::npos) {
+            const auto& light=rig.spots[spotIndex++/3];
             o.notes+="; spot intensity="+vectorText(light.color)+"; direction="+vectorText(light.direction)+
-                "; cone inner/outer=22/34 degrees; attenuation=1/(1+0.025*d+0.002*d*d)";
+                "; cone inner/outer=32/53 degrees; attenuation=1/(1+0.025*d+0.002*d*d)";
         }
         if (o.id=="ARENA_FLOOR") o.notes+="; ambient="+vectorText(rig.ambient)+"; sunlight="+vectorText(rig.sunColor);
     }

@@ -133,7 +133,7 @@ void failedSave(const fs::path& path) {
     fs::remove(path); Leaderboard board(path); board.load(); Game game; SessionController session(game,board);
     auto temporary=path; temporary+=".tmp";
     fs::create_directory(temporary); // Deliberately prevent an atomic-save temporary file from opening.
-    session.action(Action::Start); session.action(Action::ConfirmChallenge); session.update(1.51f); clear(game); session.update(.01f);
+    session.ui.name="Save Test"; session.action(Action::Start); session.action(Action::ConfirmChallenge); session.update(1.51f); clear(game); session.update(.01f);
     check(session.ui.screen==Screen::LevelComplete && session.ui.saveFailed && board.records().empty(),"Save failure lost playable result/error state.");
     fs::remove(temporary); session.action(Action::RetrySave);
     check(!session.ui.saveFailed && session.ui.personalBest && board.records().size()==1 && board.records()[0].stats.score==450,"Retry failed to persist retained completed stats.");
@@ -155,14 +155,14 @@ void sessions(const fs::path& path,CsvLogger& logger) {
     session.update(1.1f); session.action(Action::NextLevel); session.update(1.51f);
     game.applyTargetHit(0,0,500); session.update(.1f); session.action(Action::Menu); session.action(Action::Menu);
     check(read(path)==committed,"Incomplete second level replaced completed snapshot.");
-    session.action(Action::Free); session.update(1.51f); session.update(10); session.action(Action::Menu); session.update(200);
+    session.action(Action::Free); session.action(Action::ConfirmChallenge); session.update(1.51f); session.update(10); session.action(Action::Menu); session.update(200);
     check(game.freeRemaining>169 && board.sorted(GameMode::Free).empty(),"Paused/incomplete Free was persisted.");
     session.action(Action::Resume); session.update(171);
     check(session.ui.screen==Screen::FreeComplete && board.sorted(GameMode::Free).size()==1,"Full Free did not show and save result.");
     const auto competitive=read(path);
     const int counts[]={3,3,4,6,8,10,12};
     for (int level=1;level<=7;++level) {
-        session.action(Action::Developer);
+        session.action(Action::Developer); session.action(Action::ConfirmChallenge);
         const auto buttons=screenButtons(Screen::Developer,game.mode);
         const auto& card=buttons.at(level-1);
         session.action(clickedAction(Screen::Developer,card.x+20,card.y+20,game.mode));

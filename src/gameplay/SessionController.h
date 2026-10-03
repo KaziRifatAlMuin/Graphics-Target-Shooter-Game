@@ -22,6 +22,8 @@ private:
     Leaderboard& leaderboard;
     std::vector<EligibleResult> pendingSaves;
     void begin(GameMode mode,int level=1);
+    void requestName(GameMode mode);
+    void launchNamedMode();
     void saveResults();
 };
 }

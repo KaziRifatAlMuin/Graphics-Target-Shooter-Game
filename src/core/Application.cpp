@@ -91,7 +91,7 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
     double dayBrightness=0;
     auto action=[&](Action a) {
         session.action(a);
-        if(smoke && a==Action::Start) {
+        if(smoke && session.ui.screen==Screen::ChallengeName) {
             session.action(Action::ConfirmChallenge);
             if(session.ui.duplicateConfirmation) session.action(Action::UseExistingName);
         }
@@ -170,6 +170,7 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
             if (pressed(GLFW_KEY_3)) action(Action::Rifle);
             if (pressed(GLFW_KEY_R)) { game.resetTargets(); snapshotDirty=true; }
             if (pressed(GLFW_KEY_F5)) snapshotDirty=true;
+            for(int mode=0;mode<3;++mode) if(pressed(GLFW_KEY_F6+mode)) renderer.shadingMode=mode;
             const bool fast=keys[GLFW_KEY_LEFT_SHIFT]||keys[GLFW_KEY_RIGHT_SHIFT];
             const float moveDt=std::min(dt,.05f);
             if (game.mode==GameMode::BirdsEye) {
@@ -224,6 +225,7 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
             if (frame==124) { action(Action::Resume); game.setCamera(1); }
             if (frame==126) { action(Action::DayNight); game.setCamera(2); }
             if (frame==128) game.setCamera(1);
+            if(frame>=125 && frame<=127) renderer.shadingMode=frame-125;
             if (frame==130) action(Action::Menu);
             if (frame==131) action(Action::Resume);
             if (frame==132 || frame==133) action(Action::Sound);
@@ -271,12 +273,27 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
             snapshots.submit(calculations.snapshot());
             snapshotDirty=false; sinceSnapshot=0;
         }
+        session.ui.shadingMode=renderer.shadingMode;
         renderer.drawArena(objects,camera.getViewMatrix(),makePerspective(60,float(width)/height,.05f,400),camera.position,game.night);
+        if(smoke && frame==127) {
+            double brightness[3]{};
+            for(int mode=0;mode<3;++mode) {
+                renderer.shadingMode=mode;
+                glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+                renderer.drawArena(objects,camera.getViewMatrix(),makePerspective(60,float(width)/height,.05f,400),camera.position,true);
+                const auto output=capture.empty()?fs::path{}:capture.parent_path()/(capture.stem().string()+"-shading-"+std::to_string(mode)+capture.extension().string());
+                brightness[mode]=verifyFrame(width,height,output,true);
+            }
+            if(std::abs(brightness[0]-brightness[2])<.01 || std::abs(brightness[1]-brightness[2])<.01)
+                throw std::runtime_error("Shading modes did not change the rendered lighting.");
+            std::cout<<"PASS: Flat, Gouraud and Phong compiled and rendered distinct night lighting.\n";
+        }
         if (smoke && (frame==120 || frame==125 || frame==127 || frame==129 || frame==136 || frame==137)) {
             const double brightness=verifyFrame(width,height,{},true);
             if (frame==120) dayBrightness=brightness;
             if (frame==127 && brightness>=dayBrightness*.9) throw std::runtime_error("Night lighting did not visibly change the scene.");
         }
+        if(smoke) session.ui.screenTime=1; // Capture clear pages, not transition fade frames.
         renderer.drawInterface(buildInterface(game,screen,ux,uy,pointerFree,&session.ui));
         if (challengeSmoke && frame>=139 && frame<=1804 && ((frame-139)%240==20 || (frame-139)%240==140 || (frame-139)%240==180 || (frame-139)%240==220)) {
             fs::path output;
@@ -324,7 +341,7 @@ int shooter::Application::run(int argc,char** argv) {
     GLFWwindow* window=nullptr; bool initialized=false;
     try {
         bool exportOnly=false,smoke=false,challengeSmoke=false,modesSmoke=false;
-        std::string name="Player",startMode;
+        std::string name,startMode;
         int testLevel=0;
         fs::path csvPath,capture,boardPath;
         for (int i=1;i<argc;++i) {
@@ -342,10 +359,11 @@ int shooter::Application::run(int argc,char** argv) {
             }
             else if ((arg=="--calc" || arg=="--capture") && i+1<argc) (arg=="--calc"?csvPath:capture)=argv[++i];
             else if (arg=="--help") {
-                std::cout<<"3D Target Shooter - Phase 4 - Final Release\n"
+                std::cout<<"3D Target Shooter - Final Version\n"
                     "Enter starts Challenge; Practice Sandbox preserves Phase 1. Esc pauses.\n"
                     "WASD move, mouse aim, click/Space fire, 1/2/3 weapons, Shift sprint, Tab pointer.\n"
                     "F1 player, F2 arena, F3 side, F4 free camera, Q/E fly, R restart level, F5 snapshot.\n"
+                    "F6 flat, F7 Gouraud, F8 Phong shading (default).\n"
                     "N day/night, M sound on/off. Front-only scoring: 1 center shot through 6 outer-ring shots.\n"
                     "--export-calc : export a deterministic starting snapshot without OpenGL\n"
                     "--calc PATH   : override calculation output (default: project root/calc.csv)\n"
@@ -363,7 +381,8 @@ int shooter::Application::run(int argc,char** argv) {
         if ((!capture.empty()&&!smoke)||(exportOnly&&smoke)) throw std::runtime_error("Use --capture with --smoke-test; run --export-calc separately.");
         const auto root=projectDirectory(argv[0]);
         Game game;
-        if (name.empty() || name.size()>24 || std::any_of(name.begin(),name.end(),[](unsigned char c) { return c<32 || c>126; })) throw std::runtime_error("Use a player name of 1-24 characters.");
+        if (name.size()>24 || std::any_of(name.begin(),name.end(),[](unsigned char c) { return c<32 || c>126; })) throw std::runtime_error("Use a player name of 1-24 characters.");
+        if (smoke && name.empty()) name="Test Pilot";
         game.playerName=name;
         if (testLevel) game.startMode(GameMode::Developer,testLevel);
         if (!startMode.empty()) {
@@ -384,6 +403,7 @@ int shooter::Application::run(int argc,char** argv) {
         writeCalculations(calculations,csvPath);
         std::cout<<"Generated "<<csvPath.string()<<" ("<<calculations.size()<<" objects).\n";
         if (exportOnly) return 0;
+        std::cout<<"Running final version...\n";
         glfwSetErrorCallback([](int code,const char* message) { std::cerr<<"GLFW "<<code<<": "<<message<<'\n'; });
         if (!glfwInit()) throw std::runtime_error("Failed to initialize GLFW.");
         initialized=true;

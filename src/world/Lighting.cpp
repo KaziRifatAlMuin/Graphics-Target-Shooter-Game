@@ -3,41 +3,62 @@
 namespace shooter {
 LightingRig createLighting(bool night) {
     LightingRig rig;
-    rig.ambient=night?Vec3{.055f,.07f,.10f}:Vec3{.30f,.32f,.35f};
+    rig.ambient=night?Vec3{.012f,.016f,.025f}:Vec3{.30f,.32f,.35f};
     rig.sunDirection=normalize({.45f,.8f,.3f});
-    rig.sunColor=night?Vec3{.07f,.09f,.16f}:Vec3{.95f,.88f,.73f};
-    for (float z:{-12.0f,-38.0f,-64.0f,-90.0f}) for (float x:{-23.0f,23.0f})
-        rig.points.push_back({{x,6.7f,z},night?Vec3{.65f,.54f,.36f}:Vec3{}});
-    for (float z:{-12.0f,-42.0f,-72.0f}) for (float x:{-11.0f,11.0f})
-        rig.spots.push_back({{x,9,z},normalize({x<0?.22f:-.22f,-.55f,-1}),
-            night?Vec3{1.0f,1.1f,1.25f}:Vec3{},std::cos(radians(22)),std::cos(radians(34))});
+    rig.sunColor=night?Vec3{}:Vec3{.95f,.88f,.73f};
+    // Two warm lamps near spawn, four boundary lamps, two wall-mounted accents.
+    const Vec3 positions[]={{-18,4.7f,-12},{18,4.7f,-12},{-28.8f,5,-38},{28.8f,5,-38},
+        {-28.8f,5,-68},{28.8f,5,-68},{-28.8f,3.2f,-89},{28.8f,3.2f,-89}};
+    const Vec3 colors[]={{2.2f,1.65f,.9f},{1.2f,2.0f,1.3f},{1.7f,1.6f,1.4f},{1.7f,1.6f,1.4f},
+        {1.7f,1.6f,1.4f},{1.7f,1.6f,1.4f},{2.0f,.25f,.15f},{.25f,.65f,2.0f}};
+    for(int i=0;i<8;++i) rig.points.push_back({positions[i],night?colors[i]:Vec3{}});
+    // Six stadium towers, all at the boundary, aimed down and across the arena.
+    for(float z:{-16.f,-48.f,-80.f}) for(float x:{-28.f,28.f})
+        rig.spots.push_back({{x,12,z},normalize({-x,-10,-4}),
+            night?Vec3{1.8f,1.9f,2.1f}:Vec3{},std::cos(radians(32)),std::cos(radians(53))});
     return rig;
 }
 std::vector<SceneObject> createLightFixtures() {
     std::vector<SceneObject> objects;
-    auto add=[&](std::string id,std::string component,Vec3 position,Vec3 scale,Vec3 color) {
-        Transform t; t.position=position; t.scale=scale;
-        SceneObject o{id,"Lighting",component,t,color,"Receives Blinn-Phong light; fixture position shared with light rig"};
-        o.specular=.65f; o.shininess=64; objects.push_back(o);
+    auto add=[&](std::string id,std::string component,Vec3 p,Vec3 scale,Vec3 color) -> SceneObject& {
+        objects.push_back(makeCube(id,"Lighting",component,p,scale,color));
+        auto& o=objects.back(); o.specular=.45f; o.shininess=48;
+        o.notes="Mounted arena fixture; lens and illumination share the same rig position";
+        return o;
     };
-    const auto rig=createLighting(false);
+    const Vec3 metal{.19f,.23f,.27f};
+    const auto rig=createLighting(true);
     int i=0;
-    for (auto& light:rig.points) {
-        const auto id=std::to_string(++i); const Vec3 p=light.position;
-        add("LAMP_POLE_"+id,"Lamp pole",{p.x,3.25f,p.z},{.22f,6.5f,.22f},{.20f,.24f,.29f});
-        add("LAMP_HEAD_"+id,"Point lamp head",p,{.85f,.4f,.85f},{1,.82f,.45f});
-        add("LAMP_CAP_"+id,"Lamp cap",p+Vec3{0,.3f,0},{1,.18f,1},{.18f,.22f,.28f});
-        add("LAMP_BASE_"+id,"Lamp footing",{p.x,.12f,p.z},{.65f,.24f,.65f},{.28f,.31f,.34f});
-        for(int side:{-1,1}) add("LAMP_FRAME_"+id+"_"+std::to_string(side),"Lens frame",
-            p+Vec3{side*.40f,0,0},{.045f,.44f,.90f},{.12f,.17f,.20f});
+    for(const auto& light:rig.points) {
+        const auto id="LAMP_"+std::to_string(++i); const auto p=light.position;
+        if(i<=2) {
+            add(id+"_BASE","Footing",{p.x,.15f,p.z},{.8f,.3f,.8f},metal);
+            add(id+"_POLE","Lamp post",{p.x,p.y/2,p.z},{.22f,p.y,.22f},metal);
+        } else {
+            const float wall=p.x<0?-29.5f:29.5f;
+            add(id+"_MOUNT","Wall bracket",{(p.x+wall)/2,p.y-.35f,p.z},{1.3f,.18f,.25f},metal);
+            add(id+"_PLATE","Wall mounting plate",{wall,p.y-.35f,p.z},{.2f,.7f,.6f},metal);
+        }
+        add(id+"_HOUSING","Lamp housing",p+Vec3{0,-.24f,0},{.9f,.18f,.9f},metal);
+        const float peak=std::max(light.color.x,std::max(light.color.y,light.color.z));
+        add(id+"_LENS","Lens",p,{.72f,.36f,.72f},light.color*(1/peak));
+        add(id+"_CAP","Lamp cap",p+Vec3{0,.26f,0},{.95f,.16f,.95f},metal);
     }
     i=0;
-    for (auto& light:rig.spots) {
-        const auto id=std::to_string(++i); const Vec3 p=light.position;
-        add("SPOT_POLE_"+id,"Spotlight pole",{p.x,4.4f,p.z},{.16f,8.8f,.16f},{.22f,.28f,.34f});
-        add("SPOT_HEAD_"+id,"Spotlight head",p,{1.1f,.4f,.65f},{.66f,.82f,1});
-        objects.back().transform.rotation.x=-28;
-        add("SPOT_BASE_"+id,"Spotlight footing",{p.x,.1f,p.z},{.55f,.2f,.55f},{.26f,.29f,.31f});
+    for(const auto& light:rig.spots) {
+        const auto id="FLOOD_"+std::to_string(++i); const auto p=light.position;
+        add(id+"_BASE","Concrete footing",{p.x,.25f,p.z},{1.3f,.5f,1.3f},{.35f,.37f,.39f});
+        add(id+"_POLE","Stadium tower",{p.x,6,p.z},{.38f,12,.38f},metal);
+        add(id+"_BAR","Floodlight crossbar",p,{2.9f,.18f,.25f},metal);
+        const Vec3 rotation{-std::asin(light.direction.y)*180/pi,std::atan2(light.direction.x,light.direction.z)*180/pi,0};
+        for(int panel=-1;panel<=1;++panel) {
+            const Vec3 center=p+Vec3{0,0,float(panel)*.95f};
+            add(id+"_BRACKET_"+std::to_string(panel),"Head support",(p+center)*.5f,{.18f,.22f,2.1f},metal);
+            auto& head=add(id+"_HEAD_"+std::to_string(panel),"Floodlight housing",center,{.85f,.72f,.32f},metal);
+            head.transform.rotation=rotation;
+            auto& lens=add(id+"_LENS_"+std::to_string(panel),"Lens",center+light.direction*.18f,{.73f,.60f,.035f},{.86f,.93f,1});
+            lens.transform.rotation=rotation;
+        }
     }
     return objects;
 }

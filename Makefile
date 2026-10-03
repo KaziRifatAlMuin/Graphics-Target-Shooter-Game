@@ -8,7 +8,7 @@ TARGET = main.exe
 
 .PHONY: all run test clean
 all: $(TARGET)
-	./$(TARGET) --export-calc
+	@echo Final version build complete.
 
 $(TARGET): $(SRC) $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(SRC) $(LDFLAGS) -o $(TARGET)
@@ -31,10 +31,10 @@ release_tests.exe: tests/release_tests.cpp $(CORE) $(HEADERS)
 test: all core_tests.exe challenge_tests.exe mode_tests.exe release_tests.exe
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path build | Out-Null"
 	./core_tests.exe
-	./challenge_tests.exe
+	./challenge_tests.exe build/make-challenge-calc.csv
 	./mode_tests.exe build/make-mode-test.csv
 	./release_tests.exe build/make-release-test.csv
-	./$(TARGET) --modes-smoke-test
+	./$(TARGET) --modes-smoke-test --calc build/make-smoke-calc.csv --leaderboard build/make-smoke-leaderboard.csv
 
 clean:
 	powershell -NoProfile -Command "Remove-Item -LiteralPath 'main.exe','core_tests.exe','challenge_tests.exe','mode_tests.exe','release_tests.exe' -ErrorAction SilentlyContinue"

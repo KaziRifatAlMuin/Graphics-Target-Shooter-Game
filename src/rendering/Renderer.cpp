@@ -10,7 +10,15 @@ GLuint compileShader(GLenum kind, const std::filesystem::path& path) {
     if (!file) throw std::runtime_error("Cannot read shader: " + path.string());
     std::ostringstream buffer;
     buffer << file.rdbuf();
-    const std::string source = buffer.str();
+    std::string source = buffer.str();
+    const std::string directive="#include \"lighting.glsl\"";
+    const auto include=source.find(directive);
+    if (include!=std::string::npos) {
+        std::ifstream shared(path.parent_path()/"lighting.glsl");
+        if (!shared) throw std::runtime_error("Cannot read shared lighting shader.");
+        std::ostringstream code; code<<shared.rdbuf();
+        source.replace(include,directive.size(),code.str());
+    }
     const char* text = source.c_str();
     const GLuint shader = glCreateShader(kind);
     glShaderSource(shader,1,&text,nullptr);
@@ -55,6 +63,7 @@ void Renderer::initialize(const std::filesystem::path& directory) {
     viewLocation=glGetUniformLocation(program,"view");
     projectionLocation=glGetUniformLocation(program,"projection");
     colorLocation=glGetUniformLocation(program,"objectColor");
+    shadingLocation=glGetUniformLocation(program,"shadingMode");
     specularLocation=glGetUniformLocation(program,"materialSpecular");
     shininessLocation=glGetUniformLocation(program,"shininess");
     emissionLocation=glGetUniformLocation(program,"emission");
@@ -169,6 +178,7 @@ void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& vi
     glBindVertexArray(vao); glDrawArrays(GL_TRIANGLES,0,3);
     glEnable(GL_DEPTH_TEST); glDepthMask(GL_TRUE);
     glUseProgram(program);
+    glUniform1i(shadingLocation,shadingMode);
     const auto lighting=createLighting(night);
     // Use cached uniform locations instead of per-frame string lookups.
     glUniform3f(eyePositionLocation,eye.x,eye.y,eye.z);
@@ -194,4 +204,3 @@ void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& vi
     glBindVertexArray(0);
 }
 }
-

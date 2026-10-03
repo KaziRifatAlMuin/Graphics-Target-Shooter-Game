@@ -34,7 +34,7 @@ public:
     bool night=false, soundEnabled=true, soundAvailable=true;
     float cooldown=0, recoil=0;
     GameMode mode=GameMode::Practice;
-    std::string playerName="Player";
+    std::string playerName;
     BirdEyeCamera birdEye;
     double freeRemaining=freeSessionSeconds;
     LevelManager levels;

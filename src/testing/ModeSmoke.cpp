@@ -7,7 +7,8 @@ namespace {
 void require(bool condition,const char* message) { if (!condition) throw std::runtime_error(message); }
 void click(SessionController& session,Game& game,Action action) {
     for (const auto& b:screenButtons(session.ui.screen,game.mode)) if (b.action==action) {
-        session.action(clickedAction(session.ui.screen,b.x+b.w/2,b.y+b.h/2,game.mode)); return;
+        session.action(clickedAction(session.ui.screen,b.x+b.w/2,b.y+b.h/2,game.mode));
+        if(action==Action::Free || action==Action::Developer || action==Action::BirdsEye) { session.action(Action::ConfirmChallenge); if(session.ui.duplicateConfirmation) session.action(Action::UseExistingName); } return;
     }
     throw std::runtime_error("Smoke: requested button is absent.");
 }
@@ -18,7 +19,7 @@ float modeSmokeStep(int frame,SessionController& session,Game& game,Leaderboard&
     if (frame>=1 && frame<=700) {
         const int step=(frame-1)%100,level=(frame-1)/100+1;
         if (step==0) {
-            if (level>1) session.action(Action::Developer);
+            if (level>1) { session.action(Action::Developer); session.action(Action::ConfirmChallenge); }
             click(session,game,Action(int(Action::Level1)+level-1));
             require(game.mode==GameMode::Developer && game.targets.size()==std::size_t(counts[level-1]),"Developer card loaded wrong level.");
         }

@@ -10,7 +10,9 @@ enum class Action {
 };
 struct UiState {
     Screen screen=Screen::Menu,controlsReturn=Screen::Menu,boardReturn=Screen::Menu;
-    std::string name="Player",message;
+    std::string name,message;
+    GameMode pendingMode=GameMode::Challenge;
+    int shadingMode=2;
     bool editingName=false,personalBest=false,hasResult=false,saveFailed=false;
     bool nameExistsWarning=false,duplicateConfirmation=false;
     int existingRank=0,existingScore=0,existingLevels=0;

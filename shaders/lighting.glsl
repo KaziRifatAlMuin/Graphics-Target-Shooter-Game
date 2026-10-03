@@ -1,0 +1,36 @@
+// Shared by vertex and fragment shaders. Phong reflection, not Blinn-Phong.
+uniform vec3 eyePosition, ambientColor, sunDirection, sunColor;
+uniform float materialSpecular, shininess;
+uniform int shadingMode; // 0 flat, 1 Gouraud, 2 Phong (default)
+struct PointLight { vec3 position; vec3 color; };
+struct SpotLight { vec3 position; vec3 direction; vec3 color; float innerCos; float outerCos; };
+uniform PointLight points[8];
+uniform SpotLight spots[6];
+void addLight(vec3 N, vec3 V, vec3 L, vec3 color, inout vec3 diffuse, inout vec3 specular) {
+    float ndotl=max(dot(N,L),0.0);
+    diffuse+=color*ndotl;
+    // R is the reflection of incoming light; V points toward the viewer.
+    vec3 R=reflect(-L,N);
+    if (ndotl>0.0) specular+=color*materialSpecular*pow(max(dot(R,V),0.0),shininess);
+}
+void lighting(vec3 position, vec3 normal, out vec3 diffuse, out vec3 specular) {
+    vec3 N=normalize(normal), V=normalize(eyePosition-position);
+    diffuse=ambientColor; specular=vec3(0);
+    addLight(N,V,normalize(sunDirection),sunColor,diffuse,specular);
+    for(int i=0;i<8;++i) {
+        if(dot(points[i].color,points[i].color)==0.0) continue;
+        vec3 delta=points[i].position-position;
+        float d=max(length(delta),0.001);
+        float attenuation=1.0/(1.0+0.09*d+0.032*d*d);
+        addLight(N,V,delta/d,points[i].color*attenuation,diffuse,specular);
+    }
+    for(int i=0;i<6;++i) {
+        if(dot(spots[i].color,spots[i].color)==0.0) continue;
+        vec3 delta=spots[i].position-position;
+        float d=max(length(delta),0.001);
+        float cone=dot(-delta/d,spots[i].direction);
+        float intensity=smoothstep(spots[i].outerCos,spots[i].innerCos,cone);
+        float attenuation=1.0/(1.0+0.025*d+0.002*d*d);
+        addLight(N,V,delta/d,spots[i].color*intensity*attenuation,diffuse,specular);
+    }
+}

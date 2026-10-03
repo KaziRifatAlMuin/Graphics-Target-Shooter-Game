@@ -73,22 +73,22 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
         // Mode pages share the same button hit testing and painter as the gameplay HUD.
     } else if (screen==Screen::ChallengeName) {
         p.rect(56,66,1168,668,{.035f,.065f,.09f}); p.rect(56,66,5,668,teal);
-        p.text(96,104,"CHALLENGE MODE / 7-LEVEL GAUNTLET",2,teal);
+        p.text(96,104,std::string(modeName(state.pendingMode))+" / PLAYER NAME REQUIRED",2,teal);
         p.text(96,154,"PLAYER CALLSIGN REGISTRATION",4,ink);
         p.text(96,204,"ENTER YOUR NAME (1-24 CHARACTERS). BACKSPACE TO EDIT. ENTER TO CONTINUE.",1.8f,muted);
         if (state.nameExistsWarning) {
             p.rect(96,316,1088,116,{.16f,.06f,.06f}); p.rect(96,316,5,116,amber);
-            p.text(118,337,"NAME ALREADY EXISTS IN CHALLENGE / RANK "+std::to_string(state.existingRank),2.2f,amber);
+            p.text(118,337,"NAME ALREADY EXISTS / RANK "+std::to_string(state.existingRank),2.2f,amber);
             p.text(118,364,state.name,2,ink);
             p.text(118,385,"EXISTING BEST RECORD: SCORE "+std::to_string(state.existingScore)+"   /   LEVELS CLEARED: "+std::to_string(state.existingLevels),1.9f,ink);
             p.text(118,415,"ONLY A BETTER ELIGIBLE RESULT REPLACES THE SAVED BEST.",1.7f,muted);
         } else {
             p.rect(96,316,1088,88,{.04f,.12f,.12f}); p.rect(96,316,5,88,teal);
-            p.text(118,344,state.name.empty()?"ENTER YOUR NAME TO CONTINUE":"NEW CHALLENGE NAME: "+state.name,2.2f,teal);
+            p.text(118,344,state.name.empty()?"ENTER YOUR NAME TO CONTINUE":"PLAYER NAME: "+state.name,2.2f,teal);
             p.text(118,380,"PRESS ENTER OR CHECK NAME / START TO CONTINUE.",1.8f,ink);
         }
         p.rect(96,524,1088,84,{.025f,.045f,.07f});
-        p.text(118,548,"COMPETITIVE RULES: SEVEN SEQUENTIAL LEVELS WITH PROGRESSIVE TARGET SPEEDS & DISTANCES.",1.8f,ink);
+        p.text(118,548,"CHOOSE A UNIQUE CALLSIGN OR CONFIRM YOUR EXISTING NAME. NO DEFAULT NAME IS USED.",1.8f,ink);
         p.text(118,576,"ACCURACY PENALTIES: BIRDS -100 PTS  |  CIVILIANS -200 PTS. STRIKES ARE FATAL AND DO NOT RESPAWN!",1.8f,amber);
     } else if (screen!=Screen::Playing) {
         p.rect(56,66,530,668,{.035f,.065f,.09f}); p.rect(56,66,5,668,teal);
@@ -180,6 +180,7 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
             }
         }
     }
+    if(screen==Screen::Playing) p.text(28,640,std::string("F6 FLAT / F7 GOURAUD / F8 PHONG : ")+(state.shadingMode==0?"FLAT":state.shadingMode==1?"GOURAUD":"PHONG"),1.5f,teal);
     const Vec3 red{1,.23f,.20f};
     if (screen==Screen::Playing && game.dangerTime>0) {
         const float edge=(4+7*game.dangerTime)*(game.dangerHuman?1.7f:1.f);

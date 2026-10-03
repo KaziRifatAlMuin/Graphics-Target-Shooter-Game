@@ -10,6 +10,11 @@ int axes(const Target& t) { return (t.motion.amplitude.x>0)+(t.motion.amplitude.
 void activate(Game& game) { game.update(1.51f); check(game.gameplayActive(),"Intro failed to activate level."); }
 void shootTarget(Game& game,std::size_t index,std::uint64_t shot) {
     auto& t=game.targets[index];
+    // This helper isolates target scoring/progression. Survivors now redistribute,
+    // so keep this short injected ray clear; NPC contacts are tested separately
+    // below, and the player-muzzle scenario retains the full live population.
+    for(auto& b:game.birds) if(b.active) b.position=b.destination={-22,6,-92};
+    for(auto& h:game.humans) if(h.active) h.position=h.destination={22,0,-92};
     // Actual swept projectile from the front; the normal collision/damage pipeline applies.
     const auto normal=asVec3(transformPoint(makeRotationY(t.yaw),{0,0,1,0}));
     game.projectiles.push_back({shot,WeaponType::Pistol,t.position+normal*.3f,normal*-1,0,shot});
@@ -84,7 +89,7 @@ int main(int argc,char** argv) {
             logger.observe(game.scene(),game.elapsed,game.night);
             for (std::size_t i=0;i<game.targets.size();++i) {
                 shootTarget(game,i,++shot);
-                check(game.targets[i].eliminated,"Swept projectile did not destroy target.");
+                if(!game.targets[i].eliminated) throw std::runtime_error("Swept projectile failed at level "+std::to_string(n)+" target "+std::to_string(i)+" score "+std::to_string(game.score));
                 expected+=150; ++destroyed;
                 check(game.score==expected,"Bullseye must award exactly 150 total.");
                 if (i+1<game.targets.size()) check(game.levels.stage==LevelStage::Active,"Level completed with a target remaining.");
