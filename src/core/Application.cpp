@@ -18,19 +18,19 @@ using namespace shooter;
 
 namespace {
 fs::path projectDirectory(const char* executable) {
-#ifdef SHOOTER_SOURCE_DIR
-    const fs::path configured=SHOOTER_SOURCE_DIR;
-    if (fs::exists(configured/"project.md")) return configured;
-#endif
     for (auto candidate:{fs::absolute(executable).parent_path(),fs::current_path()}) {
         for (;;) {
-            if (fs::exists(candidate/"project.md") && fs::exists(candidate/"shaders"/"object.vert")) return candidate;
+            if (fs::exists(candidate/"assets"/"textures"/"plain.ppm") && fs::exists(candidate/"shaders"/"object.vert")) return candidate;
             const auto parent=candidate.parent_path();
             if (parent==candidate || parent.empty()) break;
             candidate=parent;
         }
     }
-    throw std::runtime_error("Cannot locate project.md and shaders beside the executable.");
+#ifdef SHOOTER_SOURCE_DIR
+    const fs::path configured=SHOOTER_SOURCE_DIR;
+    if (fs::exists(configured/"assets"/"textures"/"plain.ppm") && fs::exists(configured/"shaders"/"object.vert")) return configured;
+#endif
+    throw std::runtime_error("Cannot locate assets/textures and shaders beside the executable.");
 }
 double verifyFrame(int width,int height,const fs::path& capture,bool checkScene) {
     std::vector<unsigned char> pixels(static_cast<std::size_t>(width)*height*3);
@@ -301,16 +301,36 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
                 std::to_string(game.levels.config.number)+((frame-139)%240==20?"-intro":(frame-139)%240==180?"-complete":(frame-139)%240==220?"-results":"")+capture.extension().string());
             verifyFrame(width,height,output,true);
         }
-        if (smoke && (frame==0 || frame==1 || frame==10 || frame==35 || frame==120 || frame==125 || frame==127 || frame==129 || frame==136 || frame==137)) {
+        if (smoke && (frame==0 || frame==1 || frame==10 || frame==35 || frame==100 || frame==120 || frame==125 || frame==127 || frame==129 || frame==136 || frame==137)) {
             fs::path output;
             if (!capture.empty()) {
-                const std::string suffix=frame==0?"-menu":frame==1?"-controls":frame==10?"-pistol":frame==35?"-shotgun":frame==120?"-arena":
+                const std::string suffix=frame==0?"-menu":frame==1?"-controls":frame==10?"-pistol":frame==35?"-shotgun":frame==100?"-rifle":frame==120?"-arena":
                     frame==127?"-night-arena":frame==129?"-night":frame==136?"-target-front":frame==137?"-target-back":"";
                 output=capture.parent_path()/(capture.stem().string()+suffix+capture.extension().string());
             }
             verifyFrame(width,height,output,false);
         }
         if (smoke && frame==138) {
+            if(!capture.empty()) {
+                // Additional documentation views use the final renderer and real scene builders.
+                const auto scene=game.scene(true);
+                auto photo=[&](const std::string& label,Vec3 eye,Vec3 look,bool night=false,int isolation=-1) {
+                    Camera camera; camera.position=eye;
+                    const Vec3 direction=normalize(look-eye);
+                    camera.yaw=std::atan2(direction.z,direction.x)*180/pi;
+                    camera.pitch=std::asin(direction.y)*180/pi;
+                    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+                    renderer.drawArena(scene,camera.getViewMatrix(),makePerspective(60,float(width)/height,.05f,400),eye,night,isolation);
+                    verifyFrame(width,height,capture.parent_path()/(capture.stem().string()+"-"+label+capture.extension().string()),true);
+                };
+                photo("equipment",{-9,5,-3},{-9,1,-8});
+                photo("masonry",{-24,4,-12},{-29,3,-21});
+                photo("textured-environment",{-11,3,-13},{-19,1.5f,-23});
+                photo("lighting-ambient",{0,8,-5},{0,1,-25},false,0);
+                photo("lighting-directional",{0,8,-5},{0,1,-25},false,1);
+                photo("lighting-point",{0,8,-5},{0,1,-25},true,2);
+                photo("lighting-spot",{0,8,-5},{0,1,-25},true,3);
+            }
             if (game.shots!=3 || game.hits<3 || game.destroyed<2)
                 throw std::runtime_error("Smoke gameplay did not hit with all three weapons and demonstrate target destruction.");
             if (audioOpened&&!sound.available()) throw std::runtime_error("Audio device failed while queuing playback buffers.");
@@ -340,7 +360,7 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
 int shooter::Application::run(int argc,char** argv) {
     GLFWwindow* window=nullptr; bool initialized=false;
     try {
-        bool exportOnly=false,smoke=false,challengeSmoke=false,modesSmoke=false;
+        bool exportOnly=false,smoke=false,challengeSmoke=false,modesSmoke=false,benchmark=false;
         std::string name,startMode;
         int testLevel=0;
         fs::path csvPath,capture,boardPath;
@@ -350,6 +370,7 @@ int shooter::Application::run(int argc,char** argv) {
             else if (arg=="--smoke-test") smoke=true;
             else if (arg=="--challenge-smoke-test") smoke=challengeSmoke=true;
             else if (arg=="--modes-smoke-test") smoke=challengeSmoke=modesSmoke=true;
+            else if (arg=="--benchmark") benchmark=true;
             else if (arg=="--name" && i+1<argc) name=argv[++i];
             else if (arg=="--mode" && i+1<argc) startMode=argv[++i];
             else if (arg=="--leaderboard" && i+1<argc) boardPath=argv[++i];
@@ -366,6 +387,7 @@ int shooter::Application::run(int argc,char** argv) {
                     "F6 flat, F7 Gouraud, F8 Phong shading (default).\n"
                     "N day/night, M sound on/off. Front-only scoring: 1 center shot through 6 outer-ring shots.\n"
                     "--export-calc : export a deterministic starting snapshot without OpenGL\n"
+                    "--benchmark : measure warmed level-7 rendering, no gameplay or disk writes in timed frames\n"
                     "--calc PATH   : override calculation output (default: project root/calc.csv)\n"
                     "--smoke-test  : run scripted menu/gameplay rendering checks in a hidden window\n"
                     "--challenge-smoke-test : also render and exercise all seven level lifecycles\n"
@@ -409,15 +431,32 @@ int shooter::Application::run(int argc,char** argv) {
         initialized=true;
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,3); glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,3);
         glfwWindowHint(GLFW_OPENGL_PROFILE,GLFW_OPENGL_CORE_PROFILE);
-        if (smoke) glfwWindowHint(GLFW_VISIBLE,GLFW_FALSE);
+        if (smoke || benchmark) glfwWindowHint(GLFW_VISIBLE,GLFW_FALSE);
         window=glfwCreateWindow(1280,800,"3D Target Shooter | N: day/night | M: sound | Esc: menu",nullptr,nullptr);
         if (!window) throw std::runtime_error("Cannot create an OpenGL 3.3 window.");
         glfwMakeContextCurrent(window);
         if (!gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress)) || !GLAD_GL_VERSION_3_3)
             throw std::runtime_error("OpenGL 3.3 is required.");
-        glfwSwapInterval(smoke?0:1);
+        glfwSwapInterval(smoke || benchmark?0:1);
         std::cout<<"OpenGL: "<<glGetString(GL_VERSION)<<"\nRenderer: "<<glGetString(GL_RENDERER)<<'\n';
-        runScene(window,root,game,csvPath,smoke,capture,challengeSmoke,modesSmoke,boardPath);
+        if(benchmark) {
+            Renderer renderer; renderer.initialize(root/"shaders");
+            game.startMode(GameMode::Developer,7); game.setCamera(2);
+            const auto objects=game.scene(true); const auto camera=game.activeCamera();
+            glEnable(GL_DEPTH_TEST); glViewport(0,0,1280,800);
+            for(bool night:{false,true}) {
+                std::vector<double> times;
+                for(int frame=0;frame<240;++frame) {
+                    const double start=glfwGetTime();
+                    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+                    renderer.drawArena(objects,camera.getViewMatrix(),makePerspective(60,1.6f,.05f,400),camera.position,night);
+                    glFinish();
+                    if(frame>=40) times.push_back((glfwGetTime()-start)*1000);
+                }
+                std::sort(times.begin(),times.end());
+                std::cout<<"BENCHMARK "<<(night?"night":"day")<<" objects="<<objects.size()<<" median_ms="<<times[100]<<" p95_ms="<<times[190]<<'\n';
+            }
+        } else runScene(window,root,game,csvPath,smoke,capture,challengeSmoke,modesSmoke,boardPath);
         glfwDestroyWindow(window); glfwTerminate(); return 0;
     } catch (const std::exception& error) {
         std::cerr<<"Error: "<<error.what()<<'\n';

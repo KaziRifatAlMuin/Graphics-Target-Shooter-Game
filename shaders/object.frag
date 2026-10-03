@@ -3,6 +3,9 @@
 in vec3 worldPosition, worldNormal, shapePosition, shapeNormal;
 uniform vec3 objectColor;
 uniform float emission, targetFlash;
+uniform sampler2DArray materialTextures;
+uniform float textureLayer;
+in vec2 materialUV;
 in vec3 vertexDiffuse, vertexSpecular;
 flat in vec3 flatDiffuse, flatSpecular;
 uniform bool targetPattern;
@@ -19,7 +22,7 @@ vec3 surfaceColor() {
     return mix(color,vec3(1.0,0.76,0.2),targetFlash*0.5);
 }
 void main() {
-    vec3 base=surfaceColor(), diffuse, specular;
+    vec3 base=surfaceColor()*texture(materialTextures,vec3(materialUV,textureLayer)).rgb, diffuse, specular;
     if(shadingMode==0) { diffuse=flatDiffuse; specular=flatSpecular; }
     else if(shadingMode==1) { diffuse=vertexDiffuse; specular=vertexSpecular; }
     else lighting(worldPosition,worldNormal,diffuse,specular);

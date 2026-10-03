@@ -1,5 +1,6 @@
 #pragma once
 #include "core/Transform.h"
+#include "core/Material.h"
 #include <string>
 #include <vector>
 
@@ -18,6 +19,8 @@ struct SceneObject {
     std::string parent="";
     double observedTime=0;
     bool retainedObservation=false;
+    Material material=defaultMaterial(type,component);
+    float textureScale=materialTiling(material); // Repeats per local scaled meter.
 };
 inline Vec3 asVec3(Vec4 v) { return {v.x,v.y,v.z}; }
 inline float length(Vec3 v) { return std::sqrt(dot(v,v)); }

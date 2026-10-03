@@ -1,713 +1,355 @@
-# 3D Target Shooter - Final Version
+# 3D Target Shooter
 
-C++17 / OpenGL 3.3 project by **Kazi Rifat Al Muin (2107042)**.
+A cube-built arena with seven Challenge levels, five modes, three weapons, moving targets, penalty NPCs and persistent leaderboards. This release adds a compact HUD and reusable surface textures while preserving gameplay, geometry, controls, scoring, spawning and collision.
 
-The completed four-phase project follows [final-project.md](final-project.md). All modes
-reuse the seven level definitions, world, entities, collision and renderer. The original
-Practice Sandbox remains. Final presentation includes countdown introductions, animated
-level completion, seven-level victory, Free time-up, result statistics and ranked tables.
+![Final textured arena](docs/images/release-arena.png)
 
-## Guide contents
+## Run and build
 
-- [Build and run](#build-and-run), [mode menu and required name entry](#mode-menu)
-- [Leaderboard persistence](#persistent-leaderboardcsv), [seven levels](#seven-level-challenge), [controls and scoring](#scoring-and-controls)
-- [Transformation CSV](#automatic-actual-scene-calccsv), [architecture](#architecture), [validation](#validation-and-limits)
-- [Complete play flow](#complete-play-flow), [object inventory](#world-coordinates-and-object-inventory), [populations and spawns](#initial-population-and-cargo-placement)
-- [Weapons](#weapons-aiming-and-collision-details), [exact level layouts](#detailed-target-layouts-and-movement), [lighting/cameras/performance](#lighting-cameras-effects-and-performance)
-- [Generated per-component counts, dimensions and target configurations](docs/scene-reference.md)
+Run `build/release/TargetShooter.exe`. Keep its `shaders/` and `assets/` folders beside it. The Windows release needs OpenGL 3.3. It imports Windows system DLLs only: no separate GLFW DLL or MinGW runtime installation is needed.
 
-## Build and run
-
-Windows requires **64-bit MinGW/GCC** on PATH and an OpenGL 3.3 driver. GLFW/GLAD
-are bundled; models, fonts and sounds are procedural. Windows audio uses WinMM.
+For development, use 64-bit MinGW with C++17:
 
 ```powershell
-./run.bat
-# Or build and launch separately:
 ./build.bat
 ./main.exe
+# Rebuild and launch:
+./run.bat
 ```
 
-CMake 3.15+ is supported (verified with CMake 3.31.6 and GCC 13.2):
+`build.bat` builds root `main.exe` with `-O2`, then [package_release.ps1](tools/package_release.ps1) packages it under `build/release/`. The root executable retains the root leaderboard. The portable package writes its own `leaderboard.csv` and `calc.csv` beside its assets. Packaging never copies test scores over player records.
+
+[Makefile](Makefile) supports `mingw32-make`. [CMakeLists.txt](CMakeLists.txt) registers the same sources and tests:
 
 ```powershell
-cmake -S . -B build/phase4-release -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-cmake --build build/phase4-release --parallel 4
-ctest --test-dir build/phase4-release --output-on-failure
-./build/phase4-release/main.exe
+cmake -S . -B .work-cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+cmake --build .work-cmake -j 2
+ctest --test-dir .work-cmake --output-on-failure
 ```
 
-Portable CMake is available locally under `build/tools/cmake-3.31.6-windows-x86_64/bin/`;
-use that executable path if CMake is absent from PATH. Bundled GLFW requires MinGW,
-not MSVC. Linux needs GLFW/OpenGL development packages; playback is Windows-only.
-Makefile and VS Code build tasks also work. Keep shaders and project files together.
+Textures are shipped assets, not generated during play. All models remain cubes; font and sound are generated in code.
 
-## Mode menu
+## Playing and modes
 
-Every mode button opens a clearly visible name-entry page. Challenge does so before Level 1 (also on Replay and
---mode challenge). Enter 1-24 printable ASCII characters; surrounding spaces are removed.
-Blank and whitespace-only names are rejected in every mode. Press Enter or CHECK NAME / START. If that exact name
-already has a Challenge record, the game shows its rank, best score and levels cleared.
-A second explicit USE EXISTING NAME / Enter confirms reuse; REWRITE NAME clears the
-field, and Esc/Back returns to the menu. Confirmation never deletes or resets a record.
-Only a better eligible result can replace it. A name existing only in Free does not
-trigger the Challenge warning. Keys are case-sensitive, although the font is uppercase.
+![Main menu](docs/images/release-menu.png)
 
-There is no default player name. Free also requires name confirmation after selecting its mode. This is
-a local callsign system, not an account/password system. Leaderboard data is loaded on
-entry and rechecked on submission; typing checks the in-memory list without disk reads.
+Choose a mode and enter a callsign where requested. Challenge starts with a 1.5-second countdown. Aim at the printed target front and select a weapon that reaches it. Targets can move, rotate or be obscured by cover/NPCs. Levels 1–3 lock player position; 4–7 allow walking around obstacles. Nearby cover must also leave the muzzle clear.
 
-| Mode | Playable behavior | Persistence |
+Clear every target, wait for the completion presentation, then choose Next Level or press Enter. Score and active time carry through Challenge. Level 7 leads to Victory and results. Pause, introductions and completion screens freeze active time. Focus loss pauses. Restarting an unfinished Challenge level restores its starting statistics.
+
+| Mode | Behavior | Competitive record |
 | --- | --- | --- |
-| Free | Shared Level 7, 12 advanced targets, 48 birds, 36 humans; 03:00 countdown; targets return 30 seconds after destruction | Only after all 180 active seconds expire |
-| Challenge | Sequential Levels 1-7; every target required; cumulative score/time/stats; no target respawn | After each cleared level |
-| Developer | Seven clickable cards launch the exact shared levels; debug target IDs/health/motion, NPC counts, player position and FPS | Never submits |
-| Bird's-Eye | Shared Level 7 overhead; click open ground to place a 1.7 m observation camera; mouse look and collision-aware walking | Never submits |
-| Practice | Preserved Phase 1 sandbox, quick respawns and legacy scoring | Never submits |
+| Challenge | Seven sequential levels; 46 targets across the run; no target respawn | After each completed level, for runs started at level 1 |
+| Free | Level-7 arena, 180 active seconds; targets return after 30 seconds with full health and fresh first-shot eligibility | Only after the full session |
+| Developer | Direct selection of the same seven levels, diagnostics, reload/select controls | None |
+| Bird's-Eye | Level-7 overhead pan/zoom and click-to-observe ground camera | None; no shooting |
+| Practice | Seven sandbox targets, unrestricted movement, rapid respawn and original practice scoring | None |
 
-Free targets pulse an amber cube warning during the final three seconds before respawn.
-Surviving NPCs stay around respawning zones; killed NPCs never respawn in that session.
-Clearing all targets does not end Free Mode.
-At zero, firing/scoring freeze; a 1.6-second TIME animation leads into session statistics
-and the Free leaderboard.
-Pause, focus loss and introductions do not consume active time.
+`Game::startMode`, level loading and restart are in [Challenge.cpp](src/gameplay/Challenge.cpp). [SessionController.cpp](src/gameplay/SessionController.cpp) handles menu/session flow and result submission.
 
-Developer R reloads the selected level. Esc pauses; SELECT LEVEL returns to its cards.
-Completed Developer levels offer Reload, Select Level and Main Menu. In Bird's-Eye,
-WASD pans and the wheel zooms. Click visible open ground outside cargo/walls/stands to
-observe. Mouse controls yaw/pitch, WASD walks, Shift speeds up, and B/F2 returns overhead.
-A cube ground marker and heading show the observation point. Shooting is disabled.
+| Free | Developer |
+| --- | --- |
+| ![Free](docs/images/release-free-playing.png) | ![Developer](docs/images/release-developer-menu.png) |
+| Overhead | Ground observation |
+| ![Overhead](docs/images/release-overhead.png) | ![Observation](docs/images/release-observation.png) |
 
-## Persistent leaderboard.csv
+## Controls
 
-The project-root file is created with a header if missing. Builds and launches preserve
-existing valid records. Schema:
-
-```csv
-Name,Mode,BestScore,LevelsCleared,TargetsDestroyed,Bullseyes,BirdKills,HumanKills,BestTimeSeconds,LastUpdated
-```
-
-The key is **(Name, Mode)**, with Mode equal to Free or Challenge. Higher score wins;
-equal scores use lower active time. Negative scores are valid. Statistics are replaced
-together with the winning snapshot, never mixed between runs. LastUpdated is UTC.
-Times use round-trip precision. Commas and quotes in names are CSV-escaped. Duplicate
-keys are read as their best record and coalesced on the next accepted save. Invalid
-data rows are skipped with a visible warning; valid rows are preserved. Unrecognized
-headers or malformed CSV are preserved with an error shown in the UI.
-
-Challenge writes **only after completing a level**. Quitting/restarting an incomplete
-level cannot replace its saved completed snapshot. Direct Developer launches do not
-qualify as Challenge progress. Free writes **only after the full three-minute session**.
-Developer, Bird's-Eye and Practice never create competitive records.
-
-Writes use a checked temporary file and atomic replacement. Failed saves retain the
-result in memory for RETRY SAVE during that application session. Close any program
-locking the file before retrying. Your production records are preserved; test records are isolated under build/.
-
-Results show current statistics, personal-best status, saved best rank and the relevant
-mode table. Rows sort by score descending, then time ascending; names break exact ties
-deterministically. The current player is highlighted. Scroll with the wheel, Page Up/Down
-or UP/DOWN buttons. The menu table has Free/Challenge filters. Replay, Next Level where
-applicable, and Main Menu remain available.
-
-## Seven-level Challenge
-
-Choose **START CHALLENGE** or press Enter. Destroy all targets, wait for the brief
-completion animation, then press Enter/NEXT LEVEL. Level 7 plays a 2.4-second VICTORY
-presentation with cube confetti and a musical cue before revealing run statistics.
-Challenge targets never respawn. Introduction, pause and completion screens freeze time.
-
-| Level | Targets | Rules | NPCs |
-| --- | --- | --- | --- |
-| 1 | 3 | Position locked; static targets within pistol range | None |
-| 2 | 3 | Position locked; farther targets, one moving on X; rifle reaches all | None |
-| 3 | 4 | Position locked; varied single-axis X/Y/Z movement; clear rifle lanes | None |
-| 4 | 6 | Movement enabled; varied single-axis speeds, two spinners; cover requires repositioning | None |
-| 5 | 8 | Retains six; adds spinning X+Z and Y+Z targets | 8 initial birds |
-| 6 | 10 | Retains eight; adds two faster XYZ spinners | 16 birds near target zones |
-| 7 | 12 | Retains ten; adds two still faster XYZ spinners; densest cargo | 4 birds and 3 humans per active zone |
-
-Motion uses shared bounded patterns with varied amplitude, phase, speed, direction and
-spin. Birds choose bounded random 3D destinations and flap. Humans walk/pause on the
-ground near their target zones and avoid cargo, walls and moving stands. A hit is fatal:
-the live collider is removed immediately, the penalty is applied once, a distinct death
-sound plays and a short red cube-particle burst appears. Birds tumble under gravity;
-humans collapse as connected assemblies over 0.75 seconds. Fallen bodies remain visible
-but do not obstruct movement or shots. Grounding uses the actual transformed cube bounds.
-There are no replacement birds or humans during that level/session, including after a
-Free target respawns. Reloading/restarting explicitly creates a fresh initial population;
-advancing Challenge loads the next level's own population. Surviving birds AND humans randomly redistribute to undestroyed targets with room, capped at 10 birds and 10 humans per target. If all destinations are full, surplus survivors remain alive in their old zones. Killed NPCs never participate. See [NPC lifecycle details](docs/lighting-and-npc-guide.md).
-
-This permanent-death rule is the latest requested behavior and supersedes the earlier
-specification's continuously replenished NPC populations. Target respawn rules are unchanged.
-
-Humans have varied **2.05-2.20 m** standing heights (2.10 m reference). Their whole
-assemblies scale proportionally, including heads, bodies, arms, legs, hands and shoes.
-The projectile colliders use those exact animated cube transforms. Some walkers start
-on, or cross, the near side of target zones and can obscure lower targets: wait for a
-clear shot or reposition. They remain bounded, avoid obstacles and do not permanently
-prevent target completion. A human hit gives a longer, stronger red warning and a
-distinct low sound; multiple pellets from one trigger cannot duplicate the penalty.
-
-Cargo uses **0.70 m** crates (reference human height / 3), stacks of 1-5 crates with
-a middle-height tendency, 3-7-crate runs and L/T formations. Every crate owns its bands
-and inventory plate; filtering near target movement corridors removes whole assemblies.
-Advanced cover screens require moving around their ends. Crate dimensions and human
-height limits are defined together in src/world/Dimensions.h.
-
-The loader validates fixed-player sightlines/range, flood-fills walkable space from spawn
-in movable levels, and checks reachable close firing positions. Seeded cargo layouts
-avoid target movement regions and leave routes around cover.
-
-## Scoring and controls
-
-Targets have 60 health. Front-center through outer ring damage: **60/30/20/15/12/10**.
-Shotgun pellets share a trigger ID and contribute only the strongest pellet damage.
-Back/edge contacts stop shots without damage.
-
-- Destroy target: **+100**. Destroy it on its first valid trigger: **+150 total**.
-- A later center hit gives normal destruction points. Damage alone gives no points.
-- Bird: **-100**. Human: **-200**. Negative scores are valid.
-- NPC penalties count once per trigger. Points float; penalties flash red and sound.
-- Score, active time, targets destroyed, bullseyes, bird/human hits, shots, target hits
-  and cleared levels accumulate through the run.
-- Restarting an unfinished level restores its starting score/time/statistics.
-  Completed levels cannot be replayed inside that run to farm points.
+![Controls](docs/images/release-controls.png)
 
 | Input | Action |
 | --- | --- |
-| Enter | Open Challenge name entry / submit name / confirm existing name / resume / advance cleared level |
-| WASD / Shift | Walk / faster movement when allowed; fly in F4 |
-| Mouse | Aim in F1; look in F4 or the Bird's-Eye observation camera |
-| Left click / Space | Fire in F1; hold for rifle, new press for pistol/shotgun |
-| 1 / 2 / 3 | Pistol 25 m / shotgun 18 m / assault rifle 70 m |
-| F1 / F2 / F3 / F4 | Player / elevated / side / free camera |
-| F6 / F7 / F8 | Flat / Gouraud / Phong shading (default Phong); cameras unchanged |
-| Q / E | Free camera down / up |
-| Tab | Release/capture pointer for HUD buttons |
+| WASD / Shift | Walk / faster movement when allowed; move in F4 |
+| Mouse | Aim in player view; look in F4 and observation |
+| Left click / Space | Fire in player view; hold for rifle, new press for pistol/shotgun |
+| 1 / 2 / 3 | Pistol / shotgun / assault rifle |
+| F1 / F2 / F3 / F4 | Player / elevated arena / side / free camera |
+| Q / E | Free-camera down / up |
+| Tab | Release/capture pointer for HUD controls |
+| Esc | Pause/resume, back from subpages, exit main menu |
+| Enter | Start/submit/confirm Challenge name, resume, advance completed level |
+| R | Restart unfinished Challenge level, Developer level or Free session; reset Practice targets |
 | N / M | Day-night / sound |
-| R | Restart unfinished Challenge level, Free session or selected Developer level; reset Practice targets |
-| B / F2 in Bird's-Eye | Return to overhead inspection |
-| Wheel / Page Up / Page Down | Scroll leaderboard; wheel zooms overhead |
-| F5 | Save calculations while playing |
-| Esc | Pause/resume; back from controls/results; exit main menu |
+| F6 / F7 / F8 | Flat / Gouraud / Phong shading |
+| F5 | Request calculation snapshot |
+| B / F2 in Bird's-Eye | Return overhead |
+| Wheel overhead / click ground | Zoom / observe from valid unobstructed ground |
+| Wheel / Page Up / Page Down on tables | Scroll leaderboard |
 
-Free camera cannot move the grounded player or fire. Practice preserves Phase 1 respawn
-and damage-plus-destruction scoring. Starting a new session resets its statistics.
-A UI click cannot also fire; release fire after starting/resuming. Focus loss pauses.
+`runScene` in [Application.cpp](src/core/Application.cpp) routes input. `screenButtons` and `clickedAction` in [Interface.cpp](src/ui/Interface.cpp) share drawing/hit-test bounds. UI clicks cannot also fire; release fire after resuming. F4 cannot move the grounded player or fire and can pass through geometry. Bird's-Eye observation is collision-aware.
 
-All Phase 1 systems remain: cube weapons, distinct crosshairs, meter ranges, visible
-swept projectiles, player/cargo/boundary collision, four cameras, enclosed 60 x 100 m
-arena, fortified walls, seeded 0.70 m cargo, equipment display, day/night, ambient/diffuse/
-Phong illumination, daytime directional sunlight, eight mounted point lamps and six stadium spotlights.
-**All modeled objects use transformed unit cubes.** Targets use 32 cube slices and
-a front-face ring material, not a disk mesh. Weapons include trigger guards, muzzle
-insets and grip/slide details; birds have animated wings, tips and eyes; stands have
-braces and warning stripes. Masonry relief, aisle markings, lamp frames/footings and
-equipment labels complete the environment. UI fades and hover pulses use alpha blending.
-Hit fragments keep animating after the last target is destroyed.
+## Levels and target variations
 
-## Automatic actual-scene calc.csv
+Configurations live in [Level1.cpp](src/levels/Level1.cpp) through [Level7.cpp](src/levels/Level7.cpp), selected by `levelConfiguration` in [LevelManager.cpp](src/gameplay/LevelManager.cpp). Levels 5–7 extend preceding configurations.
 
-**Normal launches regenerate calc.csv in the project root; --calc PATH redirects this output.** It refreshes about once per
-active second, on weapon/lighting/session changes, F5 and normal exit. Builds leave this file untouched; explicit --export-calc remains available. calc-init.csv is unchanged.
+| Level | Targets | Differences | Initial NPCs | Final image |
+| --- | --- | --- | --- | --- |
+| 1: Basic Static Shooting | 3 | Fixed player, stationary targets at Z=-18/-22, pistol range | None | [Level 1](docs/images/release-level-1.png) |
+| 2: First Moving Target | 3 | Fixed player, farther Z=-26/-31 targets; center moves on X | None | [Level 2](docs/images/release-level-2.png) |
+| 3: Multi-Axis Introduction | 4 | Fixed player, separate X/Y/Z motion and varied speeds, rifle lanes | None | [Level 3](docs/images/release-level-3.png) |
+| 4: Move Around Cover | 6 | Walking, single-axis movement, two spinners and cargo screens | None | [Level 4](docs/images/release-level-4.png) |
+| 5: Birds and Compound Motion | 8 | Adds X+Z and Y+Z spinners | 8 birds | [Level 5](docs/images/release-level-5.png) |
+| 6: Faster Three-Axis Targets | 10 | Adds two faster XYZ spinners and more cover | 16 birds | [Level 6](docs/images/release-level-6.png) |
+| 7: Final Arena | 12 | Two more, still faster XYZ spinners; densest cover | 48 birds, 36 humans, initially 4/3 per target | [Level 7](docs/images/release-level-7.png) |
 
-The logger observes the same objects sent to the renderer and maps cube corner
-(0.5,0.5,0.5) using **M_model = T * Rz * Ry * Rx * H * S**.
-Rows contain Phase 4, Mode, Level (0 = practice), object/component, local point, scale, six
-shears, XYZ rotations, translation, matrix order, intermediate points, full matrix,
-world point, purpose, lighting, observation time and UTC. Explicit material fields store
-color, specular strength, shininess, emission and the target-pattern flag. Parent/group
-IDs associate parts with their human, bird, target, weapon or crate assembly.
+![Final level](docs/images/release-level-7.png)
 
-The 29-column schema is:
+`configuredTarget` in [LevelBase.cpp](src/levels/LevelBase.cpp) sets amplitude, frequency, phase and signed spin. `movementOffset` in [Movement.cpp](src/gameplay/Movement.cpp) computes each axis as `amplitude * sin(time * frequency + phase)`. `updateTarget` in [Target.cpp](src/gameplay/Target.cpp) adds it to the base position and updates yaw. Practice retains its horizontal, vertical, rotating and stationary variations.
 
-```csv
-Phase,Object_ID,Object_Type,Component,Primitive,Local_Point,Scale,Shear,Rotation_X_deg,Rotation_Y_deg,Rotation_Z_deg,Translation,Matrix_Order,Matrix_or_Operation,Result_World_Point,Lighting_or_Use,Notes,Parent_or_Group,Purpose,Generated_UTC,Level,Mode,Color_RGB,Specular,Shininess,Emission,Target_Pattern,Snapshot_State,Observed_Time_seconds
+`createTargetObjects` makes each face from 32 thin cube slices approximating a circle. Shared target-relative coordinates preserve the six-ring print; paper texture modulates it. Health, front-only hit rules, ring colors, flash, braces and warning stripes remain.
+
+| Printed front | Rear |
+| --- | --- |
+| ![Front](docs/images/release-target-front.png) | ![Back](docs/images/release-target-back.png) |
+
+## Weapons, contacts and scoring
+
+[Weapon.cpp](src/gameplay/Weapon.cpp) defines `weaponSpec`, `createWeapon` and `weaponMuzzle`. Bodies, barrels, grips, sights, guards, details and applicable stocks/magazines remain cube assemblies following aim and recoil. Metal parts use brushed metal; grips/stocks/fore-ends use rubber.
+
+| Weapon | Range | Speed | Cooldown | Pellets | Spread |
+| --- | --- | --- | --- | --- | --- |
+| Pistol | 25 m | 42 m/s | 0.28 s | 1 | None |
+| Shotgun | 18 m | 36 m/s | 0.80 s | 9 | Center plus eight directions at 0.075 |
+| Rifle | 70 m | 65 m/s | 0.11 s | 1 | Deterministic 0.009 |
+
+| Pistol | Shotgun | Rifle |
+| --- | --- | --- |
+| ![Pistol](docs/images/release-pistol.png) | ![Shotgun](docs/images/release-shotgun.png) | ![Rifle](docs/images/release-rifle.png) |
+
+`Game::fire` in [Game.cpp](src/gameplay/Game.cpp) aims from the player then directs the muzzle toward that point, rejecting a muzzle beyond cover. `updateProjectiles` in [Projectile.cpp](src/gameplay/Projectile.cpp) sweeps travel segments against obstacles, target slices and live NPC parts; the nearest contact wins. Projectiles disappear on contact or at maximum range.
+
+Targets have 60 health. `ringDamage` gives **60/30/20/15/12/10** damage from center outward. Back/edge hits stop shots without scoring. Shotgun pellets share a trigger ID: only the strongest damage applies, with better later pellets upgrading rather than stacking.
+
+[ScoreSystem.cpp](src/gameplay/ScoreSystem.cpp) implements level-mode scoring:
+
+- Destroy target: **+100**, or **+150 total** when destroyed by its first valid trigger. Damage alone scores nothing.
+- Bird: **-100**. Human: **-200**. Negative scores are valid; dead NPCs cannot be repeatedly penalized.
+- Practice retains `Game::applyTargetHit`'s damage-points-plus-100 rule and 1.8-second target respawn.
+
+Crosshairs, hit markers, scores, red penalty feedback, sounds, recoil and fragments remain. Cumulative statistics remain on result pages.
+## NPCs and spawning
+
+`Game::loadCurrentLevel` creates configured birds/humans around target zones. [Bird.cpp](src/gameplay/Bird.cpp), [Human.cpp](src/gameplay/Human.cpp) and [Npc.cpp](src/gameplay/Npc.cpp) implement bounded destinations, animation and cube assemblies. Birds fly and flap; humans walk/pause on the ground, avoiding cargo, walls and stands. Human heights vary from 2.05–2.20 m, scaling the whole assembly.
+
+A hit removes the live collider immediately, applies a penalty and plays a sound/red cube-particle effect. Birds tumble under gravity; humans collapse as connected assemblies. `groundNpcParts` uses transformed cube bounds for grounding. Bodies remain visible without becoming new live shot/movement obstacles.
+
+Survivors redistribute when their target is permanently eliminated, using zones with room under separate ten-bird/ten-human caps. If destinations are full, survivors remain alive in the old zone. Dead NPCs never redistribute or respawn, even when Free targets return. Reloading a level/session creates a fresh initial population.
+
+| Civilian | Fallen NPCs |
+| --- | --- |
+| ![Human](docs/images/release-human-model.png) | ![Fallen](docs/images/release-npc-fallen.png) |
+
+`generateCargoLayout` in [Cargo.cpp](src/world/Cargo.cpp) uses seeded side cells, 0.70 m crates, stacks of 1–5, runs of 3–7, and L/T formations. `addCrate` attaches two bands and an inventory plate. `generateChallengeCargo` adds `2 * (level - 3)` cover-screen groups from level 4 and removes whole assemblies conflicting with target motion corridors.
+
+`createLevelWorld` and `validateLevelWorld` in [LevelWorld.cpp](src/world/LevelWorld.cpp) validate fixed-player range/sightlines or flood-fill movable levels and check reachable firing positions. Failed layouts can retry with changed seeds. Textures do not affect seeds, transforms, dimensions or collision.
+
+## Leaderboard and results
+
+![Leaderboard](docs/images/release-free-leaderboard.png)
+
+[Leaderboard.cpp](src/persistence/Leaderboard.cpp) stores one best record per `(Name, Mode)` in `leaderboard.csv`. Challenge and Free stay separate. Higher score wins; lower active time breaks ties; names break exact table-order ties. A saved row contains one coherent result, including counts and elapsed time.
+
+Challenge submits completed-level results only from runs begun at level 1. Free submits only after 180 seconds. Developer, Bird's-Eye and Practice do not submit. Abandoning an unfinished level cannot replace its last eligible result. Existing names require confirmation or rewriting.
+
+`Leaderboard::submit` reloads before merging and accepts only better eligible results. [CsvFile.cpp](src/persistence/CsvFile.cpp) provides checked temporary writes and atomic replacement. Invalid data rows produce warnings; malformed files/unsupported headers produce errors while preserving files. Failed results remain in memory for Retry Save during the session. Tables scroll and highlight the player.
+
+| Challenge results | Free results |
+| --- | --- |
+| ![Victory results](docs/images/release-level-7-results.png) | ![Free results](docs/images/release-free-result.png) |
+
+## Objects and cube geometry
+
+The arena is 60 × 100 m, with Y=0 ground and forward along negative Z. Continuous walls have battlements, towers and sheared supports. Structures are the existing enclosure, fixtures, equipment display and stacked cover; there are no imported building meshes.
+
+| Object | Creation code | Material |
+| --- | --- | --- |
+| Floor, route markers | `createArena`, [Arena.cpp](src/world/Arena.cpp) | Gravel, tinted concrete |
+| Walls, towers, supports | `createArena` | Masonry |
+| Crates, cover, bands, labels | `generateCargoLayout`, `generateChallengeCargo`, `addCrate`, [Cargo.cpp](src/world/Cargo.cpp) | Wood, metal, paper |
+| Lamps/stadium towers | `createLightFixtures`, [Lighting.cpp](src/world/Lighting.cpp) | Metal, concrete footings; night-emissive lenses |
+| Equipment table, mat, exhibits | `createEquipmentDisplay`, [Environment.cpp](src/world/Environment.cpp) | Metal, rubber, actual weapon builders |
+| Target slices/stands | `createTargetObjects`, [Target.cpp](src/gameplay/Target.cpp) | Paper, metal |
+| Weapons | `createWeapon`, [Weapon.cpp](src/gameplay/Weapon.cpp) | Metal, rubber |
+| Birds/humans/player | NPC builders, `Game::scene`, [GameScene.cpp](src/gameplay/GameScene.cpp) | Subtle fabric modulation with existing colors |
+| Sun/projectiles/flashes/effects | Environment, Projectile, Weapon and Effects builders | Plain/emissive where appropriate |
+
+| Cargo and ground | Masonry |
+| --- | --- |
+| ![Environment](docs/images/release-textured-environment.png) | ![Masonry](docs/images/release-masonry.png) |
+
+![Equipment](docs/images/release-equipment.png)
+
+[SceneObject.h](src/core/SceneObject.h) retains ID/type/component, transform, color, notes, specular/shininess/emission, target pattern, parent and observation data. Two visual fields were appended: `material` and `textureScale`. Existing `makeCube` and aggregate constructors receive defaults; the object system is unchanged.
+
+[Transform.h](src/core/Transform.h) composes `M = T * Rz * Ry * Rx * H * S` for scale, six shear terms, rotations and translation. `Renderer::initialize` expands eight cube corners into one shared 36-vertex VBO with position/normal. `drawTransformedCube` uploads model, inverse-transpose normal matrix, color and material uniforms, then draws those vertices. There is one draw per object; no new GPU instancing is claimed.
+
+Modify an object in its builder by editing position, scale, rotation, shear, color or material. Assemblies use related IDs and shared `parent` values. Keep collision and visual transforms consistent; targets use the same slice transforms and NPC contacts use animated parts.
+
+To add a static prop, use `makeCube` in a world builder and append it through `createLevelWorld` or the Practice setup. Static objects participate in obstacle tests, so preserve paths/sightlines. Multi-part props remain multiple cubes. Moving visuals can append builder output in `Game::scene`, with explicit collision behavior if required. Assigning a texture adds no gameplay behavior.
+
+## Texture system
+
+Nine original small maps are generated offline by [generate_textures.cpp](tools/generate_textures.cpp) and shipped under [assets/textures](assets/textures). These are deterministic grain, mortar, noise and weave patterns, not photographs. Runtime loads actual images into GPU textures; it does not evaluate the generator's patterns per fragment.
+
+| Layer / Material | File | Repeats per scaled local meter |
+| --- | --- | --- |
+| 0 Plain | `plain.ppm`, white neutral fallback | 1 |
+| 1 Concrete | `concrete.ppm`, mottling/pores | 1 |
+| 2 Masonry | `masonry.ppm`, staggered mortar | 0.5 |
+| 3 Gravel | `gravel.ppm`, granular ground | 0.65 |
+| 4 Wood | `wood.ppm`, planks/grain | 1 |
+| 5 Metal | `metal.ppm`, brushed lines | 3 |
+| 6 Fabric | `fabric.ppm`, fine weave | 6 |
+| 7 Paper | `paper.ppm`, print substrate | 2 |
+| 8 Rubber | `rubber.ppm`, grip pattern | 8 |
+
+### Loading, caching and memory
+
+`TextureCache::initialize` in [TextureCache.cpp](src/rendering/TextureCache.cpp) loads each P6 PPM once at startup and validates format, 256 × 256 dimensions, maximum value 255 and complete payload. Missing, malformed or truncated files report a named startup error. Reinitializing the cache does not reload.
+
+One `GL_TEXTURE_2D_ARRAY` contains all maps as `GL_RGB8`. `TextureCache::bind` binds unit zero once per scene pass. Numeric layer uniforms select materials; no per-cube texture bind, path lookup or GPU allocation occurs. The cache deletes its texture before context teardown and releases CPU pixels after upload.
+
+Images are **linear reflectance multipliers** using existing object colors. RGB8 does not automatically decode sRGB. Disk assets total about 1.69 MiB; nominal RGB storage including mipmaps is about 2.25 MiB, although drivers may pad RGB internally. No block compression is used: this small array avoids compression artifacts/extension dependencies. There are no normal, displacement or roughness maps.
+
+`glGenerateMipmap` builds all levels once. `GL_LINEAR_MIPMAP_LINEAR` minification blends mip levels; `GL_LINEAR` magnification smooths texels; `GL_REPEAT` tiles U/V. Mipmaps reduce distant aliasing and bandwidth. There is no image generation, texture streaming or mip regeneration during play.
+
+### Assignment, UVs and scaling
+
+`defaultMaterial(type, component)` and `materialTiling` in [Material.h](src/core/Material.h) initialize object fields at construction, including existing aggregate and `makeCube` builders. Explicit override:
+
+```cpp
+auto prop = makeCube("PROP", "Environment", "Panel",
+                    {0, 1, -10}, {2, 2, .2f}, {.5f, .55f, .6f});
+prop.material = Material::Metal;
+prop.textureScale = 2.0f;
 ```
 
-Every current 3D cube instance is included. History retains **every named component**
-of visited levels/modes, including all cargo details, walls, lamps, targets, NPCs and
-weapons. Snapshot_State distinguishes Current from Last observed, with original times.
-Repeated projectile, blood and break-effect history retains the latest actual observation per
-component/mode/level to avoid unlimited growth; all currently present instances are
-always included. **Unvisited levels are not invented.** History starts
-fresh each launch; completing a run provides all seven levels' coverage.
-Startup includes real equipment-display weapon/projectile models; DISPLAY_ rows are
-exhibits, while fired projectiles have separate IDs.
+Adjust scale after changing an existing material if needed. More repeats make detail smaller; fewer make it larger. Existing color multiplies the image, letting tinted crates reuse one wood map.
 
-The delivered CSV comes from the all-mode rendering test, including Challenge/Developer
-Levels 1-7, Free respawns and Bird's-Eye inspection. Your next launch replaces
-it with your own session's observations. It is a snapshot plus documented observations,
-not an every-frame recording or saved game. Bird's-Eye includes rendered observation
-marker/heading transforms with real camera position/yaw/pitch notes. Writes use temporary files and atomic
-replacement. An owned copy of the latest snapshot is written by a background worker;
-pending writes coalesce, and normal exit flushes the final snapshot. This keeps large
-all-level exports from blocking rendering. Close applications that lock the CSV.
-Alive, falling and dead NPC assemblies have distinct BIRD_/DYING_BIRD_/DEAD_BIRD_ and
-HUMAN_/DYING_HUMAN_/DEAD_HUMAN_ IDs, preceded by the mode/level prefix. Notes record life
-state and death time. Blood cubes use BLOOD_ IDs. Short effects are observed every rendered
-frame; the expensive full static snapshot is copied only when a disk refresh is due.
-HUD text, menus and sound samples are not modeled 3D objects; leaderboard.csv stores
-competitive statistics separately.
+[object.vert](shaders/object.vert) projects local cube coordinates per face, using renderer-supplied `abs(transform.scale) * textureScale`. Top/bottom use XZ, side faces ZY, and front/back XY. Long walls/floors tile rather than stretching one image. UVs follow rotation/shear and moving objects without swimming; shear stretches the pattern with the surface. This is single-face projection, not triplanar blending.
+
+[object.frag](shaders/object.frag) samples the array once and multiplies `surfaceColor()` **before lighting**. Target-ring math still uses `patternScale`/`patternOffset`; paper modulates the print. Emission above 0.5 selects Plain to retain bright sun, projectiles and flashes.
+
+### Replace or add textures
+
+Replace a named asset with tileable **256 × 256 binary P6 RGB PPM**, max value 255, simple header without comments. Header whitespace is supported, but PPM comments are not parsed. Use linear multipliers; convert photographic sRGB pixels first if using that workflow. Restart to reload; rebuild/package to refresh the portable copy.
+
+To add a material, append its enum in `Material.h`, append its filename in `TextureCache::initialize`, increase `layers`, and supply a matching image. Enum order must match array order: it is the GPU layer. Add a default rule or explicit assignment, plus a tiling rate. Another layer needs no extra sampler or shader branch.
+
+Regenerate original assets only when deliberately editing the generator:
 
 ```powershell
-./main.exe --export-calc
-./main.exe --export-calc --test-level 7
-./main.exe --test-level 4
-./main.exe --smoke-test
-./main.exe --modes-smoke-test --capture build/phase4.ppm --leaderboard build/test-leaderboard.csv
-powershell -NoProfile -ExecutionPolicy Bypass -File tests/verify_calc.ps1 -RequirePlayedCoverage -RequireChallengeCoverage -RequireModeCoverage
+g++ -std=c++17 -O2 tools/generate_textures.cpp -o generate-textures.exe
+./generate-textures.exe assets/textures
 ```
 
-Export initializes a real scene without a GPU. --test-level N opens Developer Mode directly.
---mode free|challenge|birds-eye starts that mode; --name NAME supplies its player name.
---calc PATH and --leaderboard PATH override the CSV destinations; create parent directories
-first. --capture saves PPM previews with any smoke option. Smoke tests default to
-build/smoke-leaderboard.csv so they do not populate the production leaderboard.
+Normal builds do not regenerate textures, protecting replacements. Prefer small resolutions and shared layers before considering larger assets.
+## Lighting
 
-## Architecture
+The existing rig and intensities are preserved; textures feed the same equation. No shadow pass, extra lights or PBR conversion was added. `createLighting` in [Lighting.cpp](src/world/Lighting.cpp) defines the rig; [lighting.glsl](shaders/lighting.glsl) implements reflection. Renderer caches day/night rigs instead of rebuilding their vectors each frame.
 
-The source tree is grouped by responsibility. Include paths are relative to src/:
-
-```text
-src/
-  main.cpp             five-line entry point
-  core/                Application, Transform, SceneObject, Collision
-  rendering/           Renderer and GPU resource ownership
-  camera/              Camera and BirdEyeCamera
-  world/               Arena, Cargo, Dimensions, Environment, Lighting, LevelWorld
-  gameplay/            Game, GameScene, GameMode, SessionController, Challenge,
-                       LevelManager, Movement, Target, Weapon, Projectile,
-                       Npc, Bird, Human, ScoreSystem, Effects
-  levels/              LevelBase and Level1 through Level7 configurations
-  ui/                  Interface, ModeUI, LeaderboardUI, Presentation,
-                       UiPainter, UiState
-  persistence/         CsvFile, CsvLogger, SnapshotWriter, Leaderboard
-  audio/               Sound and SoundEvent
-  testing/             ModeSmoke (explicit GPU automation only)
-  third_party/         bundled GLAD implementation
-shaders/               cube materials and alpha-blended UI shaders
-include/ and lib/      bundled GLFW/GLAD headers and MinGW GLFW library
-tests/                 CPU gameplay, release, persistence and CSV math checks
-```
-
-GameScene assembles actual renderable objects. Shared model builders feed both rendering
-and collision; Transform.h owns the common S/H/Rx/Ry/Rz/T math. Level files configure
-shared algorithms rather than duplicating gameplay. CsvLogger observes rendered objects;
-SnapshotWriter owns disk work. CsvFile.cpp is now src/persistence/CsvFile.cpp.
-All sources are registered in CMakeLists.txt, Makefile and build.bat; VS Code resolves
-headers through src/ and include/. No external model, font or sound assets are required.
-
-## Validation and limits
-
-CTest runs ten checks: final human obstruction/model proportions, cargo reference sizes,
-all-component snapshot retention/worker flushing/presentation/audio; retained Phase 1
-gameplay, Challenge rules, shared modes/storage,
-separate write/read processes for restart persistence, export, and three independent CSV
-arithmetic/coverage checks. Tests cover every level, swept target/NPC contacts, actual player-muzzle firing
-against live moving/spinning targets, movement locks, NPC population/bounds/avoidance,
-cover accessibility, exact/negative scores, no respawn, completion gating, accumulated
-time and restart rollback. Death/name tests additionally check actual fatal contacts,
-connected/grounded falls, no revival after target respawn, bounded effects, death sounds,
-blank names, whitespace normalization, mode-specific duplicate warnings, explicit reuse,
-rewrite, replay and preservation of an existing best. Shared mode checks cover Free expiry/respawn/warnings, negative
-penalties, fresh health/bonus eligibility, pause/reset, every Developer card, independent
-projection/unprojection, observation collision, completed-only submission, coherent best
-records, escaping, duplicate keys, malformed-file preservation, sorting and scrolling.
-
-The hidden OpenGL --modes-smoke-test renders every level/mode, completion/victory/Free
-results, Developer cards/debug HUD, leaderboard, overhead and selected observation views.
-It advances all 180 seconds of Free simulation faster than real time and checks the
-30-second respawn boundary. Its fast progression script injects hit events;
-separate CPU tests verify normal muzzle/projectile behavior. It checks visible geometry,
-OpenGL errors, day/night brightness and exports visited transforms. Audio initialization
-and queueing are checked; subjective quality requires listening.
-
-The F4 free-fly camera passes through geometry; the Bird's-Eye observation camera stays
-outside cargo and walls. Stands/fragments/avatar do not block shots; humans avoid stands.
-Cast shadows, networking and an ammunition economy are outside this release.
-
-## Final release changes
-
-The formerly flat source directory is organized into the folders above. New reusable
-modules are world/Dimensions.h, gameplay/GameScene.cpp, gameplay/Effects.*,
-ui/Presentation.* and persistence/SnapshotWriter.*. Human/cargo/world/weapon/target/bird
-models, UI, audio, scene logging and application integration were refined. Build files,
-VS Code include paths, shaders/ui.*, tests and this README match the final layout.
-tests/release_tests.cpp covers the final changes. main.exe and calc.csv are regenerated
-from the updated project; valid leaderboard records are preserved across builds/runs.
-
-## Complete play flow
-
-1. Launch ./main.exe (or ./run.bat to rebuild first). Set sound/day-night from the menu.
-2. Challenge: choose CHALLENGE, enter a name, and resolve any duplicate-name confirmation.
-   The 3/2/1/GO introduction lasts 1.5 seconds and does not consume score time.
-3. Levels 1-3 lock the player's position; use mouse aim and the rifle for farther targets.
-   Levels 4-7 allow walking around cover. The barrel must also be clear of nearby cargo.
-4. Use the range HUD and weapon-specific crosshair. Only the printed front of a target scores;
-   rotating back/edge hits stop the shot. Wait for a front face or move to another angle.
-5. Destroy every required target. Avoid birds/humans: every first fatal NPC hit deducts points.
-   Dead bodies are visual remains, not additional scoring opportunities or new obstacles.
-6. The level-complete animation runs, then Next Level becomes available after one second.
-   Score, time and statistics carry forward. Each completed level may improve the leaderboard.
-7. After all 46 Challenge targets across seven levels, Victory leads to full statistics and
-   the Challenge table. PLAY AGAIN/RESTART RUN returns through name entry and starts at Level 1.
-8. In Free, play for 180 active seconds. Targets respawn 30 seconds after destruction,
-   including fresh health and bonus eligibility; killed NPCs stay dead. Expiry leads to stats
-   and the Free leaderboard. Early quitting does not create an eligible Free result.
-9. Developer cards start any shared level without a competitive record. Bird's-Eye offers
-   inspection and collision-aware observation walking without shooting or scoring.
-10. Esc/focus loss pauses active gameplay. Resume continues the same state; explicit R/reset
-    restores the selected level/session and its NPC population. Exiting an incomplete Challenge
-    retains only previously eligible completed-level records. F5 requests a fresh transform CSV.
-
-## World coordinates and object inventory
-
-All sizes below are in **meters**, normally X width x Y height x Z depth before rotation.
-The floor is Y=0, X is left/right, and forward is negative Z. The arena footprint is
-X=-30..30, Z=-100..0; grounded movement is restricted to X=-26..26, Z=-96..-4 with a
-0.45 m conservative player margin around blockers. Spawn eye position is (0,1.7,-5),
-yaw -90 degrees, pitch 3.8 degrees. Walk/sprint speeds are 5/9 m/s; diagonal input is normalized.
-The projection is 60 degrees vertical FOV, near 0.05 m, far 400 m.
-
-The exhaustive, **generated** [component and level reference](docs/scene-reference.md)
-lists every starting component category, its exact count in each level, measured scale
-ranges, initial center ranges, and all 46 target configurations. It is generated from
-shared model builders, so dimensions/counts can be regenerated after editing the game.
-calc.csv gives every observed named instance's full transform, material, parent and world point.
-
-| Assembly | Number / components | Dimensions and appearance | Placement / behavior |
-| --- | --- | --- | --- |
-| Ground | 1 cube | 60 x 0.2 x 100, muted green | Center (0,-0.1,-50); top at Y=0 |
-| Aisle paint | 44 cubes | 0.075 x 0.018 x 1.35, yellow-gray | X=+-2.8, Y=0.012, Z=-8,-12,...,-92 |
-| Enclosing walls | 4 cubes | North/south 60 x 8 x 1; sides local 100 x 8 x 1 rotated 90 degrees | Z=0/-100 or X=+-30, Y=4; solid gray boundary |
-| Masonry relief | 12 cubes | Side courses 0.14 x 0.13 x 99; end courses 59 x 0.13 x 0.14 | Y=2,4,6 at X=+-29.44 or Z=-0.56/-99.44 |
-| Battlements | 50 cubes | 2 x 1.5 x 1.5 | Y=8.75; north/south X=-27..27 every 6; sides Z=-6..-90 every 6 |
-| Corner towers/caps | 4 + 4 cubes | Towers 3.5 x 9.5 x 3.5; caps 4.2 x 1 x 4.2 | X=+-30, Z=0/-100; Y=4.75/10 |
-| Leaning supports | 18 cubes | 1.5 x 6 x 2, XY shear 0.22, rotated and grounded | Side X=+-28, Z=-18,-42,-66,-90; end Z=-2/-98, X=-20,-10,0,10,20 |
-| Cargo crate | 4 cubes per assembly | Main cube 0.70 each side; two thin bands and one inventory plate; brown/green/gray | Seeded side clusters and advanced cover screens; solid to player/projectiles |
-| Target | 38 cubes alive; 6 stand parts after destruction | Plate diameter 1.6, thickness 0.16; 32 horizontal cube slabs with six printed rings | Centers in target tables below; Y-axis spin; only front scores |
-| Target stand | Base + post + 2 braces + 2 stripes | Base 2 x 0.3 x 1.5; post 0.24 x h x 0.24, h=max(0.3,targetY-0.8) | Base Y=0.15; post follows target X/Z; humans avoid stand footprint |
-| Bird | 10 cubes each | Body 0.62 x 0.26 x 0.28; head 0.24 x 0.24 x 0.23; wings 0.38 x 0.055 x 0.64 plus tips | Brown/gray feathers, yellow beak, two eyes; random bounded flight and flapping |
-| Human | 21 cubes each | Standing height 2.05-2.20; reference body proportions uniformly multiplied by height/1.82 | Three shirt/skin palettes, trousers, shoes, arms/hands, neck/head/hair/eyes/nose; bounded walking |
-| Point lamp | 8 mounted fixtures | Two posts, four boundary lamps, red/blue side lamps | See lighting table below |
-| Stadium floodlight | 6 towers with three visible panels each | Grounded poles, footings, crossbars and aimed lenses | X=+-28, Y=12, Z=-16,-48,-80 |
-| Equipment table | Table, mat, 3 labels | Table 12 x 1.1 x 3; mat 11.8 x 0.02 x 2.8 | Center (-9,0.55,-8); three weapon exhibits and three projectile exhibits |
-| Sun | One emissive cube by day; none at night | 4 x 4 x 4 | (25,35,-80) |
-| Player avatar | 4 cubes, hidden in first person | Torso 0.65 x 0.95 x 0.4; head 0.4 each side; legs 0.22 x 0.56 x 0.3 | Follows actual player, shown by external cameras |
-| Weapon | Active pistol 11 / shotgun 14 / rifle 15 cubes; optional 1 flash | Metal receiver/barrel, brown grip/stock, guards, sights and details | Camera-relative muzzle offsets: (0.32,-0.22,-1.02) pistol; Z=-1.52 for long guns |
-| Projectile | 1 cube each; shotgun 9 pellets per trigger | Sizes/speeds in weapon table below; yellow/emissive | Swept segment collision selects nearest cargo/target/live NPC contact |
-| Blood-like effect | 14 cubes per bird hit; 24 per human hit | Red cubes 0.035-0.070; gravity 13.5 m/s^2; lifetime 1.0-1.6 s | Spawn at hit NPC; human burst at 65% body height; brief flattened ground flecks |
-| Target fragments | 12 cubes per destroyed target | 0.12 x 0.12 x 0.05, orange; gravity 7; lifetime 0.75 s | Radial burst from actual target center |
-| Victory/session confetti | Up to 84 / 28 cubes | 0.24 x 0.14 x 0.32, four colors, emissive | Timed ballistic burst near (0,22,-26), at most 4 seconds |
-| Observation references | 2 cubes in Bird's-Eye | Ground marker 0.9 x 0.08 x 0.9; heading 0.12 x 0.1 x 0.75 | At actual selected observation camera; heading follows yaw/pitch |
-
-## Initial population and cargo placement
-
-Counts below are measured from the shipped seed **2107042**. A crate is an assembly,
-not one CSV row: its crate, bands and plate produce four rows. Free/Developer 7/Bird's-Eye
-share Level 7 geometry. Populations decrease after fatal hits; vector slot counts are not
-live NPC counts. Developer HUD shows live counts. Corpses stay until the world is reset.
-
-| Level | Targets | Initial birds | Initial humans | Crate assemblies | Cargo component cubes |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 1 | 3 | 0 | 0 | 349 | 1396 |
-| 2 | 3 | 0 | 0 | 349 | 1396 |
-| 3 | 4 | 0 | 0 | 349 | 1396 |
-| 4 | 6 | 0 | 0 | 638 | 2552 |
-| 5 | 8 | 8 | 0 | 704 | 2816 |
-| 6 | 10 | 16 | 0 | 770 | 3080 |
-| 7 | 12 | 48 | 36 | 836 | 3344 |
-
-Side clusters use lanes X=-20,-15,15,20 with seeded X jitter of -0.24..0.24.
-Rows are Z=-20-10*r: four rows in Levels 1-3, seven in Levels 4-7 and Practice.
-Each cluster has a 3-7-column run, optional two-column L/T extension, 0.735 spacing,
-and yaw 0/90/180/270. A column has 1 + random(0..2) + random(0..2) crates: heights 1..5,
-with probabilities proportional to 1:2:3:2:1. Crate centers are Y=0.7*(layer+0.5).
-Practice contains 572 crates / 2288 cargo component cubes with the shipped seed.
-
-Advanced levels add 2*(level-3) cover screens. Screen g is centered at
-X=0.75*target[g].baseX, Z=target[g].baseZ+6, with seven columns spaced 0.705 m.
-Outer columns are four crates high, inner columns five. Whole crate assemblies inside
-a target's swept X/Z safety region are removed. Fixed-player levels validate rifle
-sightlines; movable levels flood-fill navigation and require reachable firing positions.
-A failing procedural layout retries up to four deterministic seeds (base + attempt*7919).
-
-Bird i starts in zone i modulo target count, with seed base + i*193 + 47. Its destination
-radius is 1.4..3.5 m around the zone base, altitude clamp(baseY-1 + random*3,1.3,7),
-X clamped -24..24 and Z -94..-13. Speed is 1.8..4.1 m/s. Humans use seed
-base + zone*547 + localIndex*193, speed 0.7..1.5 m/s, Y=0, radius up to 3 m;
-55% of newly chosen destinations favor crossing in front of the target. Some initial
-positions are directly 2.2 m in front of their current zone target when safe. Obstacles
-and moving stands can cause a new waypoint or short pause. Death disables this AI.
-
-## Weapons, aiming, and collision details
-
-| Weapon | Effective range | Projectile speed | Cooldown | Pellets | Projectile cube size | Crosshair |
-| --- | ---: | ---: | ---: | ---: | --- | --- |
-| Pistol | 25 m | 42 m/s | 0.28 s | 1 | 0.10 x 0.10 x 0.25 | Center dot, four arms with wider gap |
-| Shotgun | 18 m | 36 m/s | 0.80 s | 9 | 0.08 x 0.08 x 0.18 | Circular spread reticle |
-| Assault rifle | 70 m | 65 m/s | 0.11 s | 1 | 0.13 x 0.13 x 0.30 | Compact dot/four arms |
-
-Shotgun has a center pellet and eight spread pellets (spread parameter 0.075);
-rifle spread parameter is 0.009. Pistol/shotgun require a fresh press; rifle supports
-held fire. There is no ammunition/reload limit. Each target starts with 60 HP and
-front-ring damage is 60/30/20/15/12/10. The strongest pellet from one trigger is used,
-not nine independent damage events. One-trigger destruction earns +150 total;
-ordinary destruction earns +100. Bird death costs -100; human death costs -200.
-The target stand, corpse, avatar and cosmetic particles do not intercept projectiles.
-Solid scenery does; both player-to-muzzle clearance and swept travel are checked.
-The player is not damaged by NPCs and there is no health/lives game-over condition.
-
-## Detailed target layouts and movement
-
-Positions below are movement centers, not necessarily first rendered positions.
-A=(Ax,Ay,Az) is the maximum displacement on each axis. With variation v and speed s:
-frequency=(d*s,1.13*s,0.87*d*s), phase=(0.63*v,0.47*v,0.81*v),
-where d=-1 for odd v and +1 for even v. Offset= A*sin(time*frequency+phase).
-Spin is about local Y, signed by d. All levels share this algorithm. The generated
-reference lists exact signed frequencies/phases for every target, including inherited ones.
-
-| Level | Target bases and movement configuration |
+| Source | Actual behavior |
 | --- | --- |
-| 1 | T1 (-5,2.4,-18), T2 (0,2.7,-22), T3 (5,2.4,-18); all static; player locked |
-| 2 | T1 (-6,2.5,-26) static; T2 (0,3,-31), A=(2.3,0,0), s=1.1, v=0; T3 (6,2.5,-26) static; player locked |
-| 3 | T1 (-8,2.8,-30), A=(2,0,0), s=1.2, v=1; T2 (-3,3.2,-39), A=(0,0.9,0), s=1.5, v=2; T3 (3,2.8,-34), A=(0,0,2.5), s=1.05, v=3; T4 (8,3.4,-45), A=(1.6,0,0), s=1.7, v=4; no spin; player locked |
-| 4 | Six configurations in the next table; movement unlocked and cargo requires repositioning |
-| 5 | Inherits Level 4; T7 (-8,3.3,-77), A=(1.9,0,1.6), s=1.65, spin=95, v=7; T8 (8,3.2,-78), A=(0,0.85,1.8), s=1.8, spin=110, v=8; eight initial birds |
-| 6 | Inherits Level 5; T9 (-8,3.8,-88), A=(2.1,1,1.8), s=2.4, spin=135, v=9; T10 (8,4,-89), A=(1.9,1.1,1.9), s=2.6, spin=145, v=10; 16 initial birds |
-| 7 | Inherits Level 6; T11 (0,4,-36), A=(2.2,1.1,1.9), s=3.4, spin=165, v=11; T12 (0,4.5,-72), A=(2.1,1.2,2), s=3.7, spin=180, v=12; four birds/three humans per zone |
+| Ambient | Constant diffuse fill: day `(0.30,0.32,0.35)`, night `(0.012,0.016,0.025)`; no direction/occlusion |
+| Directional sun | Toward-light vector `normalize(0.45,0.8,0.3)`; day `(0.95,0.88,0.73)`, zero at night; no attenuation |
+| Eight point lamps | Night-only spherical distance attenuation; two near spawn, four boundary lamps, two rear accents |
+| Six spotlights | X=±28, Y=12, Z=-16/-48/-80; direction `normalize(-x,-10,-4)`; night `(1.8,1.9,2.1)`; 32°/53° inner/outer cones |
+| Emissive material | Blend toward unlit base color for sun, lenses, projectiles and flashes; does not light neighboring objects |
 
-| Shared Level 4-7 target | Base | A | s (rad/s base) | Spin magnitude (deg/s) | v |
-| --- | --- | --- | ---: | ---: | ---: |
-| T1 | (-8,2.4,-26) | (1.5,0,0) | 1.2 | 0 | 1 |
-| T2 | (8,2.7,-28) | (0,0.6,0) | 1.4 | 65 | 2 |
-| T3 | (-8,2.5,-42) | (0,0,1.6) | 1.15 | 0 | 3 |
-| T4 | (8,2.9,-45) | (1.8,0,0) | 1.6 | 80 | 4 |
-| T5 | (-8,3,-60) | (0,0.8,0) | 1.8 | 0 | 5 |
-| T6 | (8,2.6,-63) | (0,0,1.7) | 1.35 | 0 | 6 |
+Point positions are `(-18,4.7,-12)`, `(18,4.7,-12)`, `(±28.8,5,-38)`, `(±28.8,5,-68)` and `(±28.8,3.2,-89)`. Colors in source order are `(2.2,1.65,.9)`, `(1.2,2,1.3)`, four `(1.7,1.6,1.4)`, `(2,.25,.15)` and `(.25,.65,2)`. Point/spot colors are zero by day; zero-color lights are skipped.
 
-Practice has seven legacy target bases: (0,2.7,-19), (-8,3,-29), (8,4.4,-38),
-(-6,3.5,-52), (8,5,-65), (0,3.7,-82), (5,2.2,-16). It includes horizontal/vertical
-movement, rotating plates and one fixed close target. It has no birds/humans, a 1.8 s
-target respawn and legacy damage-plus-destruction scoring, separate from competitive modes.
+These documentation passes isolate each source using the final renderer, actual scene and rig values. Only the capture passes disable other groups. Normal play uses the complete day/night rig; sky remains a separate background.
 
-## Lighting, cameras, effects and performance
+| Ambient only | Directional only |
+| --- | --- |
+| ![Ambient](docs/images/release-lighting-ambient.png) | ![Directional](docs/images/release-lighting-directional.png) |
+| Point lamps only | Spotlights only |
+| ![Points](docs/images/release-lighting-point.png) | ![Spots](docs/images/release-lighting-spot.png) |
 
-The final lighting equations, fixture layout and shading controls are explained in the Lighting, Illumination and Shading section below. Day has sunlight only; night has mounted arena lights only, with low ambient fill and no moon. The sky uses a procedural shader.
+![Combined night rig and emissive fixtures](docs/images/release-night-arena.png)
 
-F2 arena camera: (22,24,18), yaw -108, pitch -24. F3 side: (25,15,-42), yaw -175,
-pitch -17. F4 begins at the currently active camera and flies at 12/30 m/s (Shift),
-with minimum height 0.3; it does not move the grounded player. Mouse sensitivity is
-0.12 degrees/pixel and pitch clamps to +-89 degrees. Overhead starts (0,120,-50),
-pitch -89.9; wheel zoom is 8 m/step clamped 65..180, pan speed 25 m/s. Selected
-observation height is 1.7 m and its walking collision matches the open arena constraints.
+### Formulas and materials
 
-Simulation is stepped at at most 1/120 s; projectile sweeps avoid tunneling. NPC death
-bursts are emitted once, not once per simulation step, and the shared particle budget is
-250 (oldest effects are recycled). Blood lives at most 1.6 s; corpses are bounded by the
-level's initial NPC population and have no active AI/collider. Corpse grounding evaluates
-one transformed bound per part. Aim queries reuse a result within a simulation frame,
-then invalidate on world updates, level resets and hits. Full CSV copies are periodic;
-short-lived render effects are retained separately, and disk writes use the background
-SnapshotWriter. Performance depends on resolution/GPU and no fixed FPS is promised.
-
-Sound is synthesized locally: separate pistol/shotgun/rifle fire, target hit/break,
-UI click, start/completion/victory/time-up, bird penalty/death, and stronger human
-penalty/death. Bird death is a descending chirp (0.42 s); human death is a lower
-noise/tone cue (0.70 s). M toggles sound; a missing output device leaves the game playable.
-
-
-# Lighting, Illumination and Shading
-
-Use **N** for day/night and **F6 / F7 / F8** for Flat / Gouraud / Phong.
-F1-F4 retain their existing camera functions. Phong is the default on launch.
-The final requested rule overrides the earlier moon-light proposal: **day uses sunlight;
-night has no sun or moon and uses mounted arena fixtures**. No lighting changes scoring.
-For a code walkthrough, demonstration steps and NPC edge cases, see
-[the detailed lighting and NPC guide](docs/lighting-and-npc-guide.md).
-
-### 1. What is Illumination?
-
-An illumination model estimates the color of a surface from its material, normal,
-light sources and viewer. A visible lamp housing is geometry; its light is a separate
-calculation. Both use positions from `createLighting()` so the source belongs to a fixture.
-
-### 2. Phong Illumination Model
-
-The shared `shaders/lighting.glsl` implements:
+`addLight` uses normalized surface N, toward-eye V and toward-light L. Light color C is multiplied by attenuation and cone intensity where applicable:
 
 ```text
-I = Iambient + sum(Idiffuse + Ispecular)
-Iambient = ambientColor * materialColor
-Idiffuse = lightColor * materialColor * max(dot(N,L),0)
-Ispecular = lightColor * ks * pow(max(dot(R,V),0),shininess)
+diffuse starts at ambientColor
+diffuse += C * max(dot(N,L), 0)
 R = reflect(-L,N)
+specular += C * materialSpecular * pow(max(dot(R,V),0), shininess)
+            only when dot(N,L) > 0
+point attenuation = 1 / (1 + 0.09*d + 0.032*d*d)
+spot attenuation  = 1 / (1 + 0.025*d + 0.002*d*d)
+spot intensity = smoothstep(outerCos, innerCos, dot(-L,direction))
+base = surfaceColor() * texture(materialTextures, vec3(UV,layer)).rgb
+lit = base * diffuse + specular
+lit = mix(lit,base,emission)
+output = pow(clamp(lit,0,1), vec3(1/2.2))
 ```
 
-Local lights multiply diffuse and specular by distance attenuation; spotlights also
-multiply by cone intensity. Specular is zero on surfaces facing away from a light.
-This is reflection-vector Phong, not the previous half-vector Blinn-Phong formula.
+Distance has a 0.001 lower bound; cone bounds are angle cosines. This is Phong reflection using `reflect`, not Blinn–Phong. The final power is the existing display gamma approximation, without HDR tone mapping.
 
-### 3. Ambient Reflection
+Defaults are specular 0.12, shininess 24 and emission 0. Weapons use 0.75/80; target plates and fixtures use 0.45/48; crate bodies use specular 0.09. Values are preserved. CPU inverse-transpose normal matrices handle nonuniform scaling/shear.
 
-Ambient is a cheap approximation of background illumination, not a simulation of
-bouncing light. RGB is (0.30,0.32,0.35) by day and only (0.012,0.016,0.025) by night.
-The small night term prevents completely black geometry. Lamps provide the main night
-illumination. Ambient uses the same material color as diffuse to keep materials simple.
+| Key / shading | Implementation | Image |
+| --- | --- | --- |
+| F6 Flat | Vertex lighting; provoking-vertex diffuse/specular held across each triangle | [Flat](docs/images/release-shading-0.png) |
+| F7 Gouraud | Vertex lighting with interpolated diffuse/specular | [Gouraud](docs/images/release-shading-1.png) |
+| F8 Phong, default | Interpolated position/normal; per-fragment lighting | [Phong](docs/images/release-shading-2.png) |
 
-### 4. Diffuse Reflection
+All modes sample textures per fragment. Large wall/floor triangles make vertex-lit local sources visibly differ from Phong. These are interpolation modes, not separate light types. `compileShader` expands shared `lighting.glsl`; `shaders/sky.*` draws the gradient.
 
-`max(dot(N,L),0)` measures how directly light strikes the surface. N is the normalized
-outward surface normal; L is the normalized direction from surface to light. Facing the
-light gives 1, a grazing angle approaches 0, and negative values are clamped to 0.
-Walls, targets and cargo get most of their appearance from this term.
+There are **no cast shadows, shadow maps, ambient occlusion, normal mapping or physically based roughness**. Dark faces result from direction/attenuation, not occlusion. Emissive flashes do not create dynamic lights.
 
-### 5. Specular Reflection
+Modify `createLighting`, reflection/attenuation in `lighting.glsl`, or per-object specular/shininess/emission. `createLightFixtures` uses the night rig to align visible sources. Three stadium lenses share one spotlight, not three lights.
 
-V points from the surface to the viewer. R reflects the incoming light direction -L
-around N. When R and V align, a bright highlight appears. `ks` controls its strength;
-higher shininess makes the highlight narrower. Moving the camera changes the highlight.
-Weapon metal uses ks=0.75 and shininess=80; lamp metal uses 0.45 and 48.
+To add a light beyond capacity, update the rig, GLSL array sizes/loop bounds, and cached location arrays/initialization loops in `Renderer.h/.cpp` together. Keep counts synchronized. Replacing an existing light is cheaper than expanding all-fragment loops. Check texture reflectance, base color and ambient fill before adding a light just to brighten materials. Benchmark any increase.
 
-### 6. Directional Light
+## Compact HUD
 
-A distant light has approximately parallel rays, so all surfaces use the same L.
-The daytime sun uses normalized (0.45,0.8,0.3), color (0.95,0.88,0.73), and no distance
-attenuation. At night its color is exactly zero and no celestial geometry is drawn.
-There is deliberately no moon/environment directional light at night.
+![Compact gameplay HUD](docs/images/release-rifle.png)
 
-### 7. Point Light
+`buildInterface` in [Interface.cpp](src/ui/Interface.cpp) replaces stacked left panels with a **700 × 66** status strip in the 1280 × 800 UI coordinate system. Score, level/remaining targets, mode/movement status and time remain visible. A slim bottom bar retains clickable weapons, day/night and sound. Menu/Exit remain at top right.
 
-A point source emits in all directions; L changes with surface position. Eight points
-represent two start-area posts, four boundary lamps and two side fixtures. Positions
-and RGB are stored in `PointLight`. They share ambient fill and attenuation coefficients;
-RGB scales both diffuse and specular. Per-light ambient settings are unnecessary here.
+Range and thin target health appear only when aimed at a target; out-of-range text turns amber. Free's timer turns red below 15 seconds, with conditional respawn countdown. Crosshairs, hit markers, floating scores and penalty edges remain. Detailed cumulative statistics are retained on results pages.
 
-### 8. Spotlight
+`drawModeHud` in [ModeUI.cpp](src/ui/ModeUI.cpp) retains narrower Developer-only diagnostics: FPS, shading, NPC counts, position and per-target health/motion. Bird's-Eye uses compact camera help and contextual invalid-position messages. Shading shortcuts moved to Controls. `UiPainter` remains the geometry font renderer, without a new UI framework/font texture.
 
-Six large stadium towers stand near the side boundaries at X=+-28, Z=-16,-48,-80.
-Their light centers are 12 m high and aim down/across the playing area. Each tower has a
-footing, pole, support bars, housing and three visible panels. One spotlight approximates
-the whole panel bank. Inner/outer half-angles are 32/53 degrees. A dot product compares
-the outgoing light direction with the direction to the surface; `smoothstep` softens the
-cone edge. Lens orientation follows the same direction as the mathematical spotlight.
+## Performance and verification
 
-### 9. Attenuation
+Textures add one filtered array sample per fragment and two small material uniforms per object. A numeric draw-state cache skips unchanged color, material, texture and target-pattern uniform uploads between consecutive cubes; it resets at each scene pass. The shared cube, draw count, cached locations, CPU normal matrices, light count and collision are retained. Selection is numeric; defaults are set at object construction. No per-frame file lookup, texture allocation/upload or mip generation occurs.
 
-```text
-attenuation = 1 / (constant + linear*d + quadratic*d*d)
+Cached day/night rigs and zero-color light skipping reduce avoidable work. UI remains one streamed draw. Existing scene-capacity reservation, aim cache, on-demand NPC shot colliders and background `SnapshotWriter` remain. Pending CSV writes coalesce; normal exit flushes the final snapshot. This does not claim GPU instancing or elimination of all frame allocations.
+
+`--benchmark` measures 200 frames after 40 warm-ups per day/night condition using the real level-7 scene, 1280 × 800, Phong, VSync off and `glFinish` for GPU completion. Timed regions exclude simulation, scene rebuilding, UI and disk work. This is a renderer comparison, not a whole-game FPS guarantee. See [release-verification.md](docs/release-verification.md) for hardware, measurements and test results.
+
+CPU suites cover transforms, contacts, levels, movement locks, score/restart rules, NPC lifecycle, navigation, modes, storage, name flow and presentation. The updated HUD check tests button centers. OpenGL smoke covers all weapons/cameras, visible geometry, GL errors, day/night/shading, seven Challenge/Developer levels, full Free timing/respawn, overhead picking and leaderboard reload. Automated progression injects hit events; CPU tests cover normal projectile/muzzle contacts.
+
+```powershell
+New-Item -ItemType Directory -Force .release-work
+mingw32-make core_tests.exe challenge_tests.exe mode_tests.exe release_tests.exe
+./core_tests.exe
+./challenge_tests.exe .release-work/challenge.csv
+./mode_tests.exe .release-work/modes.csv
+./release_tests.exe .release-work/release.csv
+./mode_tests.exe .release-work/restart.csv --persist-write
+./mode_tests.exe .release-work/restart.csv --persist-read
+./main.exe --modes-smoke-test --calc .release-work/smoke.csv --leaderboard .release-work/board.csv --capture .release-work/release.ppm
+./main.exe --benchmark --calc .release-work/benchmark.csv --leaderboard .release-work/benchmark-board.csv
+powershell -File tools/convert_captures.ps1 -Source .release-work -Destination docs/images
+powershell -File tests/verify_calc.ps1 -Path .release-work/smoke.csv -RequirePlayedCoverage -RequireChallengeCoverage -RequireModeCoverage
 ```
 
-d is surface-to-light distance in world meters. Points use (1,0.09,0.032); floods use
-(1,0.025,0.002). A point's factor is about 0.68 at 2 m, 0.20 at 10 m and 0.064 at
-20 m. This creates local bright areas and darker gaps, rather than raising ambient.
-Coefficients are shared constants in the shader, easy to find and explain.
+Snapshots retain the 29-column transform schema in [src/persistence](src/persistence), describing current/visited cubes rather than invented unvisited scenes. `--export-calc` runs without OpenGL; `--calc`/`--leaderboard` redirect output. Texture layer/scaling are runtime fields, not new CSV columns. Root player records and `calc-init.csv` were preserved during checks.
 
-### 10. Multiple Lights
+## Final screenshots and package
 
-Each light adds its contribution. The shader supports one directional light, eight
-points and six spots at once. Day switches point/spot RGB to zero and skips their work.
-Night switches the directional source off. Lights do not require extra scene passes.
+README images are final OpenGL framebuffer captures, losslessly converted by [convert_captures.ps1](tools/convert_captures.ps1). They are not mockups or old-build screenshots. Source-isolated lighting examples are labeled above.
 
-### 11. Colored Lighting
+- [Challenge name](docs/images/release-challenge-name.png), [duplicate confirmation](docs/images/release-duplicate-confirmation.png), [rewritten name](docs/images/release-rewritten-name.png).
+- [Introduction](docs/images/release-level-1-intro.png), [completion](docs/images/release-level-1-complete.png), [Victory](docs/images/release-level-7-complete.png).
+- [Free respawn](docs/images/release-free-respawn-warning.png), [Free ending](docs/images/release-free-ending.png).
+- [Developer diagnostics](docs/images/release-developer-7.png), [overhead marker](docs/images/release-overhead-marker.png).
+- [Night player view](docs/images/release-night.png), [NPC hit effect](docs/images/release-npc-death-impact.png).
 
-RGB changes reflected light, not just the bulb's appearance. Most fixtures are neutral
-or warm. One start post is softly green, one far side lamp red and the other blue.
-Flood RGB (1.8,1.9,2.1) combines cool-white color and artistic intensity; these are not
-physical light units. Values above 1 compensate for attenuation before final clamping.
-
-### 12. Materials
-
-`SceneObject.color` supplies ambient/diffuse reflectance; `specular` is ks and
-`shininess` is the highlight exponent. This reuses the existing simple material fields.
-
-| Object | Specular strength | Shininess | Response |
-| --- | ---: | ---: | --- |
-| Weapon | 0.75 | 80 | Strong narrow metal highlights |
-| Wall | 0.12 | 24 | Mostly diffuse stone |
-| Cargo crate | 0.09 | 24 | Weak highlights |
-| Lamp metal | 0.45 | 48 | Moderate metal highlights |
-| Target | 0.45 | 48 | Clear colored face and highlight |
-
-At night lens emission makes the bulb itself visible. Actual illumination still comes
-from the point/spot calculation. By day lenses are gray and emission is zero. Existing
-projectile, hit and muzzle visuals remain; no optional muzzle point light was added.
-
-### 13. Surface Normals
-
-Each cube face has the correct outward normal. The renderer uses the inverse-transpose
-normal matrix so rotation, nonuniform scale and shear do not corrupt lighting. Normals
-are normalized before dot products. Cube edges intentionally remain hard; interpolating
-across a face does not turn a cube into a rounded object. No normal maps are used.
-
-### 14. Flat Shading
-
-F6 uses GLSL `flat` interpolation: one provoking vertex's lighting result is constant
-across each triangle. It is simple and inexpensive but shows abrupt changes and coarse
-highlights. A cube face consists of two triangles, so their chosen samples can differ
-under a nearby light. Target ring colors remain readable as a surface pattern.
-
-### 15. Gouraud Shading
-
-F7 calculates illumination at vertices, then interpolates diffuse and specular results
-across the triangle. Multiplying the interpolated diffuse result by a constant material
-color is equivalent to interpolating the lit vertex colors. The target pattern is applied
-after interpolation. Gouraud is smoother than Flat but can miss a highlight or a local
-lamp pool lying between the vertices of a large floor face. That is a useful demonstration
-of the method's limitation, not the default night rendering.
-
-### 16. Phong Shading
-
-F8 interpolates world normals and positions and evaluates illumination at each fragment.
-Normals are renormalized after interpolation. This captures small highlights and local
-light pools even inside large polygons. It costs more fragment work but is the normal
-gameplay mode. Hard cube normals remain geometrically correct in all three modes.
-
-### 17. Flat vs Gouraud vs Phong
-
-| Feature | Flat | Gouraud | Phong |
-| --- | --- | --- | --- |
-| Calculation | One selected vertex sample per triangle | Every vertex | Every fragment |
-| Interpolation | Constant lighting | Lighting colors/terms | Normals and positions |
-| Appearance | Faceted, abrupt | Smooth color gradients | Detailed light response |
-| Specular Highlight | Coarse or missing | May miss interior highlight | Captures interior highlight |
-| Speed | Usually inexpensive | Usually inexpensive | More fragment work |
-| Use in Project | F6 demonstration | F7 demonstration | F8 default gameplay |
-
-Actual speed depends on geometry, resolution and driver; a universal FPS ranking is
-not guaranteed. The two vertex modes share one implementation and similar cost.
-
-### 18. Phong Illumination vs Phong Shading
-
-**Phong illumination** is the ambient + diffuse + specular mathematical model.
-**Phong shading** interpolates normals and evaluates illumination per fragment.
-All three modes in this project use the same Phong illumination equation; only the
-location of evaluation and interpolation change. These are different concepts.
-
-### 19. Lighting Used in Our Arena
-
-| Light | Type | Color | Purpose |
-| --- | --- | --- | --- |
-| Sun/environment (day only) | Directional | Warm white | General daylight |
-| Big floodlight, six towers | Spotlight | Cool white | Main night arena illumination |
-| Start lamp post | Point | Warm yellow | Local spawn lighting |
-| Safe-area lamp post | Point | Soft green | Start-area accent |
-| Boundary lamps, four | Point | Near white | Wall/path visibility |
-| Side warning lamp | Point | Red | Far-side security accent |
-| Side accent lamp | Point | Blue | Far-side accent |
-
-Posts are at (+-18,4.7,-12). Boundary lamps are at X=+-28.8, Y=5, Z=-38/-68.
-Red/blue side lamps are at X=-28.8/+28.8, Y=3.2, Z=-89. Wall brackets attach to
-inside wall faces near X=+-29.5. No artificial source floats in the sky.
-
-### 20. Night Lighting
-
-The dark sky, very low ambient, six white spotlight cones and eight local point lights
-combine into the night scene. Floods cover playing areas; boundary and side lamps give
-local reference points. Daylight turns every artificial light off and grays the lenses.
-No shadows, bloom, HDR pipeline, PBR, global illumination or other advanced effects were
-added. Light can pass through geometry because this simple model has no shadow/occlusion
-pass. Gamma conversion is retained from the original renderer. Use Phong for the intended
-night appearance and switch to the other modes to explain their sampling limitations.
+`build/` contains only `release/`: the executable, seven shaders and nine texture images. Old captures, test CSVs, debug/temporary builds and obsolete files were removed after verification. Playing the package can subsequently create legitimate calculation/leaderboard files. Use separate work folders for development and tests.

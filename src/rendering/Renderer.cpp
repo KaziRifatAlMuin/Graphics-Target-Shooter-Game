@@ -44,6 +44,7 @@ Renderer::~Renderer() {
     if (program) glDeleteProgram(program);
 }
 void Renderer::initialize(const std::filesystem::path& directory) {
+    textures.initialize(directory.parent_path()/"assets"/"textures");
     const GLuint vertex=compileShader(GL_VERTEX_SHADER,directory/"object.vert");
     GLuint fragment=0;
     try { fragment=compileShader(GL_FRAGMENT_SHADER,directory/"object.frag"); }
@@ -63,6 +64,10 @@ void Renderer::initialize(const std::filesystem::path& directory) {
     viewLocation=glGetUniformLocation(program,"view");
     projectionLocation=glGetUniformLocation(program,"projection");
     colorLocation=glGetUniformLocation(program,"objectColor");
+    textureLayerLocation=glGetUniformLocation(program,"textureLayer");
+    textureRepeatLocation=glGetUniformLocation(program,"textureRepeat");
+    glUseProgram(program);
+    glUniform1i(glGetUniformLocation(program,"materialTextures"),0);
     shadingLocation=glGetUniformLocation(program,"shadingMode");
     specularLocation=glGetUniformLocation(program,"materialSpecular");
     shininessLocation=glGetUniformLocation(program,"shininess");
@@ -162,15 +167,33 @@ void Renderer::drawTransformedCube(const SceneObject& object) {
             glUniformMatrix3fv(normalMatrixLocation,1,GL_FALSE,nm);
         }
     }
-    glUniform3f(colorLocation,object.color.x,object.color.y,object.color.z);
-    glUniform1f(specularLocation,object.specular); glUniform1f(shininessLocation,object.shininess);
-    glUniform1f(emissionLocation,object.emission); glUniform1f(flashLocation,object.flash);
-    glUniform1i(patternLocation,object.targetPattern);
-    glUniform3f(patternScaleLocation,object.patternScale.x,object.patternScale.y,object.patternScale.z);
-    glUniform3f(patternOffsetLocation,object.patternOffset.x,object.patternOffset.y,object.patternOffset.z);
+    auto vectorUniform=[&](GLint location,Vec3 value,Vec3& previous) {
+        if(!drawStateValid || value.x!=previous.x || value.y!=previous.y || value.z!=previous.z) {
+            glUniform3f(location,value.x,value.y,value.z); previous=value;
+        }
+    };
+    auto floatUniform=[&](GLint location,float value,float& previous) {
+        if(!drawStateValid || value!=previous) { glUniform1f(location,value); previous=value; }
+    };
+    vectorUniform(colorLocation,object.color,lastColor);
+    const auto material=object.emission>.5f?Material::Plain:object.targetPattern?Material::Paper:object.material;
+    floatUniform(textureLayerLocation,float(material),lastLayer);
+    const auto scale=object.transform.scale;
+    vectorUniform(textureRepeatLocation,{std::abs(scale.x)*object.textureScale,
+        std::abs(scale.y)*object.textureScale,std::abs(scale.z)*object.textureScale},lastRepeat);
+    floatUniform(specularLocation,object.specular,lastSpecular);
+    floatUniform(shininessLocation,object.shininess,lastShininess);
+    floatUniform(emissionLocation,object.emission,lastEmission);
+    floatUniform(flashLocation,object.flash,lastFlash);
+    if(!drawStateValid || object.targetPattern!=lastPattern) {
+        glUniform1i(patternLocation,object.targetPattern); lastPattern=object.targetPattern;
+    }
+    vectorUniform(patternScaleLocation,object.patternScale,lastPatternScale);
+    vectorUniform(patternOffsetLocation,object.patternOffset,lastPatternOffset);
+    drawStateValid=true;
     glDrawArrays(GL_TRIANGLES,0,36);
 }
-void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection,Vec3 eye,bool night) {
+void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection,Vec3 eye,bool night,int isolation) {
     glDisable(GL_DEPTH_TEST); glDepthMask(GL_FALSE);
     glUseProgram(skyProgram);
     if (skyNightLocation<0) skyNightLocation=glGetUniformLocation(skyProgram,"night");
@@ -179,27 +202,34 @@ void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& vi
     glEnable(GL_DEPTH_TEST); glDepthMask(GL_TRUE);
     glUseProgram(program);
     glUniform1i(shadingLocation,shadingMode);
-    const auto lighting=createLighting(night);
+    textures.bind();
+    static const auto dayLighting=createLighting(false),nightLighting=createLighting(true);
+    const auto& lighting=night?nightLighting:dayLighting;
     // Use cached uniform locations instead of per-frame string lookups.
     glUniform3f(eyePositionLocation,eye.x,eye.y,eye.z);
-    glUniform3f(ambientColorLocation,lighting.ambient.x,lighting.ambient.y,lighting.ambient.z);
+    const Vec3 ambient=isolation<0 || isolation==0?lighting.ambient:Vec3{};
+    const Vec3 sun=isolation<0 || isolation==1?lighting.sunColor:Vec3{};
+    glUniform3f(ambientColorLocation,ambient.x,ambient.y,ambient.z);
     glUniform3f(sunDirectionLocation,lighting.sunDirection.x,lighting.sunDirection.y,lighting.sunDirection.z);
-    glUniform3f(sunColorLocation,lighting.sunColor.x,lighting.sunColor.y,lighting.sunColor.z);
+    glUniform3f(sunColorLocation,sun.x,sun.y,sun.z);
     for (std::size_t i=0;i<lighting.points.size();++i) {
         glUniform3f(pointLocations[i].position,lighting.points[i].position.x,lighting.points[i].position.y,lighting.points[i].position.z);
-        glUniform3f(pointLocations[i].color,lighting.points[i].color.x,lighting.points[i].color.y,lighting.points[i].color.z);
+        const Vec3 color=isolation<0 || isolation==2?lighting.points[i].color:Vec3{};
+        glUniform3f(pointLocations[i].color,color.x,color.y,color.z);
     }
     for (std::size_t i=0;i<lighting.spots.size();++i) {
         const auto& light=lighting.spots[i];
         glUniform3f(spotLocations[i].position,light.position.x,light.position.y,light.position.z);
         glUniform3f(spotLocations[i].direction,light.direction.x,light.direction.y,light.direction.z);
-        glUniform3f(spotLocations[i].color,light.color.x,light.color.y,light.color.z);
+        const Vec3 color=isolation<0 || isolation==3?light.color:Vec3{};
+        glUniform3f(spotLocations[i].color,color.x,color.y,color.z);
         glUniform1f(spotLocations[i].innerCos,light.innerCos);
         glUniform1f(spotLocations[i].outerCos,light.outerCos);
     }
     glUniformMatrix4fv(viewLocation,1,GL_FALSE,view.data.data());
     glUniformMatrix4fv(projectionLocation,1,GL_FALSE,projection.data.data());
     glBindVertexArray(vao);
+    drawStateValid=false;
     for (const auto& object : objects) drawTransformedCube(object);
     glBindVertexArray(0);
 }
