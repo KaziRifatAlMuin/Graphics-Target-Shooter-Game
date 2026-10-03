@@ -1,3 +1,5 @@
+For the current textured release, HUD, screenshots and verification, see [README](../README.md) and [release verification](release-verification.md). Build paths in the historical validation section below refer to the earlier lighting-only release and have been cleaned.
+
 # Lighting and NPC implementation guide
 
 This guide describes the final implementation, rather than the original planning prompts.
@@ -25,7 +27,7 @@ from the actual builders and lists the current cube components and level configu
 8. Switch back to F1 to shoot. Weapon selection, aim, scoring, camera movement, target
    motion, respawns and level progression use the original gameplay pipeline.
 
-The HUD identifies the active shading mode. F1-F4 were already camera keys, so their
+The Developer HUD identifies the active shading mode; shading shortcuts are also listed on Controls. F1-F4 were already camera keys, so their
 meaning is preserved. F6/F7/F8 avoid introducing a camera-control regression.
 
 ## Files and data flow

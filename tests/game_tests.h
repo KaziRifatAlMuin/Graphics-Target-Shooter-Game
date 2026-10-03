@@ -133,7 +133,9 @@ void gameTests() {
     require(clickedAction(Screen::Playing,1040,40)==Action::Menu,"HUD menu button does not activate.");
     require(clickedAction(Screen::Playing,1200,40)==Action::Exit,"HUD exit button does not activate.");
     require(!buildInterface(snapshot,Screen::Controls,0,0,true).empty(),"Controls overlay is empty.");
-    require(clickedAction(Screen::Playing,850,740)==Action::DayNight,"Day/night button failed.");
+    require(clickedAction(Screen::Playing,940,760)==Action::DayNight,"Day/night button failed.");
+    for(const auto& button:screenButtons(Screen::Playing))
+        require(clickedAction(Screen::Playing,button.x+button.w/2,button.y+button.h/2)==button.action,"Compact HUD button overlaps another control.");
     require(clickedAction(Screen::Menu,1040,650)==Action::Sound,"Menu sound button failed.");
 
     // Each concentric band requires exactly its index+1 distinct shots, including shotgun triggers.

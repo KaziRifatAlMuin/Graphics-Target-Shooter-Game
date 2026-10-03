@@ -51,37 +51,34 @@ bool drawModePage(ui::Painter& p,const Game& game,Screen screen,const UiState& s
         return true;
     }
     if (screen==Screen::Playing && game.mode==GameMode::BirdsEye) {
-        p.rect(20,16,930,80,{.035f,.065f,.09f});
-        p.text(40,32,game.birdEye.observing?"OBSERVATION CAMERA / LEVEL 7":"BIRD'S-EYE VIEW / LEVEL 7",2.7f,teal);
-        p.text(40,72,game.birdEye.observing?"MOUSE LOOK / WASD WALK / B OR F2 FOR OVERHEAD":"CLICK OPEN GROUND / WASD PAN / WHEEL ZOOM",1.8f,ink);
-        p.rect(28,655,1200,40,{.035f,.065f,.09f});
-        p.text(44,668,state.message.empty()?"INSPECTION ONLY / NO SHOOTING / SAME LEVEL 7 TARGETS, CARGO AND NPCS":state.message.substr(0,96),1.8f,muted);
+        p.rect(20,18,700,66,{.035f,.065f,.09f});
+        p.text(36,30,game.birdEye.observing?"OBSERVATION CAMERA / LEVEL 7":"BIRD'S-EYE VIEW / LEVEL 7",2.1f,teal);
+        p.text(36,62,game.birdEye.observing?"MOUSE LOOK / WASD WALK / B OR F2 FOR OVERHEAD":"CLICK OPEN GROUND / WASD PAN / WHEEL ZOOM",1.8f,ink);
+
+        if(!state.message.empty()) p.text(28,710,state.message.substr(0,96),1.5f,amber);
         return true;
     }
     return false;
 }
 void drawModeHud(ui::Painter& p,const Game& game,const UiState& state) {
     using namespace ui;
-    p.rect(20,262,680,62,{.035f,.065f,.09f});
-    p.text(42,274,std::string(modeName(game.mode))+" / "+game.playerName,1.8f,teal);
-    if (game.mode==GameMode::Challenge) p.text(42,302,"LEVEL TIME "+clockText(game.levels.levelTime)+" / CLEARED "+std::to_string(game.levelsCleared)+" OF 7",1.6f,muted);
+    const double seconds=game.mode==GameMode::Free?game.freeRemaining:game.usesLevel()?game.levels.levelTime:game.elapsed;
+    p.text(594,30,clockText(seconds),2.3f,game.mode==GameMode::Free&&seconds<15?Vec3{1,.3f,.25f}:teal);
     if (game.mode==GameMode::Free) {
-        p.rect(976,104,270,96,{.035f,.065f,.09f});
-        p.text(995,116,"FREE / TIME LEFT",1.8f,muted);
-        p.text(1000,151,clockText(game.freeRemaining),4,game.freeRemaining<15?Vec3{1,.3f,.25f}:amber);
         float next=freeRespawnSeconds; int waiting=0;
         for (const auto& t:game.targets) if (t.respawn>0) { ++waiting; next=std::min(next,t.respawn); }
-        if (waiting) p.text(42,302,"RESPAWNING "+std::to_string(waiting)+" / NEXT IN "+std::to_string(int(std::ceil(next)))+" S",1.6f,amber);
+        if (waiting) p.text(440,62,std::to_string(waiting)+" RETURN IN "+std::to_string(int(std::ceil(next)))+" S",1.5f,amber);
     }
     if (game.mode==GameMode::Developer) {
-        p.rect(956,112,290,478,{.035f,.065f,.09f});
-        p.text(970,128,"LEVEL "+std::to_string(game.levels.config.number)+" / FPS "+std::to_string(int(state.fps)),1.7f,teal);
-        p.text(970,156,"BIRDS "+std::to_string(std::count_if(game.birds.begin(),game.birds.end(),[](const Bird& b){return b.active;}))+" HUMANS "+std::to_string(std::count_if(game.humans.begin(),game.humans.end(),[](const Human& h){return h.active;})),1.6f,ink);
-        p.text(970,184,"PLAYER X "+std::to_string(int(game.player.position.x))+" Z "+std::to_string(int(game.player.position.z)),1.6f,ink);
+        // Diagnostics remain available in the mode designed for inspection.
+        p.opacity=.88f; p.rect(1010,90,236,94+float(game.targets.size())*20,{.035f,.065f,.09f}); p.opacity=1;
+        p.text(1022,102,"FPS "+std::to_string(int(state.fps))+" / "+(state.shadingMode==0?"FLAT":state.shadingMode==1?"GOURAUD":"PHONG"),1.5f,teal);
+        p.text(1022,124,"BIRDS "+std::to_string(std::count_if(game.birds.begin(),game.birds.end(),[](const Bird& b){return b.active;}))+" HUMANS "+std::to_string(std::count_if(game.humans.begin(),game.humans.end(),[](const Human& h){return h.active;})),1.4f,ink);
+        p.text(1022,146,"X "+std::to_string(int(game.player.position.x))+" Z "+std::to_string(int(game.player.position.z)),1.4f,muted);
         for (std::size_t i=0;i<game.targets.size();++i) {
             const auto& t=game.targets[i]; const auto a=t.motion.amplitude;
             std::string axes; if(a.x)axes+="X"; if(a.y)axes+="Y"; if(a.z)axes+="Z"; if(axes.empty())axes="STATIC";
-            p.text(970,220+float(i)*28,"T"+std::to_string(i+1)+" "+(t.eliminated?"DONE":std::to_string(int(t.health))+"HP")+" "+axes+(t.motion.spinSpeed?" SPIN":""),1.45f,muted);
+            p.text(1022,174+float(i)*20,"T"+std::to_string(i+1)+" "+(t.eliminated?"DONE":std::to_string(int(t.health))+"HP")+" "+axes+(t.motion.spinSpeed?" SPIN":""),1.3f,muted);
         }
     }
 }

@@ -1,4 +1,6 @@
 /build/
+/.release-work/
+/.work-cmake/
 /core_tests.exe
 /phase1.ppm
 /challenge_tests.exe

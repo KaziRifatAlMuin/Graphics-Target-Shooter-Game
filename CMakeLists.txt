@@ -55,7 +55,7 @@ target_link_libraries(scene_core PUBLIC Threads::Threads)
 add_executable(scene_reference EXCLUDE_FROM_ALL tools/scene_reference.cpp)
 target_link_libraries(scene_reference PRIVATE scene_core)
 
-add_executable(main src/main.cpp src/core/Application.cpp src/testing/ModeSmoke.cpp src/rendering/Renderer.cpp src/third_party/glad.c)
+add_executable(main src/main.cpp src/core/Application.cpp src/testing/ModeSmoke.cpp src/rendering/Renderer.cpp src/rendering/TextureCache.cpp src/third_party/glad.c)
 target_include_directories(main PRIVATE include)
 target_compile_definitions(main PRIVATE SHOOTER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(main PRIVATE scene_core)

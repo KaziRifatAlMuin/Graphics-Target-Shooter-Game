@@ -4,6 +4,7 @@
 #include "ui/Interface.h"
 #include <filesystem>
 #include <vector>
+#include "rendering/TextureCache.h"
 
 namespace shooter {
 class Renderer {
@@ -14,9 +15,16 @@ public:
     Renderer& operator=(const Renderer&) = delete;
     void initialize(const std::filesystem::path& shaderDirectory);
     int shadingMode=2;
-    void drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection, Vec3 eye, bool night);
+    // isolation is used only by documentation captures: 0 ambient, 1 sun, 2 points, 3 spots.
+    void drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection, Vec3 eye, bool night, int isolation=-1);
     void drawInterface(const std::vector<UiVertex>& vertices);
 private:
+    TextureCache textures;
+    GLint textureLayerLocation=-1, textureRepeatLocation=-1;
+    // Numeric draw-state cache: never copy SceneObject strings in the render loop.
+    bool drawStateValid=false, lastPattern=false;
+    Vec3 lastColor{},lastRepeat{},lastPatternScale{},lastPatternOffset{};
+    float lastLayer=-1,lastSpecular=-1,lastShininess=-1,lastEmission=-1,lastFlash=-1;
     GLint shadingLocation=-1;
     GLuint program=0, vao=0, vbo=0;
     GLuint uiProgram=0, uiVao=0, uiVbo=0;

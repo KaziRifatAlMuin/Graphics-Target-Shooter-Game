@@ -1,0 +1,361 @@
+﻿{
+    "date":  "2026-10-03",
+    "capture":  "Packaged TargetShooter.exe --modes-smoke-test; P6 framebuffer to PNG, lossless",
+    "executable_sha256":  "CD13EBC0773DDC4DA223B2FA5F9893C51DD6C404C6AE44C1FF0452C60DF39364",
+    "images":  [
+                   {
+                       "file":  "images/release-arena.png",
+                       "sha256":  "6D6CC4149DC0E0CC2A9D3E457CC07009FD856E0F25BFD57A97515D76F9BBB772"
+                   },
+                   {
+                       "file":  "images/release-challenge-name.png",
+                       "sha256":  "B35D2E0D9F7CE42867F18D5E86D6F72049E7133AF43B792514CE9FAF8C0A123F"
+                   },
+                   {
+                       "file":  "images/release-controls.png",
+                       "sha256":  "A4A215535161F2F1BBCC7D468CA92598F6CD40E444D0B4AD7E2E440E84EBC226"
+                   },
+                   {
+                       "file":  "images/release-day-flat.png",
+                       "sha256":  "03816FF45A6FB804A97E40001E33796B5BF60DF335A70F9549125313B0EA61BB"
+                   },
+                   {
+                       "file":  "images/release-developer-1.png",
+                       "sha256":  "4AD4C41C7E981F4E6CCEFBF1E3C274B2800CC87BC4CC20788D88811BC08EFC77"
+                   },
+                   {
+                       "file":  "images/release-developer-2.png",
+                       "sha256":  "C4CF16EA4228D5447D4DD44BAE20FEDF282265CCB995816F5D67C7DC8E968F10"
+                   },
+                   {
+                       "file":  "images/release-developer-3.png",
+                       "sha256":  "77FDD706BF5885B15F084FD107CC8D3FD538A989BD9265EE04285B278A8B93B0"
+                   },
+                   {
+                       "file":  "images/release-developer-4.png",
+                       "sha256":  "34087884AD0117D4BD3703500191A6499F471C78F69FE7BFE3BC4318B2B2CA81"
+                   },
+                   {
+                       "file":  "images/release-developer-5.png",
+                       "sha256":  "269F3821E4D87B42B0FB34616690CB1D2C4F665C607D2D2335E01BB138392CBC"
+                   },
+                   {
+                       "file":  "images/release-developer-6.png",
+                       "sha256":  "2BAD5989CDA7B43FF930E6A8D5EEC6EC6CF16CE2871C2F60F61CF73EAEC1CD25"
+                   },
+                   {
+                       "file":  "images/release-developer-7.png",
+                       "sha256":  "07E6F48C9705FD834D740F5AE6E61A0D05440BEB9A647346F1CCFDDDFEF8B79F"
+                   },
+                   {
+                       "file":  "images/release-developer-menu.png",
+                       "sha256":  "B5F080C0A9267B781554B3EFFD833A8973E517B381D2550638D4E19BC2B8A707"
+                   },
+                   {
+                       "file":  "images/release-duplicate-confirmation.png",
+                       "sha256":  "38305C2701A82A7FF0381458140EAED7EE12C7161F0039B94C14EB1EC8CA850A"
+                   },
+                   {
+                       "file":  "images/release-equipment.png",
+                       "sha256":  "EB1CCE46D3CCFEF4A98E4598A75ACF9A21D54F3B92AD90294798B2FD3AB4639D"
+                   },
+                   {
+                       "file":  "images/release-free-ending.png",
+                       "sha256":  "3B4D96B0B103987536DAAFE1336E77AEB3F24131577ACBF9780654641DCAB4D6"
+                   },
+                   {
+                       "file":  "images/release-free-leaderboard.png",
+                       "sha256":  "1A4456F0C3109557509CBE73F4461D4FBCD45A21F88D03159C00D36923EACB82"
+                   },
+                   {
+                       "file":  "images/release-free-playing.png",
+                       "sha256":  "A8F52122E31850BA99BF8FDD161943A3E25A29310FA2CB708234E1ABDCB9E97D"
+                   },
+                   {
+                       "file":  "images/release-free-respawn-warning.png",
+                       "sha256":  "A0FC8AD485D2410853915186245942E0DDED2B945F4F408D52C3201069732C08"
+                   },
+                   {
+                       "file":  "images/release-free-result.png",
+                       "sha256":  "1E4C06C90AEBF8F10C1A2AF66D3FCB40C29CB8519693F6A1AEE19DFF2BE2FCCF"
+                   },
+                   {
+                       "file":  "images/release-human-model.png",
+                       "sha256":  "D72D307EE920B9D3A5227998987D4F1CE3D95C06DD7925A2793E32DC5A568099"
+                   },
+                   {
+                       "file":  "images/release-level-1.png",
+                       "sha256":  "FBF68F2796C48C196A90095E4BF7EFF970A3D7C87D5CD4038F5C2DEE249B0A8A"
+                   },
+                   {
+                       "file":  "images/release-level-1-complete.png",
+                       "sha256":  "44750140E1B4E86B53FD1D95476C3234E8CCC30AAE2F63A2865C160CDDC564C9"
+                   },
+                   {
+                       "file":  "images/release-level-1-intro.png",
+                       "sha256":  "4B0D275EC80F9E403ECC6768ED30F9D04B23AEA772157E7F795F316374BEDCD8"
+                   },
+                   {
+                       "file":  "images/release-level-1-results.png",
+                       "sha256":  "280599FC7BE92845DF84203C816232E8624DA99F4F89F37217D9B5555F15746F"
+                   },
+                   {
+                       "file":  "images/release-level-2.png",
+                       "sha256":  "7CDDA0198066500B1323BDF45F4E0E845714D5FEF5EC62E0D2379388D1319FA6"
+                   },
+                   {
+                       "file":  "images/release-level-2-complete.png",
+                       "sha256":  "7170E9113201D8C3830EAB951DE53CBDB8B1B0C6C70384E657A2D9D6C7EB6CB1"
+                   },
+                   {
+                       "file":  "images/release-level-2-intro.png",
+                       "sha256":  "3D0905A3298EED8B90C71B4DD8F6EDC0B1FEE1FC8F590D388DD772A93F86F1A3"
+                   },
+                   {
+                       "file":  "images/release-level-2-results.png",
+                       "sha256":  "A218D2AF750908E4EE5A236AACDBC5FBB5EEC7F3751E83ABD9F8D049CA4DCE2A"
+                   },
+                   {
+                       "file":  "images/release-level-3.png",
+                       "sha256":  "9470EF531C64EF7CF81C3C5BE74AAB76497BE0822C2094162BEA95674C3B848D"
+                   },
+                   {
+                       "file":  "images/release-level-3-complete.png",
+                       "sha256":  "ED7657334E3822DA866B246C499B2F208EF020D33D8637354DF758B1B70E773E"
+                   },
+                   {
+                       "file":  "images/release-level-3-intro.png",
+                       "sha256":  "3CBBD94C8C242872862D41F8DD07BB4267F3E6BE2030146E18C44745D32173F4"
+                   },
+                   {
+                       "file":  "images/release-level-3-results.png",
+                       "sha256":  "5FC2916F8D043E69D5659D44AC88D2D3B7072362F18C78BAC02FCFDE0E56D412"
+                   },
+                   {
+                       "file":  "images/release-level-4.png",
+                       "sha256":  "C30A7A786C98BC0E342B781AA2064F0462137197BD46EB8206A6FE0D80451700"
+                   },
+                   {
+                       "file":  "images/release-level-4-complete.png",
+                       "sha256":  "8EB6B237741B4AC854245E612CBDD31EEC024CCC78FBC5A8D5477244626302F9"
+                   },
+                   {
+                       "file":  "images/release-level-4-intro.png",
+                       "sha256":  "EE88C39E7A90E35AF012A3E3AE773EB741DCCF35E4EB480A9DFB0814C201B45B"
+                   },
+                   {
+                       "file":  "images/release-level-4-results.png",
+                       "sha256":  "BB3CA4A191D8F7EB2F61C2FF21451CB5D710E9AB0CD583AFC06142EE10D31AF9"
+                   },
+                   {
+                       "file":  "images/release-level-5.png",
+                       "sha256":  "C60059E86248060028B2897A6F4995AC2D457766DD5DF4C78F8C8FAF6968862E"
+                   },
+                   {
+                       "file":  "images/release-level-5-complete.png",
+                       "sha256":  "E7B18516775679FF2AE13CBBFE1184FC7A666979AAF95822FE18B65A021C69DA"
+                   },
+                   {
+                       "file":  "images/release-level-5-intro.png",
+                       "sha256":  "4A8B2BF5436ACB4EA6015789657EDCCF9CAB13BC2C6DF07C115BFF899B62DE13"
+                   },
+                   {
+                       "file":  "images/release-level-5-results.png",
+                       "sha256":  "5A478D0CF5FF7C01F8147D8568437267C940436C6EDFEAC2B7BB21A082E436A8"
+                   },
+                   {
+                       "file":  "images/release-level-6.png",
+                       "sha256":  "43ECD014F73A096C5E504D7557725E5AC4A44A41CCA1ABA442928383723F3653"
+                   },
+                   {
+                       "file":  "images/release-level-6-complete.png",
+                       "sha256":  "A7DA6174DEC65CAE3C72C753A24E6F6A13BCF2F89A4F3A4D3EC91061547D2115"
+                   },
+                   {
+                       "file":  "images/release-level-6-intro.png",
+                       "sha256":  "FB3EE9E0A0960BECFF27DFE37ABC2873ED455F66D49DB5435E3B41954246E42C"
+                   },
+                   {
+                       "file":  "images/release-level-6-results.png",
+                       "sha256":  "1D84098DC6509224AAEC13D39B21AE9A42E0CB9373A9908AE147159FD583601C"
+                   },
+                   {
+                       "file":  "images/release-level-7.png",
+                       "sha256":  "EC48682008DEE81AE3772968D4B41FD449F02BD5B97B3F7B3BA0811D9F833902"
+                   },
+                   {
+                       "file":  "images/release-level-7-complete.png",
+                       "sha256":  "F6D55F9F55912FAC58CD023ED3EFEB507681AD4A3951582F4F677182AAC35FCF"
+                   },
+                   {
+                       "file":  "images/release-level-7-intro.png",
+                       "sha256":  "8B62353569075404E3DF45FB06C6B9311B6E9886A33688BF458D20E67A8756FE"
+                   },
+                   {
+                       "file":  "images/release-level-7-results.png",
+                       "sha256":  "3676AB8E8CF5503626F666B7AFF9D14D7EC48C0B1C3A1368D1AB4D562F43C0D6"
+                   },
+                   {
+                       "file":  "images/release-lighting-ambient.png",
+                       "sha256":  "06D91468B27F7B5692D76E07BDA6C6E0AB19E477685D72B748761733F1DDADE1"
+                   },
+                   {
+                       "file":  "images/release-lighting-directional.png",
+                       "sha256":  "FF1E8C31AC0528311EDA8276CE1F0E0A28F312E7C76474031208B68014FA8971"
+                   },
+                   {
+                       "file":  "images/release-lighting-point.png",
+                       "sha256":  "5BE22A43764890D800DF0F5F4F71097340B358853ECC5706E5F661472383B76C"
+                   },
+                   {
+                       "file":  "images/release-lighting-spot.png",
+                       "sha256":  "693CC2D24ACC25ADD60481C72B38F104AFAB6BB1BFD45A31C709B713782A7021"
+                   },
+                   {
+                       "file":  "images/release-masonry.png",
+                       "sha256":  "DF0A281F8384D8D27E23AAD684EE998F85310337FF25017CDA8FE8CC4AB52D60"
+                   },
+                   {
+                       "file":  "images/release-menu.png",
+                       "sha256":  "C61DEE3BB26C33230E3EE620D9EBC68A3D2B6EAD81219C5660EAF35D035B47BC"
+                   },
+                   {
+                       "file":  "images/release-night.png",
+                       "sha256":  "E8E936FCC8A089A9F044ACFEAE2D5D7FAEE2D1352DB08023FCFBDEE167B6F872"
+                   },
+                   {
+                       "file":  "images/release-night-arena.png",
+                       "sha256":  "1FF2001DB171F4D7FB1D314B57948B47FB4A7F153FA66ABF63515855D7481669"
+                   },
+                   {
+                       "file":  "images/release-npc-death-impact.png",
+                       "sha256":  "3373AC06C3BF2062FA047456AE6FF59A3593A9E539FA51A70654F1543D141EEF"
+                   },
+                   {
+                       "file":  "images/release-npc-fallen.png",
+                       "sha256":  "BC4CEBE789BEDB04115E0910C499DC619F2B0BF3E8AC1FFCFAA882A761AD8EE0"
+                   },
+                   {
+                       "file":  "images/release-observation.png",
+                       "sha256":  "0B93FE8316BD415FE20112802AB511470F46BC56A614258F8467A06B15B5DD00"
+                   },
+                   {
+                       "file":  "images/release-overhead.png",
+                       "sha256":  "D88F508E23D500D32CABDF1E8896E08AD32922EB4B7230643C5A0458A560C317"
+                   },
+                   {
+                       "file":  "images/release-overhead-marker.png",
+                       "sha256":  "71B15CA8381CD4B245C7F257AA23D12518C796ADDFA1C8C1DA665B6E9A97C6F2"
+                   },
+                   {
+                       "file":  "images/release-pistol.png",
+                       "sha256":  "45761D557CD7244D0BBEA6D9546397629930DFAA30BD0F634C4F4406AB958DE8"
+                   },
+                   {
+                       "file":  "images/release-rewritten-name.png",
+                       "sha256":  "1D1CF7A0612F5C03C8CA5F419979A8839535EF725F519332954BCCA26138388E"
+                   },
+                   {
+                       "file":  "images/release-rifle.png",
+                       "sha256":  "98CF0895555B15ACA69BCAA682B625EDCE562658C9C23A5A21C836C5385BFA9D"
+                   },
+                   {
+                       "file":  "images/release-shading-0.png",
+                       "sha256":  "694130D386B0E58F4BCBD160175E91B9F1D742600DBEDB9FD5B1E3557FA8BD19"
+                   },
+                   {
+                       "file":  "images/release-shading-1.png",
+                       "sha256":  "55D8D36ADF265EB694C1E421D9D6E526F4FBEDC1E1920EECC2085F5B9ACE2BAB"
+                   },
+                   {
+                       "file":  "images/release-shading-2.png",
+                       "sha256":  "E3264E1D784A3D71C18688957EF757B845336678676A0E8788A88EBEE5D51F4D"
+                   },
+                   {
+                       "file":  "images/release-shotgun.png",
+                       "sha256":  "A002621FBA82AF46D706E3D28334747E4774C82CB49268CAAC2C357B1A1DDC0B"
+                   },
+                   {
+                       "file":  "images/release-target-back.png",
+                       "sha256":  "C1A4EB98ECAF4B656B95AFC9EA05FA82EF30006FE8EC060C7AFF649EBCD805A4"
+                   },
+                   {
+                       "file":  "images/release-target-front.png",
+                       "sha256":  "A9FF5422CFCFA7134FEE561FBF2CEAEA015FDAC6AFBD4FBB765AD4AF1671B56E"
+                   },
+                   {
+                       "file":  "images/release-textured-environment.png",
+                       "sha256":  "0A5246AFC93523BE0679CCB73C47466500889F99D64076A330717E4649E14B64"
+                   }
+               ],
+    "runtime_files":  [
+                          {
+                              "file":  "TargetShooter.exe",
+                              "sha256":  "CD13EBC0773DDC4DA223B2FA5F9893C51DD6C404C6AE44C1FF0452C60DF39364"
+                          },
+                          {
+                              "file":  "assets/textures/concrete.ppm",
+                              "sha256":  "FAB424B543AC02B596A62CE42587410C8B5ACF31C28158F54EBB9BDD10E57F5F"
+                          },
+                          {
+                              "file":  "assets/textures/fabric.ppm",
+                              "sha256":  "3B28F1D1DD35C1769553ACAE1F71BA96256C3657388353A67383546F9EDCE82B"
+                          },
+                          {
+                              "file":  "assets/textures/gravel.ppm",
+                              "sha256":  "78B592FB2F91AC8FFF343A35D46992C08E3F23969784953DE2F740CF44DE08ED"
+                          },
+                          {
+                              "file":  "assets/textures/masonry.ppm",
+                              "sha256":  "2D15D240F118F4AA7B69A67F3C14AA99BF6A2460799E2FDE32039F31632513EB"
+                          },
+                          {
+                              "file":  "assets/textures/metal.ppm",
+                              "sha256":  "EB68E6150D9707CC2731CC790B607FC769EB5CDEB12AD841CFFBFFB3BD86F0BD"
+                          },
+                          {
+                              "file":  "assets/textures/paper.ppm",
+                              "sha256":  "C4B12F7616480BF6852117DF1FDB5A323C73CBC52AEB27965CD7926D021E47EE"
+                          },
+                          {
+                              "file":  "assets/textures/plain.ppm",
+                              "sha256":  "AB3D1BBE688BA26F575013FC60B5CBE90F63889B34B4118D7F2BF7A23C1AA961"
+                          },
+                          {
+                              "file":  "assets/textures/rubber.ppm",
+                              "sha256":  "15A5584814822DD7D39832A306DCB00F079A2C51F9626BC0CD560E41DC29EDFF"
+                          },
+                          {
+                              "file":  "assets/textures/wood.ppm",
+                              "sha256":  "5BAD7B1E8068D4B0C2DBB8ABC6C660208F10CA070210C409FC727AE2E968BECA"
+                          },
+                          {
+                              "file":  "shaders/lighting.glsl",
+                              "sha256":  "17DAAC9BCBA538EF123E8DC0B7FAD5B35914CDE7F040B4C0903EE202012E47E0"
+                          },
+                          {
+                              "file":  "shaders/object.frag",
+                              "sha256":  "5F2C3D5874458711B1DF0A1180DA34731235D53B671AFCE62E9017A5EF45459B"
+                          },
+                          {
+                              "file":  "shaders/object.vert",
+                              "sha256":  "717B925B0AA296578A66E95D0B2FFA048809A7410A28658FA3B339C7745A9D7B"
+                          },
+                          {
+                              "file":  "shaders/sky.frag",
+                              "sha256":  "D215CD9E7532C98B2950BB0B24CF1F031F1CDE141E4513BB7A1DB2164FCC72AE"
+                          },
+                          {
+                              "file":  "shaders/sky.vert",
+                              "sha256":  "3F5B828FD7A35B6D8051D13D5F1A04C4AC83D92E03715E0F31AC6E765D9ACD51"
+                          },
+                          {
+                              "file":  "shaders/ui.frag",
+                              "sha256":  "5D45368A4B9661E7ADE55C26E5665004E891D7D9CA174440675261CB7E9FBA86"
+                          },
+                          {
+                              "file":  "shaders/ui.vert",
+                              "sha256":  "3E35B44ACC4430B5924F11C45BF2043E9FC1F5D078178DE1E6A3EB494948BE35"
+                          }
+                      ]
+}

@@ -45,12 +45,12 @@ std::vector<Button> screenButtons(Screen screen,GameMode mode) {
     }
     if (screen==Screen::Playing && mode==GameMode::BirdsEye) return {
         {1000,22,122,40,"MENU",Action::Menu},{1134,22,112,40,"EXIT",Action::Exit},
-        {28,716,360,52,"B / F2  OVERHEAD",Action::Overview},
-        {802,716,208,52,"",Action::DayNight},{1024,716,224,52,"",Action::Sound}};
+        {24,746,290,32,"B / F2  OVERHEAD",Action::Overview},
+        {890,746,145,32,"",Action::DayNight},{1044,746,212,32,"",Action::Sound}};
     if (screen==Screen::Playing) return {{1000,22,122,40,"MENU",Action::Menu},{1134,22,112,40,"EXIT",Action::Exit},
-        {28,716,220,52,"1  PISTOL",Action::Pistol},{262,716,220,52,"2  SHOTGUN",Action::Shotgun},
-        {496,716,274,52,"3  ASSAULT RIFLE",Action::Rifle},
-        {802,716,208,52,"",Action::DayNight},{1024,716,224,52,"",Action::Sound}};
+        {240,746,145,32,"1 PISTOL",Action::Pistol},{394,746,160,32,"2 SHOTGUN",Action::Shotgun},
+        {563,746,170,32,"3 RIFLE",Action::Rifle},
+        {890,746,145,32,"",Action::DayNight},{1044,746,212,32,"",Action::Sound}};
     if (screen==Screen::Controls) return {{96,660,430,56,"BACK",Action::Back},
         {650,466,264,52,"",Action::DayNight},{932,466,278,52,"",Action::Sound}};
     const bool paused=screen==Screen::Paused;
@@ -127,36 +127,33 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
             p.text(676,334,"WHEEL ZOOM. B / F2 RETURN OVERHEAD.",1.8f,muted);
             p.text(676,372,"TABLE: WHEEL / PAGE UP / PAGE DOWN",1.8f,amber);
             p.text(676,406,"DEVELOPER: PAUSE > SELECT LEVEL",1.8f,muted);
+            p.text(676,548,"F6 FLAT / F7 GOURAUD / F8 PHONG",1.8f,teal);
         }
     } else {
-        p.rect(20,16,940,88,{.035f,.065f,.09f});
-        p.text(40,32,weaponSpec(game.weapon).name,2.8f,ink);
-        const char* modes[]={"","PLAYER","ARENA","SIDE","FREE"};
-        p.text(430,32,std::string("CAMERA: ")+modes[game.cameraMode],2,teal);
+        // Compact status strip; detailed statistics remain on the results page.
+        p.opacity=.88f; p.rect(20,18,700,66,{.035f,.065f,.09f}); p.opacity=1;
+        p.rect(20,18,3,66,teal);
+        p.text(36,30,"SCORE "+std::to_string(game.score),2.4f,amber);
+        const std::string progress=game.usesLevel()?"L"+std::to_string(game.levels.config.number)+" / 7  |  "+std::to_string(game.remainingTargets())+" LEFT":"PRACTICE";
+        p.text(280,32,progress,1.9f,ink);
+        p.text(36,62,std::string(modeName(game.mode))+"  /  "+(game.usesLevel()&&!game.levels.config.playerMovement?"POSITION LOCKED":"MOVE FREELY"),1.5f,muted);
         float distance=0; const int target=game.aimedTarget(distance);
-        std::ostringstream range; range<<std::fixed<<std::setprecision(1);
-        range<<(game.cameraMode==1?"TARGET: ":"PLAYER AIM: "); if (target<0) range<<"--"; else range<<distance<<" M";
-        range<<"  /  RANGE: "<<int(weaponSpec(game.weapon).range)<<" M";
-        p.text(40,72,range.str(),1.9f,target>=0&&distance>weaponSpec(game.weapon).range?amber:muted);
-        p.text(650,72,"HITS "+std::to_string(game.hits)+"  CLEARED "+std::to_string(game.destroyed),1.8f,ink);
-        p.rect(20,112,630,44,{.035f,.065f,.09f});
-        p.text(40,127,"SCORE "+std::to_string(game.score)+"  /  BULLSEYES "+std::to_string(game.bullseyes),2,amber);
-        if (game.usesLevel()) {
-            p.rect(20,164,680,90,{.035f,.065f,.09f});
-            p.text(40,178,"LEVEL "+std::to_string(game.levels.config.number)+" / 7   REMAINING "+std::to_string(game.remainingTargets()),2,teal);
-            p.text(40,205,"TIME "+std::to_string(int(game.elapsed))+" S   BIRDS "+std::to_string(game.birdHits)+"   HUMANS "+std::to_string(game.humanHits),1.9f,ink);
-            p.text(40,231,game.levels.config.playerMovement?"MOVEMENT ENABLED - FIND A CLEAR FIRING POSITION":"POSITION LOCKED - AIM AND SWITCH WEAPONS",1.6f,muted);
-
-        }
         drawModeHud(p,game,state);
         if (target>=0 && game.cameraMode==1) {
-            p.rect(28,608,400,40,{.035f,.065f,.09f});
-            p.text(42,620,"TARGET HEALTH "+std::to_string(int(game.targets[target].health))+" / 60",2,ink);
+            std::ostringstream label; label<<std::fixed<<std::setprecision(1)<<distance<<" M  /  "<<int(weaponSpec(game.weapon).range)<<" M";
+            p.opacity=.85f; p.rect(580,436,155,38,{.035f,.065f,.09f}); p.opacity=1;
+            p.text(590,444,label.str(),1.5f,distance>weaponSpec(game.weapon).range?amber:muted);
+            p.rect(590,465,100,3,{.08f,.12f,.15f});
+            p.rect(590,465,100*std::clamp(game.targets[target].health/60.f,0.f,1.f),3,teal);
         }
-        if (game.feedbackTime>0) p.text(500,468,game.lastRing==0?"CENTER HIT!":"RING "+std::to_string(game.lastRing+1)+" HIT",2.5f,amber);
-        p.rect(28,665,740,34,{.035f,.065f,.09f});
-        p.text(42,676,game.cameraMode==1?(pointerFree?"CLICK MENU OR WEAPON. TAB TO RESUME AIM.":"WASD MOVE  /  CLICK FIRE  /  ESC MENU  /  TAB POINTER"):
-            "F1 TO AIM AND FIRE  /  F2 ARENA  /  F3 SIDE  /  F4 FREE",1.8f,muted);
+        if (game.feedbackTime>0) p.text(540,492,game.lastRing==0?"CENTER HIT!":"RING "+std::to_string(game.lastRing+1)+" HIT",2,amber);
+        p.opacity=.88f; p.rect(16,726,1248,62,{.035f,.065f,.09f}); p.opacity=1;
+        p.text(24,738,weaponSpec(game.weapon).name,1.7f,ink);
+        p.text(24,766,pointerFree?"TAB  RESUME AIM":"ESC PAUSE / TAB AIM",1.35f,muted);
+        if(game.cameraMode!=1) {
+            p.rect(450,699,380,22,{.035f,.065f,.09f});
+            p.text(462,707,"F1 PLAYER / F2 ARENA / F3 SIDE / F4 FREE",1.35f,muted);
+        }
         if (game.cameraMode==1 && !pointerFree) {
             const Vec3 color=target>=0?teal:ink;
             const float cx=640,cy=400;
@@ -180,7 +177,6 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
             }
         }
     }
-    if(screen==Screen::Playing) p.text(28,640,std::string("F6 FLAT / F7 GOURAUD / F8 PHONG : ")+(state.shadingMode==0?"FLAT":state.shadingMode==1?"GOURAUD":"PHONG"),1.5f,teal);
     const Vec3 red{1,.23f,.20f};
     if (screen==Screen::Playing && game.dangerTime>0) {
         const float edge=(4+7*game.dangerTime)*(game.dangerHuman?1.7f:1.f);
@@ -214,7 +210,7 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
         const std::string label=b.action==Action::ConfirmChallenge&&state.duplicateConfirmation?"USE EXISTING NAME":b.action==Action::NextLevel&&!game.levels.readyToAdvance()?"LEVEL CLEARED...":b.action==Action::DayNight?(game.night?"N  NIGHT":"N  DAY"):
             b.action==Action::Sound?(!game.soundAvailable?"NO AUDIO DEVICE":game.soundEnabled?"M  SOUND ON":"M  SOUND OFF"):
             b.action==Action::EditName?"NAME: "+state.name+(state.editingName?"_":""):b.text;
-        p.text(b.x+18,b.y+(b.h-14)/2,label,2,primary||selected?Vec3{.03f,.08f,.10f}:ink);
+        p.text(b.x+12,b.y+(b.h-14)/2,label,screen==Screen::Playing?1.6f:2.f,primary||selected?Vec3{.03f,.08f,.10f}:ink);
     }
     if (supplied && state.screenTime<.3f) {
         p.opacity=.72f*(1-state.screenTime/.3f);
