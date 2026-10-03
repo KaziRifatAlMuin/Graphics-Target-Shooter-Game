@@ -1,4 +1,4 @@
-# 3D Target Shooter - Final Release (Phase 4 of 4)
+# 3D Target Shooter - Final Version
 
 C++17 / OpenGL 3.3 project by **Kazi Rifat Al Muin (2107042)**.
 
@@ -9,7 +9,7 @@ level completion, seven-level victory, Free time-up, result statistics and ranke
 
 ## Guide contents
 
-- [Build and run](#build-and-run), [mode menu and Challenge name entry](#mode-menu)
+- [Build and run](#build-and-run), [mode menu and required name entry](#mode-menu)
 - [Leaderboard persistence](#persistent-leaderboardcsv), [seven levels](#seven-level-challenge), [controls and scoring](#scoring-and-controls)
 - [Transformation CSV](#automatic-actual-scene-calccsv), [architecture](#architecture), [validation](#validation-and-limits)
 - [Complete play flow](#complete-play-flow), [object inventory](#world-coordinates-and-object-inventory), [populations and spawns](#initial-population-and-cargo-placement)
@@ -44,16 +44,16 @@ Makefile and VS Code build tasks also work. Keep shaders and project files toget
 
 ## Mode menu
 
-Challenge always opens its own name-entry page before Level 1 (also on Replay and
+Every mode button opens a clearly visible name-entry page. Challenge does so before Level 1 (also on Replay and
 --mode challenge). Enter 1-24 printable ASCII characters; surrounding spaces are removed.
-Blank Challenge names are rejected. Press Enter or CHECK NAME / START. If that exact name
+Blank and whitespace-only names are rejected in every mode. Press Enter or CHECK NAME / START. If that exact name
 already has a Challenge record, the game shows its rank, best score and levels cleared.
 A second explicit USE EXISTING NAME / Enter confirms reuse; REWRITE NAME clears the
 field, and Esc/Back returns to the menu. Confirmation never deletes or resets a record.
 Only a better eligible result can replace it. A name existing only in Free does not
 trigger the Challenge warning. Keys are case-sensitive, although the font is uppercase.
 
-Free uses the editable name on the main menu; a blank menu name becomes Player. This is
+There is no default player name. Free also requires name confirmation after selecting its mode. This is
 a local callsign system, not an account/password system. Leaderboard data is loaded on
 entry and rechecked on submission; typing checks the in-memory list without disk reads.
 
@@ -136,9 +136,7 @@ humans collapse as connected assemblies over 0.75 seconds. Fallen bodies remain 
 but do not obstruct movement or shots. Grounding uses the actual transformed cube bounds.
 There are no replacement birds or humans during that level/session, including after a
 Free target respawns. Reloading/restarting explicitly creates a fresh initial population;
-advancing Challenge loads the next level's own population. Surviving Level 5-6 birds
-redistribute when their zone target is cleared; Level 7 retires surviving NPCs from
-cleared zones. Killed NPCs never participate in that redistribution.
+advancing Challenge loads the next level's own population. Surviving birds AND humans randomly redistribute to undestroyed targets with room, capped at 10 birds and 10 humans per target. If all destinations are full, surplus survivors remain alive in their old zones. Killed NPCs never participate. See [NPC lifecycle details](docs/lighting-and-npc-guide.md).
 
 This permanent-death rule is the latest requested behavior and supersedes the earlier
 specification's continuously replenished NPC populations. Target respawn rules are unchanged.
@@ -184,6 +182,7 @@ Back/edge contacts stop shots without damage.
 | Left click / Space | Fire in F1; hold for rifle, new press for pistol/shotgun |
 | 1 / 2 / 3 | Pistol 25 m / shotgun 18 m / assault rifle 70 m |
 | F1 / F2 / F3 / F4 | Player / elevated / side / free camera |
+| F6 / F7 / F8 | Flat / Gouraud / Phong shading (default Phong); cameras unchanged |
 | Q / E | Free camera down / up |
 | Tab | Release/capture pointer for HUD buttons |
 | N / M | Day-night / sound |
@@ -200,7 +199,7 @@ A UI click cannot also fire; release fire after starting/resuming. Focus loss pa
 All Phase 1 systems remain: cube weapons, distinct crosshairs, meter ranges, visible
 swept projectiles, player/cargo/boundary collision, four cameras, enclosed 60 x 100 m
 arena, fortified walls, seeded 0.70 m cargo, equipment display, day/night, ambient/diffuse/
-Blinn-Phong shading, directional sun/moon, eight point lamps and six spotlights.
+Phong illumination, daytime directional sunlight, eight mounted point lamps and six stadium spotlights.
 **All modeled objects use transformed unit cubes.** Targets use 32 cube slices and
 a front-face ring material, not a disk mesh. Weapons include trigger guards, muzzle
 insets and grip/slide details; birds have animated wings, tips and eyes; stands have
@@ -210,9 +209,8 @@ Hit fragments keep animating after the last target is destroyed.
 
 ## Automatic actual-scene calc.csv
 
-**Every launch regenerates calc.csv in the project root.** It refreshes about once per
-active second, on weapon/lighting/session changes, F5 and normal exit. Builds refresh
-it too; calc-init.csv is unchanged.
+**Normal launches regenerate calc.csv in the project root; --calc PATH redirects this output.** It refreshes about once per
+active second, on weapon/lighting/session changes, F5 and normal exit. Builds leave this file untouched; explicit --export-calc remains available. calc-init.csv is unchanged.
 
 The logger observes the same objects sent to the renderer and maps cube corner
 (0.5,0.5,0.5) using **M_model = T * Rz * Ry * Rx * H * S**.
@@ -393,10 +391,10 @@ calc.csv gives every observed named instance's full transform, material, parent 
 | Target stand | Base + post + 2 braces + 2 stripes | Base 2 x 0.3 x 1.5; post 0.24 x h x 0.24, h=max(0.3,targetY-0.8) | Base Y=0.15; post follows target X/Z; humans avoid stand footprint |
 | Bird | 10 cubes each | Body 0.62 x 0.26 x 0.28; head 0.24 x 0.24 x 0.23; wings 0.38 x 0.055 x 0.64 plus tips | Brown/gray feathers, yellow beak, two eyes; random bounded flight and flapping |
 | Human | 21 cubes each | Standing height 2.05-2.20; reference body proportions uniformly multiplied by height/1.82 | Three shirt/skin palettes, trousers, shoes, arms/hands, neck/head/hair/eyes/nose; bounded walking |
-| Point lamp | 8 fixtures, 6 cubes each | Pole 0.22 x 6.5 x 0.22; head 0.85 x 0.4 x 0.85; cap, footing and 2 frame strips | X=+-23, Z=-12,-38,-64,-90; light at Y=6.7 |
-| Spotlight | 6 fixtures, 3 cubes each | Pole 0.16 x 8.8 x 0.16; head 1.1 x 0.4 x 0.65 tilted -28 degrees; footing | X=+-11, Z=-12,-42,-72; light at Y=9 |
+| Point lamp | 8 mounted fixtures | Two posts, four boundary lamps, red/blue side lamps | See lighting table below |
+| Stadium floodlight | 6 towers with three visible panels each | Grounded poles, footings, crossbars and aimed lenses | X=+-28, Y=12, Z=-16,-48,-80 |
 | Equipment table | Table, mat, 3 labels | Table 12 x 1.1 x 3; mat 11.8 x 0.02 x 2.8 | Center (-9,0.55,-8); three weapon exhibits and three projectile exhibits |
-| Sun / moon | Day 1 cube; night 4 cubes | Sun 4 x 4 x 4; moon 3 x 3 x 3 plus 3 patches; emissive | Main body (25,35,-80), rotated (0,25,15) |
+| Sun | One emissive cube by day; none at night | 4 x 4 x 4 | (25,35,-80) |
 | Player avatar | 4 cubes, hidden in first person | Torso 0.65 x 0.95 x 0.4; head 0.4 each side; legs 0.22 x 0.56 x 0.3 | Follows actual player, shown by external cameras |
 | Weapon | Active pistol 11 / shotgun 14 / rifle 15 cubes; optional 1 flash | Metal receiver/barrel, brown grip/stock, guards, sights and details | Camera-relative muzzle offsets: (0.32,-0.22,-1.02) pistol; Z=-1.52 for long guns |
 | Projectile | 1 cube each; shotgun 9 pellets per trigger | Sizes/speeds in weapon table below; yellow/emissive | Swept segment collision selects nearest cargo/target/live NPC contact |
@@ -497,14 +495,7 @@ target respawn and legacy damage-plus-destruction scoring, separate from competi
 
 ## Lighting, cameras, effects and performance
 
-Day ambient RGB is (0.30,0.32,0.35), night (0.055,0.07,0.10). Directional light points
-along normalized (0.45,0.8,0.3), with day color (0.95,0.88,0.73) and night (0.07,0.09,0.16).
-Eight point lamps use night color (0.65,0.54,0.36), attenuation 1/(1+0.045*d+0.003*d^2).
-Six spots use (1,1.1,1.25), inner/outer cones 22/34 degrees and
-1/(1+0.025*d+0.002*d^2). Point/spot contributions are zero by day. Materials use ambient,
-diffuse and Blinn-Phong specular; individual RGB, specular strength, shininess and emission
-are exported in calc.csv. Gun metal uses specular 0.75/shininess 80, fixtures 0.65/64,
-targets 0.45/48, and human parts 0.06 specular. The sky uses a procedural shader.
+The final lighting equations, fixture layout and shading controls are explained in the Lighting, Illumination and Shading section below. Day has sunlight only; night has mounted arena lights only, with low ambient fill and no moon. The sky uses a procedural shader.
 
 F2 arena camera: (22,24,18), yaw -108, pitch -24. F3 side: (25,15,-42), yaw -175,
 pitch -17. F4 begins at the currently active camera and flies at 12/30 m/s (Shift),
@@ -526,3 +517,197 @@ Sound is synthesized locally: separate pistol/shotgun/rifle fire, target hit/bre
 UI click, start/completion/victory/time-up, bird penalty/death, and stronger human
 penalty/death. Bird death is a descending chirp (0.42 s); human death is a lower
 noise/tone cue (0.70 s). M toggles sound; a missing output device leaves the game playable.
+
+
+# Lighting, Illumination and Shading
+
+Use **N** for day/night and **F6 / F7 / F8** for Flat / Gouraud / Phong.
+F1-F4 retain their existing camera functions. Phong is the default on launch.
+The final requested rule overrides the earlier moon-light proposal: **day uses sunlight;
+night has no sun or moon and uses mounted arena fixtures**. No lighting changes scoring.
+For a code walkthrough, demonstration steps and NPC edge cases, see
+[the detailed lighting and NPC guide](docs/lighting-and-npc-guide.md).
+
+### 1. What is Illumination?
+
+An illumination model estimates the color of a surface from its material, normal,
+light sources and viewer. A visible lamp housing is geometry; its light is a separate
+calculation. Both use positions from `createLighting()` so the source belongs to a fixture.
+
+### 2. Phong Illumination Model
+
+The shared `shaders/lighting.glsl` implements:
+
+```text
+I = Iambient + sum(Idiffuse + Ispecular)
+Iambient = ambientColor * materialColor
+Idiffuse = lightColor * materialColor * max(dot(N,L),0)
+Ispecular = lightColor * ks * pow(max(dot(R,V),0),shininess)
+R = reflect(-L,N)
+```
+
+Local lights multiply diffuse and specular by distance attenuation; spotlights also
+multiply by cone intensity. Specular is zero on surfaces facing away from a light.
+This is reflection-vector Phong, not the previous half-vector Blinn-Phong formula.
+
+### 3. Ambient Reflection
+
+Ambient is a cheap approximation of background illumination, not a simulation of
+bouncing light. RGB is (0.30,0.32,0.35) by day and only (0.012,0.016,0.025) by night.
+The small night term prevents completely black geometry. Lamps provide the main night
+illumination. Ambient uses the same material color as diffuse to keep materials simple.
+
+### 4. Diffuse Reflection
+
+`max(dot(N,L),0)` measures how directly light strikes the surface. N is the normalized
+outward surface normal; L is the normalized direction from surface to light. Facing the
+light gives 1, a grazing angle approaches 0, and negative values are clamped to 0.
+Walls, targets and cargo get most of their appearance from this term.
+
+### 5. Specular Reflection
+
+V points from the surface to the viewer. R reflects the incoming light direction -L
+around N. When R and V align, a bright highlight appears. `ks` controls its strength;
+higher shininess makes the highlight narrower. Moving the camera changes the highlight.
+Weapon metal uses ks=0.75 and shininess=80; lamp metal uses 0.45 and 48.
+
+### 6. Directional Light
+
+A distant light has approximately parallel rays, so all surfaces use the same L.
+The daytime sun uses normalized (0.45,0.8,0.3), color (0.95,0.88,0.73), and no distance
+attenuation. At night its color is exactly zero and no celestial geometry is drawn.
+There is deliberately no moon/environment directional light at night.
+
+### 7. Point Light
+
+A point source emits in all directions; L changes with surface position. Eight points
+represent two start-area posts, four boundary lamps and two side fixtures. Positions
+and RGB are stored in `PointLight`. They share ambient fill and attenuation coefficients;
+RGB scales both diffuse and specular. Per-light ambient settings are unnecessary here.
+
+### 8. Spotlight
+
+Six large stadium towers stand near the side boundaries at X=+-28, Z=-16,-48,-80.
+Their light centers are 12 m high and aim down/across the playing area. Each tower has a
+footing, pole, support bars, housing and three visible panels. One spotlight approximates
+the whole panel bank. Inner/outer half-angles are 32/53 degrees. A dot product compares
+the outgoing light direction with the direction to the surface; `smoothstep` softens the
+cone edge. Lens orientation follows the same direction as the mathematical spotlight.
+
+### 9. Attenuation
+
+```text
+attenuation = 1 / (constant + linear*d + quadratic*d*d)
+```
+
+d is surface-to-light distance in world meters. Points use (1,0.09,0.032); floods use
+(1,0.025,0.002). A point's factor is about 0.68 at 2 m, 0.20 at 10 m and 0.064 at
+20 m. This creates local bright areas and darker gaps, rather than raising ambient.
+Coefficients are shared constants in the shader, easy to find and explain.
+
+### 10. Multiple Lights
+
+Each light adds its contribution. The shader supports one directional light, eight
+points and six spots at once. Day switches point/spot RGB to zero and skips their work.
+Night switches the directional source off. Lights do not require extra scene passes.
+
+### 11. Colored Lighting
+
+RGB changes reflected light, not just the bulb's appearance. Most fixtures are neutral
+or warm. One start post is softly green, one far side lamp red and the other blue.
+Flood RGB (1.8,1.9,2.1) combines cool-white color and artistic intensity; these are not
+physical light units. Values above 1 compensate for attenuation before final clamping.
+
+### 12. Materials
+
+`SceneObject.color` supplies ambient/diffuse reflectance; `specular` is ks and
+`shininess` is the highlight exponent. This reuses the existing simple material fields.
+
+| Object | Specular strength | Shininess | Response |
+| --- | ---: | ---: | --- |
+| Weapon | 0.75 | 80 | Strong narrow metal highlights |
+| Wall | 0.12 | 24 | Mostly diffuse stone |
+| Cargo crate | 0.09 | 24 | Weak highlights |
+| Lamp metal | 0.45 | 48 | Moderate metal highlights |
+| Target | 0.45 | 48 | Clear colored face and highlight |
+
+At night lens emission makes the bulb itself visible. Actual illumination still comes
+from the point/spot calculation. By day lenses are gray and emission is zero. Existing
+projectile, hit and muzzle visuals remain; no optional muzzle point light was added.
+
+### 13. Surface Normals
+
+Each cube face has the correct outward normal. The renderer uses the inverse-transpose
+normal matrix so rotation, nonuniform scale and shear do not corrupt lighting. Normals
+are normalized before dot products. Cube edges intentionally remain hard; interpolating
+across a face does not turn a cube into a rounded object. No normal maps are used.
+
+### 14. Flat Shading
+
+F6 uses GLSL `flat` interpolation: one provoking vertex's lighting result is constant
+across each triangle. It is simple and inexpensive but shows abrupt changes and coarse
+highlights. A cube face consists of two triangles, so their chosen samples can differ
+under a nearby light. Target ring colors remain readable as a surface pattern.
+
+### 15. Gouraud Shading
+
+F7 calculates illumination at vertices, then interpolates diffuse and specular results
+across the triangle. Multiplying the interpolated diffuse result by a constant material
+color is equivalent to interpolating the lit vertex colors. The target pattern is applied
+after interpolation. Gouraud is smoother than Flat but can miss a highlight or a local
+lamp pool lying between the vertices of a large floor face. That is a useful demonstration
+of the method's limitation, not the default night rendering.
+
+### 16. Phong Shading
+
+F8 interpolates world normals and positions and evaluates illumination at each fragment.
+Normals are renormalized after interpolation. This captures small highlights and local
+light pools even inside large polygons. It costs more fragment work but is the normal
+gameplay mode. Hard cube normals remain geometrically correct in all three modes.
+
+### 17. Flat vs Gouraud vs Phong
+
+| Feature | Flat | Gouraud | Phong |
+| --- | --- | --- | --- |
+| Calculation | One selected vertex sample per triangle | Every vertex | Every fragment |
+| Interpolation | Constant lighting | Lighting colors/terms | Normals and positions |
+| Appearance | Faceted, abrupt | Smooth color gradients | Detailed light response |
+| Specular Highlight | Coarse or missing | May miss interior highlight | Captures interior highlight |
+| Speed | Usually inexpensive | Usually inexpensive | More fragment work |
+| Use in Project | F6 demonstration | F7 demonstration | F8 default gameplay |
+
+Actual speed depends on geometry, resolution and driver; a universal FPS ranking is
+not guaranteed. The two vertex modes share one implementation and similar cost.
+
+### 18. Phong Illumination vs Phong Shading
+
+**Phong illumination** is the ambient + diffuse + specular mathematical model.
+**Phong shading** interpolates normals and evaluates illumination per fragment.
+All three modes in this project use the same Phong illumination equation; only the
+location of evaluation and interpolation change. These are different concepts.
+
+### 19. Lighting Used in Our Arena
+
+| Light | Type | Color | Purpose |
+| --- | --- | --- | --- |
+| Sun/environment (day only) | Directional | Warm white | General daylight |
+| Big floodlight, six towers | Spotlight | Cool white | Main night arena illumination |
+| Start lamp post | Point | Warm yellow | Local spawn lighting |
+| Safe-area lamp post | Point | Soft green | Start-area accent |
+| Boundary lamps, four | Point | Near white | Wall/path visibility |
+| Side warning lamp | Point | Red | Far-side security accent |
+| Side accent lamp | Point | Blue | Far-side accent |
+
+Posts are at (+-18,4.7,-12). Boundary lamps are at X=+-28.8, Y=5, Z=-38/-68.
+Red/blue side lamps are at X=-28.8/+28.8, Y=3.2, Z=-89. Wall brackets attach to
+inside wall faces near X=+-29.5. No artificial source floats in the sky.
+
+### 20. Night Lighting
+
+The dark sky, very low ambient, six white spotlight cones and eight local point lights
+combine into the night scene. Floods cover playing areas; boundary and side lamps give
+local reference points. Daylight turns every artificial light off and grays the lenses.
+No shadows, bloom, HDR pipeline, PBR, global illumination or other advanced effects were
+added. Light can pass through geometry because this simple model has no shadow/occlusion
+pass. Gamma conversion is retained from the original renderer. Use Phong for the intended
+night appearance and switch to the other modes to explain their sampling limitations.

@@ -32,12 +32,12 @@ void Game::loadCurrentLevel() {
     soundEvents.push_back(SoundEvent::Start);
     birds.clear(); humans.clear();
     const auto& c=levels.config;
-    const int birdCount=c.birdsPerTarget?int(targets.size())*c.birdsPerTarget:c.birds;
+    const int birdCount=c.birdsPerTarget?int(targets.size())*std::clamp(c.birdsPerTarget,0,10):std::min(c.birds,int(targets.size())*10);
     for (int i=0;i<birdCount;++i) {
         const std::size_t zone=std::size_t(i)%targets.size();
         birds.push_back(createBird(zone,targets[zone].base,c.seed+unsigned(i)*193+47));
     }
-    for (std::size_t zone=0;zone<targets.size();++zone) for (int i=0;i<c.humansPerTarget;++i)
+    for (std::size_t zone=0;zone<targets.size();++zone) for (int i=0;i<std::clamp(c.humansPerTarget,0,10);++i)
         humans.push_back(createHuman(zone,targets[zone].base,c.seed+unsigned(zone)*547+unsigned(i)*193,staticObjects,targets));
 }
 bool Game::nextLevel() {
@@ -55,26 +55,33 @@ void Game::updateNpcDeaths(float dt) {
     for (auto& h:humans) if (h.dying) updateHuman(h,dt,staticObjects,targets);
 }
 void Game::updateNpcs(float dt) {
-    std::vector<std::size_t> active;
-    for (std::size_t i=0;i<targets.size();++i) if (!targets[i].eliminated) active.push_back(i);
-    for (std::size_t i=0;i<birds.size();++i) {
-        auto& b=birds[i];
-        if (!b.active) continue; // Fatal hits are permanent for this level/session.
-        if (active.empty()) continue;
-        if (targets[b.zone].eliminated) {
-            if (levels.config.birdsPerTarget) { b.active=false; continue; }
-            const auto remembered=std::move(b.penalizedShots);
-            b=createBird(active[i%active.size()],targets[active[i%active.size()]].base,b.random);
-            b.penalizedShots=remembered;
+    // Keep survivors alive. Reassign only when their target is permanently eliminated.
+    // Counts are separate for birds/humans; excess survivors wait in their old zone.
+    auto redistribute=[&](auto& population, auto relocate) {
+        std::vector<int> counts(targets.size(),0);
+        for(const auto& npc:population)
+            if(npc.active && !targets[npc.zone].eliminated) ++counts[npc.zone];
+        for(auto& npc:population) {
+            if(!npc.active || !targets[npc.zone].eliminated) continue;
+            std::vector<std::size_t> available;
+            for(std::size_t zone=0;zone<targets.size();++zone)
+                if(!targets[zone].eliminated && counts[zone]<10) available.push_back(zone);
+            if(available.empty()) continue; // No killing, respawning or overfilling.
+            const auto choice=std::min(std::size_t(npcRandom(npc)*available.size()),available.size()-1);
+            npc.zone=available[choice]; ++counts[npc.zone];
+            npc.home=targets[npc.zone].base;
+            relocate(npc); // Reposition safely without changing identity/life/penalty history.
         }
-        updateBird(b,dt,staticObjects);
-    }
-    for (auto& h:humans) {
-        if (!h.active) continue;
-        if (active.empty()) continue;
-        if (targets[h.zone].eliminated) { h.active=false; continue; }
-        updateHuman(h,dt,staticObjects,targets);
-    }
+    };
+    redistribute(birds,[&](Bird& b) {
+        b.position=npcDestination(b,true); b.destination=npcDestination(b,true); b.pause=0;
+    });
+    redistribute(humans,[&](Human& h) {
+        const auto placed=createHuman(h.zone,h.home,h.random,staticObjects,targets);
+        h.position=placed.position; h.destination=placed.destination; h.random=placed.random; h.pause=0;
+    });
+    for(auto& b:birds) if(b.active) updateBird(b,dt,staticObjects);
+    for(auto& h:humans) if(h.active) updateHuman(h,dt,staticObjects,targets);
 }
 std::vector<NpcCollider> Game::npcColliders() const {
     std::vector<NpcCollider> result;

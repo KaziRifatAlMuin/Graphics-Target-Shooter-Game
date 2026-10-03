@@ -78,7 +78,7 @@ if(MINGW OR CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 # Runs even when compilation is already up to date. No window or GPU is needed.
-add_custom_target(generate_calculations ALL
+add_custom_target(generate_calculations
     COMMAND $<TARGET_FILE:main> --export-calc
     DEPENDS main
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"

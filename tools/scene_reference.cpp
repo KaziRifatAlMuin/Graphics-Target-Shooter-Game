@@ -23,8 +23,8 @@ int main(int argc,char** argv) {
           "Units are meters; tuples are X/Y/Z. Counts are initial daytime cube instances with the player avatar and pistol included, "
           "plus the three equipment-display weapons. These are measured scene values, not manually maintained estimates. "
           "Moving objects change after startup. Component scales precede shear/rotation; position bounds describe component centers at time zero, not occupied extents.\n\n"
-          "Rebuild/regenerate: `cmake --build build/npc-release --target scene_reference`, then "
-          "`./build/npc-release/scene_reference.exe docs/scene-reference.md`.\n\n"
+          "Rebuild/regenerate: `cmake --build build/lighting-final --target scene_reference`, then "
+          "`./build/lighting-final/scene_reference.exe docs/scene-reference.md`.\n\n"
           "## Initial populations\n\n| Level | Crate assemblies | Cargo cubes | Targets | Birds | Humans | All scene cubes |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n";
     std::map<std::string,Group> groups;
     for(int level=1;level<=7;++level) {
@@ -41,7 +41,7 @@ int main(int argc,char** argv) {
         out<<"| "<<level<<" | "<<crates<<" | "<<cargo<<" | "<<game.targets.size()<<" | "<<game.birds.size()<<" | "<<game.humans.size()<<" | "<<scene.size()<<" |\n";
     }
     out<<"\nFree and Bird's-Eye reuse Level 7. Bird's-Eye additionally draws two observation reference cubes. "
-         "First-person rendering hides four avatar cubes. Night replaces one sun cube with four moon cubes (+3). "
+         "First-person rendering hides four avatar cubes. Night removes the sun cube; no moon is drawn (-1). "
          "Selecting shotgun/rifle replaces the pistol's 11 parts with 14/15; muzzle flash temporarily adds one. "
          "Dead bodies retain their original component counts; blood, fragments and celebration cubes are transient. "
          "NPC counts are initial populations, not a respawn guarantee.\n\n"

@@ -17,7 +17,7 @@ bool drawModePage(ui::Painter& p,const Game& game,Screen screen,const UiState& s
         p.rect(96,177,480*(.5f+.5f*std::sin(state.animationTime*.7f)),2,teal);
         p.text(650,206,"TARGET +100 / ONE SHOT +150",2.2f,amber);
         p.text(650,240,"BIRD -100 / HUMAN -200",2,muted);
-        p.text(96,258,state.editingName?"TYPE NAME - BACKSPACE TO EDIT - ENTER TO ACCEPT":"CLICK YOUR NAME TO EDIT BEFORE STARTING",1.7f,state.editingName?amber:muted);
+        p.text(96,258,state.editingName?"TYPE NAME - BACKSPACE TO EDIT - ENTER TO ACCEPT":"CHOOSE A MODE, THEN ENTER YOUR NAME",1.7f,state.editingName?amber:muted);
         return true;
     }
     if (screen==Screen::Developer) {

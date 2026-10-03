@@ -66,7 +66,7 @@ void writeCalculations(const std::vector<SceneObject>& objects, const std::files
             << csvQuote(shear.str()) << ',' << t.rotation.x << ',' << t.rotation.y << ',' << t.rotation.z
             << ',' << csvQuote(vectorText(t.position)) << ',' << modelMatrixOrder << ','
             << csvQuote(matrix.str()) << ',' << csvQuote(vectorText({point.x,point.y,point.z}))
-            << ',' << csvQuote("Ambient + Diffuse + Blinn-Phong Specular; ks="+std::to_string(object.specular)+
+            << ',' << csvQuote("Ambient + Diffuse + Phong Specular; ks="+std::to_string(object.specular)+
                 "; shininess="+std::to_string(object.shininess)+"; emission="+std::to_string(object.emission))
             << ',' << csvQuote(object.notes) << ',' << csvQuote(object.parent.empty()?object.type:object.parent)
             << ',' << csvQuote(object.component+"; actual scene cube corner mapping") << ',' << generated << ',' << object.level << ',' << csvQuote(object.mode)
