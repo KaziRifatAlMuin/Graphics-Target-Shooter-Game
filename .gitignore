@@ -9,10 +9,10 @@
 /release_tests.exe
 /demonstrateObject.exe
 /.report-build/
-/docs/report.aux
-/docs/report.log
-/docs/report.out
-/docs/report.toc
-/docs/report.synctex.gz
+/report/report.aux
+/report/report.log
+/report/report.out
+/report/report.toc
+/report/report.synctex.gz
 /calc.csv.tmp
 /leaderboard.csv.tmp

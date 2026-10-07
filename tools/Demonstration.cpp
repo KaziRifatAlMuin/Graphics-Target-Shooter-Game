@@ -88,11 +88,10 @@ Bytes deflate(const Bytes& input) {
 }
 }
 Capture::Capture(const fs::path& root) { renderer.initialize(root/"shaders"); }
-void Capture::save(const fs::path& path,const std::vector<SceneObject>& objects,const View& view,bool night,int mask,int shading) {
-    constexpr int w=480,h=360;
+void Capture::save(const fs::path& path,const std::vector<SceneObject>& objects,const View& view,bool night,int mask,int shading,int w,int h,float fieldOfView) {
     glViewport(0,0,w,h); glEnable(GL_DEPTH_TEST); glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
     renderer.shadingMode=shading;
-    renderer.drawArena(objects,makeLookAt(view.eye,view.center,{0,1,0}),makePerspective(45,float(w)/h,view.nearPlane,view.farPlane),view.eye,night,-1,mask);
+    renderer.drawArena(objects,makeLookAt(view.eye,view.center,{0,1,0}),makePerspective(fieldOfView,float(w)/h,view.nearPlane,view.farPlane),view.eye,night,-1,mask);
     Bytes pixels(w*h*3); glPixelStorei(GL_PACK_ALIGNMENT,1); glReadBuffer(GL_BACK);
     glReadPixels(0,0,w,h,GL_RGB,GL_UNSIGNED_BYTE,pixels.data());
     if(glGetError()!=GL_NO_ERROR) throw std::runtime_error("OpenGL capture failed: "+path.string());
