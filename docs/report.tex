@@ -1,0 +1,160 @@
+\documentclass[11pt,a4paper]{article}
+
+% ============================================================
+%  PACKAGES
+% ============================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[a4paper,left=1in,right=1in,top=0.85in,bottom=0.85in]{geometry}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{cite}
+
+\usetikzlibrary{arrows.meta,positioning}
+
+% ============================================================
+%  GENERAL STYLE
+% ============================================================
+\setstretch{1.08}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+\setlist[itemize]{leftmargin=1.55em,itemsep=1pt,topsep=2pt}
+\setlist[enumerate]{leftmargin=1.7em,itemsep=1pt,topsep=2pt}
+\captionsetup{font=small,labelfont=bf}
+\pagestyle{plain}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+\definecolor{pipelineblue}{RGB}{235,242,249}
+\definecolor{pipelinegreen}{RGB}{237,247,239}
+
+\tikzset{
+  box/.style={
+    rectangle, rounded corners=2pt, draw=black,
+    minimum width=3.0cm, minimum height=0.68cm,
+    align=center, fill=pipelineblue, font=\small
+  },
+  model/.style={
+    rectangle, rounded corners=2pt, draw=black,
+    minimum width=3.0cm, minimum height=0.68cm,
+    align=center, fill=pipelinegreen, font=\small
+  },
+  arrow/.style={-{Latex[length=2mm]}, thick}
+}
+
+% ============================================================
+%  METADATA
+% ============================================================
+\newcommand{\ReportTitle}{3D Target Shooter Game}
+\newcommand{\CourseName}{CSE 4102: Computer Graphics and Image Processing Laboratory}
+
+\newcommand{\FirstAuthorName}{Kazi Rifat Al Muin}
+\newcommand{\FirstAuthorRoll}{2107042}
+
+\newcommand{\SubmissionDate}{October, 2026}
+
+
+\newcommand{\TeacherOne}{Md Tajmilur Rahman}
+\newcommand{\TeacherOneTitle}{Lecturer}
+
+\newcommand{\TeacherTwo}{Md. Mubtashim Abrar Nihal}
+\newcommand{\TeacherTwoTitle}{Lecturer}
+
+% ============================================================
+%  DOCUMENT BEGIN
+% ============================================================
+\newcommand{\pageheading}[1]{\clearpage\section{#1}}
+\newcommand{\pic}[2]{\begin{minipage}[t]{\linewidth}\centering
+\ifdim\linewidth<3cm\includegraphics[width=.98\linewidth,height=1.35cm,keepaspectratio]{images/report/#1}\else\includegraphics[width=.98\linewidth,height=2.7cm,keepaspectratio]{images/report/#1}\fi
+\par\vspace{1pt}{\scriptsize #2}\end{minipage}}
+\setlength{\tabcolsep}{3pt}
+\setlength{\emergencystretch}{2em}
+\hypersetup{pdftitle={3D Target Shooter},pdfauthor={Kazi Rifat Al Muin, Roll 2107042}}
+\begin{document}
+
+% ----------------------------------------------------------------
+%  COVER PAGE
+% ----------------------------------------------------------------
+\begin{titlepage}
+    \pagenumbering{roman}
+    \setcounter{page}{1}
+
+    \begin{center}
+
+        {\fontsize{14}{18}\selectfont\textbf{\CourseName}}\\
+        \vspace{12pt}
+
+        \begin{spacing}{1.4}
+            {\fontsize{18}{27}\selectfont
+            \textbf{\textsc{\ReportTitle}}}
+        \end{spacing}
+
+        \vspace{2\baselineskip}
+        {\fontsize{14}{18}\selectfont By}
+        \vspace{2.2\baselineskip}
+
+        {\fontsize{14}{18}\selectfont \textbf{\FirstAuthorName}}\\
+        \vspace{5pt}
+        {\fontsize{14}{18}\selectfont Roll: \FirstAuthorRoll}
+
+        \vspace{30pt}
+
+        \IfFileExists{images/kuet_logo.png}{
+            \includegraphics[height=1.14in,width=1.0in]{images/kuet_logo.png}
+        }{
+            \fbox{\parbox[c][1.14in][c]{1.0in}{\centering KUET\\Logo}}
+        }
+
+        \vspace{1.1\baselineskip}
+
+        {\fontsize{12}{16}\selectfont \textbf{Submitted To}}\\[7pt]
+
+        {\fontsize{12}{15}\selectfont \textbf{\TeacherOne}}\\
+        {\fontsize{11}{14}\selectfont \TeacherOneTitle}\\[8pt]
+
+        {\fontsize{12}{15}\selectfont \textbf{\TeacherTwo}}\\
+        {\fontsize{11}{14}\selectfont \TeacherTwoTitle}
+
+        \vfill
+
+        \begin{spacing}{1.15}
+            {\fontsize{12}{16}\selectfont
+            \textbf{Department of Computer Science and Engineering}}\\
+            {\fontsize{12}{16}\selectfont
+            \textbf{Khulna University of Engineering \& Technology}}\\
+            {\fontsize{12}{16}\selectfont
+            \textbf{Khulna 9203, Bangladesh}}\\
+            {\fontsize{12}{16}\selectfont
+            \textbf{\SubmissionDate}}
+        \end{spacing}
+
+    \end{center}
+\end{titlepage}
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\newgeometry{left=0.7in,right=0.7in,top=0.65in,bottom=0.65in}
+\small
+\setstretch{1.02}
+\setlength{\parskip}{4pt}
+\captionsetup{font=footnotesize,skip=3pt,hypcap=false}
+\input{report-sections.tex}
+\end{document}

@@ -1,5 +1,78 @@
 # 3D Target Shooter
 
+**Kazi Rifat Al Muin — Roll: 2107042**
+
+CSE 4102: Computer Graphics and Image Processing Laboratory, KUET.
+
+**[Read the completed 20-page report](docs/report-final.pdf)** · [LaTeX source](docs/report.tex) · [Download the game ZIP](TargetShooter-share.zip) · [Source repository](https://github.com/KaziRifatAlMuin/Graphics-Target-Shooter-Game)
+
+## Download, setup and run
+
+Download `TargetShooter-share.zip`, extract the complete folder, and launch the included executable. Keep its `assets` and `shaders` folders together with the executable. To build the current source, use **64-bit MinGW with C++17**, `g++`, `mingw32-make`, and an **OpenGL 3.3-capable graphics driver**. GLFW and GLAD are included. The archive is the existing portable distribution; rebuilding is the way to obtain an executable from the current checkout.
+
+```powershell
+git clone https://github.com/KaziRifatAlMuin/Graphics-Target-Shooter-Game.git
+cd Graphics-Target-Shooter-Game
+.\build.bat
+.\main.exe
+# Build and launch together:
+.\run.bat
+# The build also refreshes this portable executable:
+.\build\release\TargetShooter.exe
+```
+
+Normal game builds also regenerate `objects/` and `lighting/`, including when the executable is up to date. This opens a hidden OpenGL context and writes the demonstration images, so allow additional build time. Playing does not regenerate them.
+
+## Build the report PDF
+
+Install and finish setting up **MiKTeX or TeX Live**, with pdfLaTeX and the packages listed in [report.tex](docs/report.tex). TeXstudio is an editor; it still needs a TeX distribution. From the repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_report.ps1
+# If pdfLaTeX is elsewhere:
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_report.ps1 -PdfLatex "C:\path\to\pdflatex.exe"
+```
+
+The script copies **190 selected repository images** into `docs/images/report/`, converts the nine original texture PPMs to lossless PNGs, extracts object coordinate tables, compiles twice, and checks that **docs/report-final.pdf has exactly 20 physical pages, including the cover and references**, with no unresolved citations or overflowing boxes. It also refreshes `docs/report.pdf` when that file is not locked by a viewer. The official KUET logo is stored separately at `docs/images/kuet_logo.png`. The cover preserves the supplied [template](docs/template.tex), author, teachers and institution.
+
+The scripted build keeps temporary output in `.report-build/pdf/`. If a viewer locks a PDF, close that viewer before replacing its file. Manual PDF commands after preparing images (these produce `docs/report.pdf`):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/prepare_report.ps1
+cd docs
+pdflatex -interaction=nonstopmode -halt-on-error report.tex
+pdflatex -interaction=nonstopmode -halt-on-error report.tex
+```
+
+Edit the report text in [report-sections.tex](docs/report-sections.tex); edit its cover/style in [report.tex](docs/report.tex). `report-data/` contains generated assembly grids and coordinate tables. [report-image-manifest.csv](docs/report-image-manifest.csv) maps every selected image back to its source and records its SHA-256 hash. To compile elsewhere, retain `docs/report.tex`, `docs/report-sections.tex`, `docs/report-data/`, and `docs/images/` together. No game build or OpenGL context is needed just to compile the already prepared report.
+
+## Report contents and implementation overview
+
+The proposed game includes an arena, aimed gun, ring targets, stands, moving bullets, boxes/platforms, hit effects, lighting, multiple views and interactive controls. The completed implementation uses **transformed cubes for every world object**: barrels and bullets are cuboids; the circular-looking target consists of **32 cube slices**, with six rings drawn in the fragment shader. Assemblies are separate draw calls, not Boolean mesh unions. The following report map also organizes the detailed implementation documentation below.
+
+| PDF page | Topic and evidence |
+| --- | --- |
+| 1 | Template cover: course, title, Kazi Rifat Al Muin, roll 2107042, teachers, KUET |
+| 2 | Project description, objectives, proposal-to-implementation correspondence |
+| 3 | Gameplay, five modes, controls, scoring, penalties and persistence |
+| 4 | All seven levels; bounded sinusoidal translation, phase and spin; world validation |
+| 5 | Unit cube, column-vector matrix order, all rotations/shears, inverse-transpose normals |
+| 6 | Floor, walls, towers, battlements, route markers and equipment platform |
+| 7 | Full numeric shear/rotation/translation calculation and ground anchoring |
+| 8 | Four-step crate assembly with actual coordinates and seeded layout rules |
+| 9 | All 11 pistol assembly steps, coordinates, grip shear, aiming and recoil |
+| 10 | All 14 shotgun and 15 rifle assembly steps and source-derived coordinate tables |
+| 11 | All 38 target/stand assembly steps, slice widths/centers, continuous ring mapping |
+| 12 | Three projectile models, muzzle aiming, spread, travel and inverse-transform slab collision |
+| 13 | All human/bird assembly steps, proportions, articulation, falls, blood and celebration |
+| 14 | Camera vectors, view/perspective matrices, movement and Bird's-Eye ray picking |
+| 15 | All nine texture maps, deterministic generation, planar UVs, array caching and mipmaps |
+| 16 | Ambient/directional diffuse and specular reflection, normal handling, emission and gamma |
+| 17 | Point/spot coordinates, colors, falloff, cone smoothstep and fixture construction |
+| 18 | Controlled flat/Gouraud/Phong comparisons and actual rendering limitations |
+| 19 | Architecture, build/run/report commands, practical optimizations and verification |
+| 20 | Conclusions, limits, source attribution and references |
+
 A cube-built arena with seven Challenge levels, five modes, three weapons, moving targets, penalty NPCs and persistent leaderboards. This release adds a compact HUD and reusable surface textures while preserving gameplay, geometry, controls, scoring, spawning and collision.
 
 ![Final textured arena](docs/images/release-arena.png)
@@ -106,7 +179,7 @@ Configurations live in [Level1.cpp](src/levels/Level1.cpp) through [Level7.cpp](
 
 Each level has an intro, active-play, completion and results capture. The active-play
 images below show how the arena becomes progressively denser, more mobile and more
-NPC-heavy from Level 1 through the final Level 7 arena.
+NPC-heavy across the progression; birds first appear in Level 5, and humans in Level 7.
 
 | Level 1 | Level 2 | Level 3 |
 | --- | --- | --- |
@@ -307,6 +380,124 @@ Modify an object in its builder by editing position, scale, rotation, shear, col
 
 To add a static prop, use `makeCube` in a world builder and append it through `createLevelWorld` or the Practice setup. Static objects participate in obstacle tests, so preserve paths/sightlines. Multi-part props remain multiple cubes. Moving visuals can append builder output in `Game::scene`, with explicit collision behavior if required. Assigning a texture adds no gameplay behavior.
 
+## Object construction: report examples and calculations
+
+The report's images are copied from the real `objects/` and `lighting/` captures. Construction values below match those examples. World units are meters. Displayed decimals are rounded; the generated guides retain nine significant digits and all eight cube-corner traces.
+
+### Shared mathematical pipeline
+
+```text
+local cube corners = every combination of ±0.5 in X/Y/Z
+worldPoint = T * Rz * Ry * Rx * H * S * localPoint
+clipPoint = projection * view * worldPoint
+NDC = clipPoint.xyz / clipPoint.w
+normal = normalize(transpose(inverse(mat3(model))) * localNormal)
+```
+
+For `c=cos(angle*pi/180)` and `s=sin(angle*pi/180)`, rotations map `(x,y,z)` to `(x,c*y-s*z,s*y+c*z)` around X, `(c*x+s*z,y,-s*x+c*z)` around Y, and `(c*x-s*y,s*x+c*y,z)` around Z. Shear maps to `(x+hxy*y+hxz*z, hyx*x+y+hyz*z, hzx*x+hzy*y+z)`. Translation adds the object's world center. Vectors use `w=0`; points use `w=1`. The renderer does not apply a hidden parent transform: builders have already transformed component offsets into world positions.
+
+### Arena and a fully worked sheared support
+
+| Part | Center | Scale | Rotation |
+| --- | --- | --- | --- |
+| Floor | `(0,-0.1,-50)` | `(60,0.2,100)` | Identity |
+| North/south walls | `(0,4,-100)` / `(0,4,0)` | `(60,8,1)` | Identity |
+| East/west walls | `(±30,4,-50)` | `(100,8,1)` | Y = 90° |
+| Corner tower | `(±30,4.75,-100 or 0)` | `(3.5,9.5,3.5)` | Identity |
+| Corner cap | `(±30,10,-100 or 0)` | `(4.2,1,4.2)` | Identity |
+| Equipment table | `(-9,0.55,-8)` | `(12,1.1,3)` | Identity |
+
+The first eastern support uses scale `(1.5,6,2)`, XY shear `0.22`, Z rotation `-8°`, and translation `(28,2.98332977,-18)`. One corner follows:
+
+```text
+Local       (0.5, 0.5, 0.5)
+Scaled      (0.75, 3, 1)
+Sheared     (1.41, 3, 1)                  x = 0.75 + 0.22*3
+Rotated     (1.8137973, 2.7745701, 1)     Rx and Ry are identity
+Translated  (29.8137973, 5.7578999, -17)
+```
+
+The vertical half-extent is `0.5*(abs(M10)+abs(M11)+abs(M12)) ≈ 2.9833298`; translating upward by that amount anchors the lowest corner at ground level. The actual builder checks all eight corners. An east-wall corner follows `(0.5,0.5,0.5) → (50,4,0.5) → (0.5,4,-50) → (30.5,8,-100)`.
+
+| Unit cube | Scale | Shear | Final world placement |
+| --- | --- | --- | --- |
+| ![Support unit](docs/images/report/objects/boundary-sheared-stone-support/part-0-0.png) | ![Support scale](docs/images/report/objects/boundary-sheared-stone-support/part-0-1.png) | ![Support shear](docs/images/report/objects/boundary-sheared-stone-support/part-0-2.png) | ![Support final](docs/images/report/objects/boundary-sheared-stone-support/part-0-6.png) |
+
+Final inspection cameras recenter on world coordinates to preserve visibility; this is not an additional object transformation. [Complete support trace](objects/boundary-sheared-stone-support/boundary-sheared-stone-support.md).
+
+### Four-cube cargo assembly
+
+Crate side `s=2.1/3=0.7`. The first seed-2107042 crate has yaw zero and body center `(-21.23,0.35,-20)`. Every detail uses `bodyCenter + Ry(yaw)*offset`.
+
+| Step | Part | World center | Scale |
+| --- | --- | --- | --- |
+| 1 | Wood body | `(-21.23,.35,-20)` | `(.7,.7,.7)` |
+| 2 | Vertical band | `(-21.426,.35,-20)` | `(.0385,.708,.708)` |
+| 3 | Horizontal band | `(-21.23,.35,-20)` | `(.708,.0385,.708)` |
+| 4 | Inventory plate | `(-21.125,.483,-19.644)` | `(.189,.112,.012)` |
+
+| 1: body | 2: vertical band | 3: horizontal band | 4: plate |
+| --- | --- | --- | --- |
+| ![Cargo step 1](docs/images/report/objects/cargo-crate/assembly-1.png) | ![Cargo step 2](docs/images/report/objects/cargo-crate/assembly-2.png) | ![Cargo step 3](docs/images/report/objects/cargo-crate/assembly-3.png) | ![Cargo step 4](docs/images/report/objects/cargo-crate/assembly-4.png) |
+
+The bands extend by `.008` m and the label sits `.006` m beyond the face. Layout spacing is `.735` m; seeded 90° rotations, bounded lane jitter, 1–5-crate stacks and nonoverlapping L/T formations produce variety while preserving corridors. [Full cargo guide](objects/cargo-crate/cargo-crate.md).
+
+### Weapons: assembly, coordinates, aiming and recoil
+
+| Weapon | Permanent parts | Construction order | Fixed display anchor |
+| --- | ---: | --- | --- |
+| Pistol | 11 | Body, grip, barrel, sight, muzzle inset, lower guard, front guard, four side details | `(-13,1.65,-8)` |
+| Shotgun | 14 | Body, barrel, stock, grip, fore-end, front/rear sights, muzzle inset, two guard parts, four bands | `(-9,1.65,-8)` |
+| Rifle | 15 | Shotgun sequence with rifle dimensions and an added magazine after the fore-end | `(-5,1.65,-8)` |
+
+Display yaw is `-90°` and pitch is zero, so its orientation is identity. For example, the pistol body offset `(.32,-.25,-.68)` and size `(.22,.22,.56)` give world center `(-12.68,1.4,-8.68)`. Its grip center is `(-12.68,1.19,-8.5)`, size `(.18,.37,.20)`, and YZ shear `-.3`. Grip corner `(.5,.5,.5) → (.09,.185,.10) → (.09,.155,.10) → (-12.59,1.345,-8.4)`. Long-gun grips use YZ shear `-.4`; the rifle magazine uses `-.22`.
+
+```text
+Q = Ry(-playerYaw - 90) * Rx(playerPitch)
+partCenter = playerPosition + Q * (offset + (0,0,recoil*0.20))
+partModel = T(partCenter) * Ry(-playerYaw-90) * Rx(playerPitch) * H * S
+```
+
+At player startup `(0,1.7,-5)`, yaw `-90°`, pitch `3.8°`, the pistol body center is approximately `(.32,1.49562,-5.69507)`. Firing sets recoil to 1; it decays by `7*dt`. Recoil above `.65` adds one emissive muzzle-flash cube. The report shows **every assembly frame and every permanent part's center, scale and rotation** on pages 9–10; the complete guides additionally show all individual transformation stages:
+
+- [Pistol: 11 steps and all numeric traces](objects/weapon-pistol/weapon-pistol.md)
+- [Shotgun: 14 steps and all numeric traces](objects/weapon-shotgun/weapon-shotgun.md)
+- [Rifle: 15 steps and all numeric traces](objects/weapon-rifle/weapon-rifle.md)
+
+### Target and stand: all 38 steps
+
+Steps 1–6 add the base, pole, left brace, left warning stripe, right brace and right stripe. Steps 7–38 add 32 plate slices from bottom to top. For the representative center `(0,2.7,-19)`, radius `.8` and thickness `.16`:
+
+```text
+sliceHeight = 2*0.8/32 = 0.05
+sliceY(i) = -0.8 + (i+0.5)*0.05
+sliceWidth(i) = 2*sqrt(0.8*0.8 - sliceY(i)*sliceY(i))
+sliceCenter(i) = (0, 2.7+sliceY(i), -19)
+sliceScale(i) = (sliceWidth(i), 0.05, 0.16)
+```
+
+Slice 0 has center `(0,1.925,-19)` and width `.396863`; slice 15 has center `(0,2.675,-19)` and width `1.599219`; slice 31 has center `(0,3.475,-19)` and width `.396863`. Pole height is `max(.3,2.7-.8)=1.9`; its center/size are `(0,.95,-19)` / `(.24,1.9,.24)`. The base uses `(0,.15,-19)` / `(2,.3,1.5)`. Braces are centered at `(±.28,.751,-19)`, size `(.10,1.064,.12)`, with Z rotation `±18°`; warning strips use `(±.7,.307,-19)` / `(.16,.012,1.36)`.
+
+| Base | Support structure complete | Half of plate assembled | All 38 cubes |
+| --- | --- | --- | --- |
+| ![Target base](docs/images/report/objects/target/assembly-1.png) | ![Target stand](docs/images/report/objects/target/assembly-6.png) | ![Target plate progress](docs/images/report/objects/target/assembly-22.png) | ![Target complete](docs/images/report/objects/target/assembly-38.png) |
+
+To keep rings continuous between slices, `patternScale=(width/1.6,.05/1.6,1)` and `patternOffset=(0,sliceY/1.6,0)`. The shader computes `q=localPosition*patternScale+patternOffset`, `radius=2*length(q.xy)`, `ring=clamp(int(radius*6),0,5)`. `fract(radius*6)>.95` draws separators; only local +Z faces print rings. [Every target assembly/transform step](objects/target/target.md).
+
+### Projectiles, actors and effects
+
+Pistol/shotgun/rifle projectile scales are `(.10,.10,.25)`, `(.08,.08,.18)`, `(.13,.13,.30)`. The display centers are `(-12,1.17,-8.7)`, `(-8,1.17,-8.7)`, `(-4,1.17,-8.7)`, all directed along -Z. Actual shots start at `playerPosition + Q*(.32,-.22,-1.02)` for pistol or Z offset `-1.52` for long guns. They aim at the camera ray's nearest contact, then move by `min(speed*dt, range-travelled)` shortened to the nearest collision. Projectile orientation is X=`asin(direction.y)` and Y=`atan2(-direction.x,-direction.z)` in degrees. The report explains deterministic spread, camera/muzzle parallax correction and inverse-model slab intersection on page 12.
+
+Humans have 21 cuboids and use `height/1.82` to scale reference dimensions to seeded heights of 2.05–2.20 m. Birds have 10 cuboids. Both place offsets using `npcPosition + Ry(heading)*Rx(fall)*offset`. Human walking swings limbs by `22*sin(animation)` degrees; bird wings flap by `35*side*sin(animation)` with sinusoidal center offsets. Human fall is `90*min(1,deathTime/.75)^2`; bird falling uses gravity 14 and pitch rate 260°/s. [Human construction](objects/human/human.md) and [bird construction](objects/bird/bird.md) show every part.
+
+Hit flash blends ring color toward `(1,.76,.2)` by `(hitTime/.25)*.5`. Twelve break fragments use radial velocities `(2.4*cos(a),2+2*sin(a),1.5)`, `a=2*pi*i/12`, gravity 7, and lifetime `.75`. Seeded blood uses gravity 13.5, expires, and flattens at the floor. Celebration uses a fixed golden-angle distribution, delayed particle ages, ballistic Y movement and cube rotations; its complete formula appears on report page 13 and in [Effects.cpp](src/gameplay/Effects.cpp). These cosmetic particles do not score or create new light sources.
+
+### Camera and lighting equations in the report
+
+For yaw `y`, pitch `p`, camera forward is `normalize(cos(y)*cos(p),sin(p),sin(y)*cos(p))`. Right is `normalize(cross(forward,worldUp))`; corrected up is `cross(right,forward)`. The view matrix rows use right, up and minus-forward with their eye dot products. Perspective uses `f=1/tan(FOV/2)`, diagonal `f/aspect,f`, depth terms `(far+near)/(near-far),2*far*near/(near-far)`, and bottom row `(0,0,-1,0)`. Gameplay uses FOV 60°, near `.05`, far `400`; isolated construction captures use FOV 45° and fitted clip planes. Bird's-Eye unprojects cursor coordinates into a ray and intersects Y=0 at `eye-ray*(eye.y/ray.y)`, then validates the observation position.
+
+Report pages 15–18 and the following sections explain the nine texture-generation formulas, face-local UVs, texture arrays, filtering, normal matrix, Lambert diffuse, Phong reflection, point/spot falloff, smoothstep cone, emission, gamma, sky and all three shading modes. For an upward floor normal, the day sun's Lambert factor is about `.828449`. Under the warm lamp at `(-18,4.7,-12)`, distance `4.7` gives point attenuation `1/(1+.09*4.7+.032*4.7²)=.469510`. These are individual equation terms before texture and the final color clamp, not invented framebuffer measurements.
+
 ## Texture system
 
 Nine original small maps are generated offline by [generate_textures.cpp](tools/generate_textures.cpp) and shipped under [assets/textures](assets/textures). These are deterministic grain, mortar, noise and weave patterns, not photographs. Runtime loads actual images into GPU textures; it does not evaluate the generator's patterns per fragment.
@@ -408,7 +599,7 @@ different presentation modes.
 | ![Point-lamp-only lighting](docs/images/release-lighting-point.png) | ![Spotlight-only lighting](docs/images/release-lighting-spot.png) |
 
 The isolated images are diagnostic passes, not separate gameplay rules: normal
-night play combines all four contributions. Emissive lenses, projectiles and
+night play combines low ambient, point lamps and spotlights; the sun is zero at night. Emissive lenses, projectiles and
 hit effects are brightened in the material shader, but they do not illuminate
 nearby objects or cast shadows.
 
@@ -485,3 +676,16 @@ powershell -File tests/verify_calc.ps1 -Path .release-work/smoke.csv -RequirePla
 ```
 
 Snapshots retain the 29-column transform schema in [src/persistence](src/persistence), describing current/visited cubes rather than invented unvisited scenes. `--export-calc` runs without OpenGL; `--calc`/`--leaderboard` redirect output. Texture layer/scaling are runtime fields, not new CSV columns. Root player records and `calc-init.csv` were preserved during checks.
+
+## References and attribution
+
+The report and README use the local source as the authority for game-specific equations, coordinates and behavior. The formal report bibliography includes:
+
+- [Project repository](https://github.com/KaziRifatAlMuin/Graphics-Target-Shooter-Game), Kazi Rifat Al Muin, 2026.
+- [OpenGL 3.3 Core Profile specification](https://registry.khronos.org/OpenGL/specs/gl/glspec33.core.pdf), Mark Segal and Kurt Akeley, Khronos Group, 2010: graphics pipeline and API semantics.
+- [GLFW 3.3 Getting Started](https://www.glfw.org/docs/3.3/quick.html): context creation and event handling.
+- Bui Tuong Phong, [“Illumination for Computer Generated Pictures”](https://doi.org/10.1145/360825.360839), *Communications of the ACM*, 18(6), 311–317, 1975: reflection and interpolated-normal shading foundations.
+- Henri Gouraud, [“Continuous Shading of Curved Surfaces”](https://doi.org/10.1109/T-C.1971.223313), *IEEE Transactions on Computers*, C-20(6), 623–629, 1971: interpolated vertex-shading foundations.
+- [KUET](https://www.kuet.ac.bd/): institutional identity on the supplied cover. [Report image credits](docs/images/REPORT-SOURCES.md) identify the official logo source separately from original game assets.
+
+The report preserves the template's cover and replaces its unrelated sample content. The game does not implement analytic sphere/cylinder meshes, Boolean unions, GPU instancing, skeletal skinning, shadow maps, ambient occlusion or PBR materials. Those are possible future extensions, not claims about the current project. Functional verification is not a universal FPS guarantee; comparisons use fixed scenes and a specified GPU context.
