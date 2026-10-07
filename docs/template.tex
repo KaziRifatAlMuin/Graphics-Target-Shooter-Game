@@ -1,0 +1,721 @@
+\documentclass[12pt,a4paper]{report}
+
+% ============================================================
+%  GEOMETRY
+%  Guide specifies: Left 1.2″, Right 1.0″, Top 1.2″, Bottom 1.0″
+% ============================================================
+\usepackage[
+a4paper,
+left=1.2in,
+right=1.0in,
+top=1.2in,
+bottom=1.0in,
+headheight=14pt,
+headsep=0.2in,
+footskip=0.4in
+]{geometry}
+
+% ============================================================
+%  FONT  – mathptmx gives Times Roman for text AND math
+% ============================================================
+\usepackage{mathptmx}
+
+% ============================================================
+%  LINE SPACING  – guide requires 1.5 everywhere
+% ============================================================
+\usepackage{setspace}
+\onehalfspacing
+
+% ============================================================
+%  PARAGRAPH STYLE
+% ============================================================
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+% ============================================================
+%  ESSENTIAL PACKAGES
+% ============================================================
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{float}
+\usepackage{ragged2e}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{url}
+\usepackage{xcolor}
+\usepackage[absolute,overlay]{textpos}
+\usepackage{tikz}\usepackage{tabularx}
+\usepackage{graphicx} % make sure this is in preamble
+
+% ============================================================
+%  SVG SUPPORT
+%  Compile with: pdflatex --shell-escape
+%  Place all .svg files in ./diagrams/
+% ============================================================
+\usepackage[inkscapelatex=false]{svg}
+\IfFileExists{C:/Program Files/Inkscape/bin/inkscape.com}{%
+	\svgsetup{inkscapeexe={"C:/Program Files/Inkscape/bin/inkscape.com"}}%
+}{%
+	\svgsetup{inkscapeexe={inkscape}}%
+}
+\svgsetup{inkscapepath={svg-inkscape/}}
+\svgpath{{./diagrams/}}
+
+% ============================================================
+%  FIGURE AND TABLE NUMBERING  – Chapter.Number format (e.g. 3.1, 4.2)
+% ============================================================
+\renewcommand{\thefigure}{\arabic{chapter}.\arabic{figure}}
+\renewcommand{\thetable}{\arabic{chapter}.\arabic{table}}
+% Reset counters at each new chapter (default LaTeX behaviour with report class)
+
+% ============================================================
+%  HYPERREF  – load LAST among packages
+% ============================================================
+\usepackage{hyperref}
+\hypersetup{colorlinks=false, hidelinks}
+
+% ============================================================
+%  TABLE OF CONTENTS / LOT / LOF  (tocloft package)
+% ============================================================
+\usepackage{tocloft}
+
+% --- TOC title: centred, bold, 16pt ---
+\renewcommand{\cfttoctitlefont}{\hfill\bfseries\fontsize{16}{20}\selectfont}
+\renewcommand{\cftaftertoctitle}{\hfill}
+\setlength{\cftbeforetoctitleskip}{0pt}
+\setlength{\cftaftertoctitleskip}{12pt}
+
+% --- Chapter entries in TOC ---
+\renewcommand{\cftchappresnum}{CHAPTER\ }
+\renewcommand{\cftchapaftersnum}{\quad}
+\setlength{\cftchapnumwidth}{7em}
+\renewcommand{\cftchapfont}{\bfseries}
+\renewcommand{\cftchappagefont}{\bfseries}
+\renewcommand{\cftchapleader}{\cftdotfill{\cftdotsep}}
+\setlength{\cftbeforechapskip}{6pt}
+
+% --- Section entries ---
+\setlength{\cftsecindent}{7em}
+\setlength{\cftsecnumwidth}{3em}
+\setlength{\cftbeforesecskip}{2pt}
+
+% --- Subsection entries ---
+\setlength{\cftsubsecindent}{10em}
+\setlength{\cftsubsecnumwidth}{3.5em}
+\setlength{\cftbeforesubsecskip}{1pt}
+
+% --- List of Tables title ---
+\renewcommand{\cftlottitlefont}{\hfill\bfseries\fontsize{16}{20}\selectfont}
+\renewcommand{\cftafterlottitle}{\hfill}
+
+% --- List of Figures title ---
+\renewcommand{\cftloftitlefont}{\hfill\bfseries\fontsize{16}{20}\selectfont}
+\renewcommand{\cftafterloftitle}{\hfill}
+
+% ============================================================
+%  CHAPTER FORMAT
+% ============================================================
+\usepackage{titlesec}
+
+\renewcommand{\thechapter}{\Roman{chapter}}
+\renewcommand{\thesection}{\arabic{chapter}.\arabic{section}}
+\renewcommand{\thesubsection}{\arabic{chapter}.\arabic{section}.\arabic{subsection}}
+
+\titleformat{\chapter}[display]
+{\centering\bfseries}
+{\fontsize{14}{18}\selectfont CHAPTER \thechapter}
+{6pt}
+{\fontsize{16}{20}\selectfont}
+\titlespacing*{\chapter}{0pt}{0pt}{24pt}
+
+% ============================================================
+%  SECTION FORMAT
+% ============================================================
+\titleformat{\section}
+{\bfseries\fontsize{14}{18}\selectfont}
+{\thesection}{1em}{}
+\titlespacing*{\section}{0pt}{12pt}{6pt}
+
+% ============================================================
+%  SUBSECTION FORMAT
+% ============================================================
+\titleformat{\subsection}
+{\bfseries\fontsize{12}{15}\selectfont}
+{\thesubsection}{1em}{}
+\titlespacing*{\subsection}{0pt}{12pt}{6pt}
+
+% ============================================================
+%  CAPTION FORMAT
+% ============================================================
+\DeclareCaptionFont{capfont}{\fontsize{11}{14}\selectfont}
+\captionsetup{
+	font          = capfont,
+	justification = centering,
+	skip          = 12pt,
+	belowskip     = 6pt
+}
+
+% ============================================================
+%  REFERENCES ENVIRONMENT
+% ============================================================
+\newenvironment{myrefs}{%
+	\begin{spacing}{1.2}
+		\setlength{\parskip}{6pt}
+		\setlength{\parindent}{0pt}
+		\setlength{\hangindent}{0.31in}
+	}{%
+	\end{spacing}
+}
+
+% ============================================================
+%  BIBLIOGRAPHY NAME  – "References"
+% ============================================================
+\renewcommand{\bibname}{References}
+
+% ============================================================
+%  HEADER & FOOTER
+% ============================================================
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+\fancypagestyle{plain}{
+	\fancyhf{}
+	\fancyfoot[C]{\thepage}
+	\renewcommand{\headrulewidth}{0pt}
+}
+
+% To add in toc
+\newcommand{\tocentry}[1]{
+	\phantomsection
+	\addcontentsline{toc}{chapter}{#1}
+}
+
+
+% ============================================================
+%  METADATA
+% ============================================================
+\newcommand{\ReportTitle}{3D Target Shooter Game}
+\newcommand{\CourseName}{CSE 4102: Computer Graphics and Image Processing Laboratory}
+
+\newcommand{\FirstAuthorName}{Kazi Rifat Al Muin}
+\newcommand{\FirstAuthorRoll}{2107042}
+
+\newcommand{\SubmissionDate}{October, 2026}
+
+
+\newcommand{\TeacherOne}{Md Tajmilur Rahman}
+\newcommand{\TeacherOneTitle}{Lecturer}
+
+\newcommand{\TeacherTwo}{Md. Mubtashim Abrar Nihal}
+\newcommand{\TeacherTwoTitle}{Lecturer}
+
+% ============================================================
+%  DOCUMENT BEGIN
+% ============================================================
+\begin{document}
+
+% ----------------------------------------------------------------
+%  COVER PAGE
+% ----------------------------------------------------------------
+\begin{titlepage}
+    \pagenumbering{roman}
+    \setcounter{page}{1}
+
+    \begin{center}
+
+        {\fontsize{14}{18}\selectfont\textbf{\CourseName}}\\
+        \vspace{12pt}
+
+        \begin{spacing}{1.4}
+            {\fontsize{18}{27}\selectfont
+            \textbf{\textsc{\ReportTitle}}}
+        \end{spacing}
+
+        \vspace{2\baselineskip}
+        {\fontsize{14}{18}\selectfont By}
+        \vspace{2.2\baselineskip}
+
+        {\fontsize{14}{18}\selectfont \textbf{\FirstAuthorName}}\\
+        \vspace{5pt}
+        {\fontsize{14}{18}\selectfont Roll: \FirstAuthorRoll}
+
+        \vspace{30pt}
+
+        \IfFileExists{images/kuet_logo.png}{
+            \includegraphics[height=1.14in,width=1.0in]{images/kuet_logo.png}
+        }{
+            \fbox{\parbox[c][1.14in][c]{1.0in}{\centering KUET\\Logo}}
+        }
+
+        \vspace{1.1\baselineskip}
+
+        {\fontsize{12}{16}\selectfont \textbf{Submitted To}}\\[7pt]
+
+        {\fontsize{12}{15}\selectfont \textbf{\TeacherOne}}\\
+        {\fontsize{11}{14}\selectfont \TeacherOneTitle}\\[8pt]
+
+        {\fontsize{12}{15}\selectfont \textbf{\TeacherTwo}}\\
+        {\fontsize{11}{14}\selectfont \TeacherTwoTitle}
+
+        \vfill
+
+        \begin{spacing}{1.15}
+            {\fontsize{12}{16}\selectfont
+            \textbf{Department of Computer Science and Engineering}}\\
+            {\fontsize{12}{16}\selectfont
+            \textbf{Khulna University of Engineering \& Technology}}\\
+            {\fontsize{12}{16}\selectfont
+            \textbf{Khulna 9203, Bangladesh}}\\
+            {\fontsize{12}{16}\selectfont
+            \textbf{\SubmissionDate}}
+        \end{spacing}
+
+    \end{center}
+\end{titlepage}
+
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+% ============================================================
+\section*{Abstract}
+% ============================================================
+This project develops an end-to-end multilingual sentiment classifier for
+KUET-related student social-media posts written in Bangla, English, and
+Banglish. The final corpus contains 3,500 posts labeled as
+\textit{Positive}, \textit{Negative}, or \textit{Neutral}. The pipeline uses
+multilingual text normalization, Banglish-to-Bangla transliteration,
+leakage-safe splitting, word and character TF--IDF features, Logistic
+Regression, and Transformer fine-tuning. BanglishBERT was evaluated as the
+completed Transformer model, while XLM-RoBERTa was configured as an
+additional candidate but was not included in the final comparison because
+its recorded training run was not completed. Validation Macro-F1 selected
+TF--IDF + Logistic Regression, which achieved \textbf{94.29\% test accuracy}
+and \textbf{0.9429 Macro-F1} on the untouched 525-post test set.
+
+% ============================================================
+\section{Introduction}
+% ============================================================
+University social-media posts often contain informal spelling, code-mixing,
+abbreviations, expressive punctuation, and more than one writing system.
+KUET-related posts in this project appear in Bangla, English, and Banglish,
+which makes a single monolingual preprocessing strategy unsuitable.
+Therefore, the project compares a strong sparse lexical representation with
+a pretrained contextual Transformer representation. Model selection is
+performed only on a validation set so that the test set remains unbiased.
+The resulting system provides three-class sentiment prediction for new
+KUET-related posts.
+
+% ============================================================
+\section{Objectives}
+% ============================================================
+\begin{itemize}
+    \item To develop a three-class sentiment classifier for KUET-related
+    student social-media posts.
+    \item To support Bangla, English, and Banglish within one processing
+    pipeline.
+    \item To preprocess noisy multilingual text while preserving useful
+    sentiment information.
+    \item To represent text using word/character TF--IDF and contextual
+    Transformer embeddings.
+    \item To compare TF--IDF + Logistic Regression with BanglishBERT using
+    the same train--validation--test split.
+    \item To select the final model using validation Macro-F1 and evaluate
+    it once on the held-out test set.
+    \item To save the trained pipeline and provide a reusable prediction
+    function and Streamlit-ready interface.
+\end{itemize}
+
+% ============================================================
+\section{Dataset and Exploratory Analysis}
+% ============================================================
+The source Excel sheet contains seven columns:
+\texttt{ID}, \texttt{Post Text}, \texttt{Language}, \texttt{Emotion},
+\texttt{Sentiment}, \texttt{Source}, and \texttt{Collector}. The classifier
+uses \texttt{Post Text} as input and \texttt{Sentiment} as the prediction
+target; \texttt{Emotion} and \texttt{Source} are metadata and are not used as
+model features. The final classification target has exactly three classes:
+Positive, Negative, and Neutral. The dataset contains 3,500 unique posts,
+three language categories, an average length of 181.5 characters, and no
+exact duplicate post text.
+
+\begin{table}[H]
+\centering
+\caption{Sentiment distribution by language}
+\small
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Sentiment} & \textbf{Bangla} & \textbf{Banglish} &
+\textbf{English} & \textbf{Total} \\
+\midrule
+Positive & 264 & 284 & 618 & 1166 \\
+Negative & 278 & 261 & 628 & 1167 \\
+Neutral  & 349 & 371 & 447 & 1167 \\
+\midrule
+Total & 891 & 916 & 1693 & 3500 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The class distribution is almost perfectly balanced. English is the largest
+single language group, but Bangla and Banglish together account for 1,807
+posts, so multilingual handling is essential.
+
+% ============================================================
+\section{Complete Pipeline}
+% ============================================================
+Figure~\ref{fig:pipeline} summarizes the complete workflow used in the final
+project.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.98\textwidth}{!}{
+\begin{tikzpicture}[node distance=0.5cm and 0.85cm]
+\node[box] (data) {Excel Corpus\\3,500 Posts};
+\node[box, right=of data] (valid) {Validation\\and EDA};
+\node[box, right=of valid] (prep) {Normalization +\\Banglish Transliteration};
+\node[box, right=of prep] (dedup) {Normalized\\Deduplication};
+
+\node[box, below=0.85cm of valid] (split) {Stratified Split\\70\% / 15\% / 15\%};
+
+\node[model, below left=0.85cm and 0.9cm of split] (tfidf)
+{Word + Character\\TF--IDF};
+\node[model, below=of tfidf] (lr) {Logistic Regression};
+
+\node[model, below right=0.85cm and 0.9cm of split] (token)
+{Subword Tokenization\\+ Dense Embeddings};
+\node[model, below=of token] (bert) {BanglishBERT\\Fine-Tuning};
+
+\node[box, below=2.25cm of split] (select)
+{Validation Macro-F1\\Model Selection};
+\node[box, below=of select] (test)
+{Held-Out\\Test Evaluation};
+\node[box, below=of test] (deploy)
+{Saved Pipeline +\\Prediction Interface};
+
+\draw[arrow] (data) -- (valid);
+\draw[arrow] (valid) -- (prep);
+\draw[arrow] (prep) -- (dedup);
+\draw[arrow] (dedup) |- (split);
+\draw[arrow] (split) -- (tfidf);
+\draw[arrow] (tfidf) -- (lr);
+\draw[arrow] (split) -- (token);
+\draw[arrow] (token) -- (bert);
+\draw[arrow] (lr) |- (select);
+\draw[arrow] (bert) |- (select);
+\draw[arrow] (select) -- (test);
+\draw[arrow] (test) -- (deploy);
+\end{tikzpicture}}
+\caption{End-to-end pipeline of the final sentiment-analysis system.}
+\label{fig:pipeline}
+\end{figure}
+
+% ============================================================
+\section{Preprocessing}
+% ============================================================
+The project uses light preprocessing because aggressive English-only
+stemming or stop-word removal can damage Bangla and Banglish information.
+
+\begin{enumerate}
+    \item \textbf{Unicode normalization:} every post is converted to NFKC
+    form.
+    \item \textbf{URL and mention normalization:} links are replaced by
+    \texttt{<URL>} and user mentions by \texttt{<USER>}.
+    \item \textbf{Noise control:} control characters are removed, extreme
+    repetition is capped at three characters, and extra whitespace is
+    collapsed.
+    \item \textbf{Banglish transliteration:} Banglish rows are converted
+    toward Bangla script using Avro phonetic transliteration. Uppercase
+    acronyms such as KUET/CSE and recognized English words are protected
+    where possible.
+    \item \textbf{Two text views:} the Transformer view preserves case,
+    while the classical view is lowercased to reduce sparse lexical
+    variation.
+    \item \textbf{Deduplication:} a normalized duplicate key is produced
+    before splitting. No rows were removed in the final corpus because no
+    normalized duplicate was found.
+\end{enumerate}
+
+The cleaned corpus is divided by stratified sampling with seed 42:
+2,450 training posts (70\%), 525 validation posts (15\%), and 525 test posts
+(15\%). Each test class contains exactly 175 instances.
+
+% ============================================================
+\section{Text Representation and Embedding}
+% ============================================================
+
+\subsection{Word and Character TF--IDF}
+The final classical branch represents each document using
+Term Frequency--Inverse Document Frequency (TF--IDF) \cite{salton}. In
+general,
+
+\begin{equation}
+\mathrm{TFIDF}(t,d)=\mathrm{TF}(t,d)\,
+\log\left(\frac{N}{\mathrm{DF}(t)}\right),
+\end{equation}
+
+where $N$ is the number of documents and $\mathrm{DF}(t)$ is the number of
+documents containing term $t$. The implementation combines word n-grams
+$(1,2)$ with character-within-word n-grams $(3,5)$. Word n-grams capture
+phrases, while character n-grams provide robustness to spelling variation
+and informal Banglish. The maximum feature counts are 30,000 word features
+and 40,000 character features.
+
+\subsection{Contextual Embedding in BanglishBERT}
+The Transformer branch does not train Word2Vec on the project corpus.
+Instead, BanglishBERT is a pretrained ELECTRA-family discriminator model for
+Bengali and English text \cite{banglabert,banglishbert,electra}. Its tokenizer
+first divides a post into subword tokens. Each token ID indexes a learned
+dense embedding vector,
+
+\begin{equation}
+\mathbf{e}_i=E[\mathrm{id}_i],
+\end{equation}
+
+and the complete sequence is then contextualized by Transformer
+self-attention. For queries $Q$, keys $K$, and values $V$,
+
+\begin{equation}
+\mathrm{Attention}(Q,K,V)=
+\mathrm{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V.
+\end{equation}
+
+Thus, the final representation of a token depends on its surrounding words,
+unlike a fixed static word vector. A three-class sequence-classification head
+converts the contextual representation into logits for Positive, Negative,
+and Neutral. The notebook uses a maximum sequence length of 256 tokens.
+
+% ============================================================
+\section{Models and Training}
+% ============================================================
+
+\subsection{TF--IDF + Logistic Regression}
+The classical model concatenates word and character TF--IDF features and
+feeds them to Logistic Regression. For each class $c$,
+
+\begin{equation}
+z_c=\mathbf{w}_c^T\mathbf{x}+b_c,\qquad
+P(c\mid\mathbf{x})=\frac{e^{z_c}}{\sum_j e^{z_j}}.
+\end{equation}
+
+The implementation uses balanced class weighting, a maximum of 3,000
+iterations, and seed 42. This model is fast, interpretable at the feature
+level, and does not require a GPU.
+
+\subsection{BanglishBERT Fine-Tuning}
+BanglishBERT was fine-tuned using a three-class classification head and
+class-weighted cross-entropy. The computed training weights were essentially
+balanced (approximately 1.001, 1.000, and 1.000), consistent with the nearly
+balanced dataset. Training used four epochs, learning rate
+$2\times10^{-5}$, physical batch size 4, gradient accumulation of 4
+(effective batch size 16), weight decay 0.01, gradient checkpointing, and
+FP16 when CUDA was available. The best checkpoint was selected by validation
+Macro-F1.
+
+XLM-RoBERTa Base \cite{xlmr} was also listed in the notebook as a second
+Transformer candidate. Its recorded run was not completed in the supplied
+final artifacts, so no XLM-RoBERTa validation or test score is reported and
+it is not used in the final comparison.
+
+% ============================================================
+\section{Evaluation Metrics}
+% ============================================================
+The primary model-selection metric is Macro-F1 because it gives equal
+importance to every sentiment class. For class $c$,
+
+\begin{equation}
+F1_c =
+2\frac{Precision_c\,Recall_c}{Precision_c+Recall_c},
+\qquad
+MacroF1=\frac{1}{3}\sum_{c=1}^{3}F1_c.
+\end{equation}
+
+Accuracy, weighted precision, weighted recall, and weighted F1 are also
+reported. The test set is used only after model selection.
+
+% ============================================================
+\section{Results}
+% ============================================================
+
+The final saved model-comparison results are shown in
+Table~\ref{tab:val-results}. The TF--IDF Logistic Regression baseline
+achieved the highest validation Macro-F1 and was therefore selected.
+
+\begin{table}[H]
+\centering
+\caption{Validation model comparison}
+\label{tab:val-results}
+\small
+\begin{tabular}{lcc}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{Macro-F1} \\
+\midrule
+TF--IDF + Logistic Regression & \textbf{0.9352} & \textbf{0.9353} \\
+BanglishBERT & 0.9219 & 0.9219 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On the held-out test set, the selected model produced the results in
+Table~\ref{tab:test-summary}.
+
+\begin{table}[H]
+\centering
+\caption{Final held-out test performance}
+\label{tab:test-summary}
+\small
+\begin{tabular}{ccccc}
+\toprule
+\textbf{Accuracy} & \textbf{Macro-F1} & \textbf{Weighted-F1} &
+\textbf{W. Precision} & \textbf{W. Recall} \\
+\midrule
+0.9429 & 0.9429 & 0.9429 & 0.9431 & 0.9429 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Class-wise test performance}
+\small
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Class} & \textbf{Precision} & \textbf{Recall} &
+\textbf{F1-Score} & \textbf{Support} \\
+\midrule
+Positive & 0.9101 & 0.9257 & 0.9178 & 175 \\
+Negative & 0.9249 & 0.9143 & 0.9195 & 175 \\
+Neutral  & 0.9943 & 0.9886 & 0.9914 & 175 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.66\textwidth]{images/confusion_matrix.jpeg}
+\caption{Final test confusion matrix for the selected TF--IDF Logistic
+Regression model.}
+\label{fig:cm}
+\end{figure}
+
+Figure~\ref{fig:cm} shows 162/175 Positive, 160/175 Negative, and 173/175
+Neutral posts classified correctly. There were \textbf{30 errors} in total:
+15 Negative posts were predicted as Positive, 12 Positive posts as Negative,
+one Positive post as Neutral, one Neutral post as Positive, and one Neutral
+post as Negative. This is fully consistent with the supplied
+\texttt{error\_analysis.csv} and final confusion matrix.
+
+% ============================================================
+\section{Inference and Deployment}
+% ============================================================
+The notebook provides a unified \texttt{predict\_sentiment()} function. For
+the selected baseline, a new text is normalized, optionally transliterated
+when its language is Banglish, transformed by the saved TF--IDF feature
+extractor, and passed to Logistic Regression to obtain three sentiment
+probabilities. The trained baseline pipeline, label mapping, metadata,
+classification report, model comparison, confusion matrix, and error-analysis
+records are saved. The notebook also exports a Streamlit-ready application
+where a user can enter a post, select its language, and view the predicted
+sentiment and confidence.
+
+% ============================================================
+\section{Discussion}
+% ============================================================
+The results show that the word--character TF--IDF representation is very
+effective for this balanced multilingual corpus. Character n-grams help the
+model handle Banglish spelling variation, while word n-grams capture short
+sentiment-bearing phrases. Banglish transliteration provides a more
+consistent script for the Transformer branch, although code-mixed English
+words and acronyms must be protected to avoid unwanted conversion.
+BanglishBERT achieved a strong validation Macro-F1 of 0.9219, but the
+classical baseline achieved the higher validation score of 0.9353.
+Because model selection was completed before final test evaluation, choosing
+TF--IDF + Logistic Regression did not depend on test performance. Its final
+0.9429 Macro-F1 shows strong performance across all three classes, with
+Neutral being the easiest class and Positive/Negative confusion accounting
+for most remaining errors. The 30 misclassified examples should therefore be
+reviewed mainly for mixed sentiment, annotation ambiguity, and
+context-dependent expressions.
+
+% ============================================================
+\section{Conclusion}
+% ============================================================
+This project implements a complete multilingual sentiment-analysis pipeline
+for KUET student posts in Bangla, English, and Banglish. It combines
+multilingual-safe preprocessing, Banglish transliteration, word/character
+TF--IDF, Logistic Regression, and Transformer-based comparison. Validation
+selected TF--IDF + Logistic Regression as the final model, achieving
+94.29\% accuracy and 0.9429 Macro-F1 on the held-out test set. The saved
+prediction pipeline and Streamlit-ready interface make the system reusable,
+while future work can expand the dataset and complete additional Transformer
+experiments such as XLM-RoBERTa.
+
+% ============================================================
+%  REFERENCES -- only this bibliography heading is produced
+% ============================================================
+\begin{thebibliography}{99}
+\small
+
+\bibitem{salton}
+G. Salton and C. Buckley,
+``Term-weighting approaches in automatic text retrieval,''
+\textit{Information Processing \& Management},
+vol. 24, no. 5, pp. 513--523, 1988,
+doi: 10.1016/0306-4573(88)90021-0.
+
+\bibitem{sklearn}
+F. Pedregosa \textit{et al.},
+``Scikit-learn: Machine learning in Python,''
+\textit{Journal of Machine Learning Research},
+vol. 12, pp. 2825--2830, 2011.
+[Online]. Available:
+\url{https://jmlr.org/papers/v12/pedregosa11a.html}
+
+\bibitem{electra}
+K. Clark, M.-T. Luong, Q. V. Le, and C. D. Manning,
+``ELECTRA: Pre-training text encoders as discriminators rather than
+generators,''
+in \textit{Proc. Int. Conf. Learning Representations (ICLR)}, 2020.
+[Online]. Available:
+\url{https://openreview.net/forum?id=r1xMH1BtvB}
+
+\bibitem{banglabert}
+A. Bhattacharjee, T. Hasan, W. Ahmad, K. S. Mubasshir, M. S. Islam,
+A. Iqbal, M. S. Rahman, and R. Shahriyar,
+``BanglaBERT: Language model pretraining and benchmarks for low-resource
+language understanding evaluation in Bangla,''
+in \textit{Findings of the Association for Computational Linguistics:
+NAACL 2022}, pp. 1318--1327, 2022,
+doi: 10.18653/v1/2022.findings-naacl.98.
+
+\bibitem{banglishbert}
+CSE BUET NLP Group,
+``BanglishBERT,'' Hugging Face Model Hub.
+[Online]. Available:
+\url{https://huggingface.co/csebuetnlp/banglishbert}
+[Accessed: Sep. 23, 2026].
+
+\bibitem{xlmr}
+A. Conneau \textit{et al.},
+``Unsupervised cross-lingual representation learning at scale,''
+in \textit{Proc. 58th Annual Meeting of the Association for Computational
+Linguistics}, pp. 8440--8451, 2020,
+doi: 10.18653/v1/2020.acl-main.747.
+
+\bibitem{transformers}
+T. Wolf \textit{et al.},
+``Transformers: State-of-the-art natural language processing,''
+in \textit{Proc. 2020 Conf. Empirical Methods in Natural Language
+Processing: System Demonstrations}, pp. 38--45, 2020.
+[Online]. Available:
+\url{https://aclanthology.org/2020.emnlp-demos.6/}
+
+\end{thebibliography}
+
+\end{document}
