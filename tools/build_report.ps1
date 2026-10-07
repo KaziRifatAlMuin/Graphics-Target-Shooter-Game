@@ -25,12 +25,12 @@ try {
     if($log -match 'undefined references|Citation .+ undefined|Reference .+ undefined|Overfull \\[hv]box') {
         throw 'Unresolved references or overflowing content found; inspect .report-build/pdf/report-built.log.'
     }
-    $outputPdf=Join-Path $root 'docs/report-presentation.pdf'
+    $outputPdf=Join-Path $root 'docs/report-revised.pdf'
     try { Copy-Item -LiteralPath (Join-Path $buildDirectory 'report-built.pdf') -Destination $outputPdf -Force }
-    catch { throw 'Close the viewer locking docs/report-presentation.pdf and rerun. The validated PDF remains at .report-build/pdf/report-built.pdf.' }
-    foreach($alias in @('report.pdf','report-final.pdf','report-formatted.pdf')) {
+    catch { throw 'Close the viewer locking docs/report-revised.pdf and rerun. The validated PDF remains at .report-build/pdf/report-built.pdf.' }
+    foreach($alias in @('report.pdf','report-final.pdf','report-formatted.pdf','report-presentation.pdf')) {
         try { Copy-Item -LiteralPath (Join-Path $buildDirectory 'report-built.pdf') -Destination (Join-Path $root ('docs/'+$alias)) -Force }
-        catch { Write-Warning "docs/$alias could not be replaced: $($_.Exception.Message) Use docs/report-presentation.pdf; rerun after closing the old viewer to refresh aliases." }
+        catch { Write-Warning "docs/$alias could not be replaced: $($_.Exception.Message) Use docs/report-revised.pdf; rerun after closing the old viewer to refresh aliases." }
     }
-    Write-Output 'Built docs/report-presentation.pdf: exactly 20 pages, with resolved references and no overfull boxes.'
+    Write-Output 'Built docs/report-revised.pdf: exactly 20 pages, with resolved references and no overfull boxes.'
 } finally { Pop-Location }

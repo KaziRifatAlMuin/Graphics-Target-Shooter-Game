@@ -4,7 +4,7 @@
 
 CSE 4102: Computer Graphics and Image Processing Laboratory, KUET.
 
-**[Read the completed 20-page report](docs/report-presentation.pdf)** · [LaTeX source](docs/report.tex) · [Download the game ZIP](TargetShooter-share.zip) · [Source repository](https://github.com/KaziRifatAlMuin/Graphics-Target-Shooter-Game)
+**[Read the completed 20-page report](docs/report-revised.pdf)** · [LaTeX source](docs/report.tex) · [Download the game ZIP](TargetShooter-share.zip) · [Source repository](https://github.com/KaziRifatAlMuin/Graphics-Target-Shooter-Game)
 
 ## Download, setup and run
 
@@ -33,7 +33,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_report.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_report.ps1 -PdfLatex "C:\path\to\pdflatex.exe"
 ```
 
-The script copies **176 selected repository images** into `docs/images/report/`, converts the nine original texture PPMs to lossless PNGs, extracts object coordinate tables, compiles twice, and checks that **docs/report-presentation.pdf has exactly 20 physical pages, including the cover and references**, with no unresolved citations or overflowing boxes. It also refreshes `docs/report.pdf`, `docs/report-final.pdf` and `docs/report-formatted.pdf` when those files are not locked by a viewer. The official KUET logo is stored separately at `docs/images/kuet_logo.png`. The cover preserves the supplied [template](docs/template.tex), author, teachers and institution.
+The script copies **176 selected repository images** into `docs/images/report/`, converts the nine original texture PPMs to lossless PNGs, extracts object coordinate tables, compiles twice, and checks that **docs/report-revised.pdf has exactly 20 physical pages, including the cover and references**, with no unresolved citations or overflowing boxes. It also refreshes `docs/report.pdf`, `docs/report-final.pdf`, `docs/report-formatted.pdf` and `docs/report-presentation.pdf` when those files are not locked by a viewer. The official KUET logo is stored separately at `docs/images/kuet_logo.png`. The cover preserves the supplied [template](docs/template.tex), author, teachers and institution.
 
 The scripted build keeps temporary output in `.report-build/pdf/`. If a viewer locks a PDF, close that viewer before replacing its file. Manual PDF commands after preparing images (these produce `docs/report.pdf`):
 
@@ -47,36 +47,34 @@ pdflatex -interaction=nonstopmode -halt-on-error report.tex
 Edit the report text in [report-sections.tex](docs/report-sections.tex); edit its cover/style in [report.tex](docs/report.tex). `report-data/` contains generated assembly grids and coordinate tables. [report-image-manifest.csv](docs/report-image-manifest.csv) maps every selected image back to its source and records its SHA-256 hash. To compile elsewhere, retain `docs/report.tex`, `docs/report-sections.tex`, `docs/report-data/`, and `docs/images/` together. No game build or OpenGL context is needed just to compile the already prepared report.
 
 
-### Seven levels from above
+## Project introduction
 
-The seven level views use the same camera: eye `(0,140,-25)`, look-at `(0,0,-50)`, 45-degree perspective, day lighting and Phong shading at the initial simulation state.
+**3D Target Shooter** has been developed as an interactive C++17/OpenGL 3.3 project in which a three-dimensional arena is explored, moving targets are engaged, and performance is evaluated through accuracy-based scoring. Seven progressive Challenge levels are provided, from stationary targets to combined translation, rotation, environmental cover and non-player characters. Five modes and three weapons are available, with camera selection, day/night lighting and persistent results.
 
-| Level 1: 3 static targets | Level 2: horizontal motion | Level 3: separate motion axes |
+All world objects are assembled from a shared cube primitive. The arena, weapons, target stands, projectiles and characters are constructed through scaling, shearing, rotation and translation. Circular target plates are approximated by 32 slices, while concentric rings are evaluated in the fragment shader. Complex forms are therefore obtained through explicit geometric composition, and the same model transforms are used for rendering and collision.
+
+The project's educational value is established through the integration of computer graphics concepts with visible gameplay. Model/view/projection matrices are applied to object placement and perspective cameras; procedural textures are mapped to surfaces; and ambient, diffuse and specular terms are combined with directional, point and spot sources. Flat, Gouraud and Phong shading are compared under the same scene conditions. Animation, ray-based collision and input handling are connected to these calculations so that the graphics pipeline can be examined through a complete playable application. GLFW is used for windows/input, GLAD for OpenGL entry points, and GLSL for shading; matrix operations are implemented in the project.
+
+## Released level progression
+
+All seven levels are illustrated with `docs/images/release-level-1.png` through `release-level-7.png`. The elevated Challenge view is shown with the HUD, target layout, cover and recorded session feedback. These are gameplay captures; identical initial times and zero scores are not assumed. Increasing spatial and motion complexity is introduced across the sequence.
+
+| Level 1: stationary targets | Level 2: horizontal movement | Level 3: separate motion axes |
 | --- | --- | --- |
-| ![Level 1 top view](docs/images/level-top-1.png) | ![Level 2 top view](docs/images/level-top-2.png) | ![Level 3 top view](docs/images/level-top-3.png) |
-| **Level 4: walking and cover** | **Level 5: 8 birds** | **Level 6: 16 birds** |
-| ![Level 4 top view](docs/images/level-top-4.png) | ![Level 5 top view](docs/images/level-top-5.png) | ![Level 6 top view](docs/images/level-top-6.png) |
-| **Level 7: 12 targets, 48 birds, 36 humans** | | |
-| ![Level 7 top view](docs/images/level-top-7.png) | | |
-
-To regenerate these images from the current game builders and renderer, use MinGW and an OpenGL 3.3 driver:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/capture_report_levels.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_report.ps1
-```
-
-The capture tool creates a hidden graphics context and saves `docs/images/level-top-1.png` through `level-top-7.png`. PDF-only compilation uses the saved images.
-
+| ![Released Level 1](docs/images/release-level-1.png) | ![Released Level 2](docs/images/release-level-2.png) | ![Released Level 3](docs/images/release-level-3.png) |
+| **Level 4: movement and cover** | **Level 5: motion and birds** | **Level 6: increased speed and NPCs** |
+| ![Released Level 4](docs/images/release-level-4.png) | ![Released Level 5](docs/images/release-level-5.png) | ![Released Level 6](docs/images/release-level-6.png) |
+| **Level 7: bird and human penalties** | **Final-level results** | |
+| ![Released Level 7](docs/images/release-level-7.png) | ![Final-level results](docs/images/release-level-7-results.png) | |
 ## Report contents and implementation overview
 
-The proposed game includes an arena, aimed gun, ring targets, stands, moving bullets, boxes/platforms, hit effects, lighting, multiple views and interactive controls. The completed implementation uses **transformed cubes for every world object**: barrels and bullets are cuboids; the circular-looking target consists of **32 cube slices**, with six rings drawn in the fragment shader. Assemblies are separate draw calls, not Boolean mesh unions. The report uses **11-point Times text, 0.6-inch margins on all four sides, one-and-a-half body spacing, nine numbered major sections and numbered subsections (1.1, 1.2, etc.)**, with no chapters or forced section-per-page breaks. Captions use 11-point text, and references use IEEE numbered citation format in order of first citation. The cover and references are included in its exact 20-page total.
+The proposed arena, aiming system, target stands, bullets, scenery, hit effects and camera controls have been implemented. **Transformed cubes are used for every world object**: barrels and bullets are represented by cuboids, and target plates by **32 slices** with shader-generated rings. Multipart assemblies are rendered through separate draw calls. Geometric simplifications are distinguished from functional completion in the report. The report uses **11-point Times text, 0.6-inch margins on all four sides, one-and-a-half body spacing, nine numbered major sections and numbered subsections (1.1, 1.2, etc.)**, with no chapters or forced section-per-page breaks. Captions use 11-point text, and references use IEEE numbered citation format in order of first citation. The cover and references are included in its exact 20-page total.
 
 | Section | Topic and evidence |
 | --- | --- |
 | Cover | Original template identity: course, title, author/roll, teachers and KUET |
-| 1. Introduction and Objectives | Project scope and proposal-versus-implementation status |
-| 2. Gameplay and Level Design | Five modes, scoring, all seven levels, seven top-angle layout images and bounded motion |
+| 1. Introduction and Objectives | Project purpose, educational value, graphics concepts and implementation scope |
+| 2. Gameplay and Level Design | Five modes, scoring, all seven levels, seven release-level gameplay images and bounded motion |
 | 3. Object Construction and 3D Transformations | Model matrices; arena; worked shear; crate; complete weapon coordinate tables; all pistol, shotgun, rifle and target assembly frames |
 | 4. Animation, Shooting and Collision | All three projectile transformations, spread, ray/box collision, complete human/bird assemblies and effects |
 | 5. Camera and User Interaction | View/projection matrices, controls-to-code table and ground picking |
@@ -86,7 +84,7 @@ The proposed game includes an arena, aimed gun, ring targets, stands, moving bul
 | 9. Conclusion and Demonstration | Limits, demonstration sequence, key concepts and attribution |
 | References | IEEE-style project, specification, library and original research citations |
 
-A cube-built arena with seven Challenge levels, five modes, three weapons, moving targets, penalty NPCs and persistent leaderboards. This release adds a compact HUD and reusable surface textures while preserving gameplay, geometry, controls, scoring, spawning and collision.
+The completed arena is presented below. Depth, material identity and spatial organization are established through transformed geometry, surface textures and illumination; gameplay information is provided through the HUD and results screens.
 
 ![Final textured arena](docs/images/release-arena.png)
 
@@ -395,7 +393,7 @@ To add a static prop, use `makeCube` in a world builder and append it through `c
 
 ## Object construction: report examples and calculations
 
-The report's images are copied from the real `objects/` and `lighting/` captures. Construction values below match those examples. World units are meters. Displayed decimals are rounded; the generated guides retain nine significant digits and all eight cube-corner traces.
+The following construction examples are evaluated from the object builders and illustrated with the `objects/` and `lighting/` captures. World units are expressed in meters, and displayed decimals are rounded. Full-precision transforms and all eight cube-corner traces are retained in the generated guides.
 
 ### Shared mathematical pipeline
 
@@ -512,11 +510,11 @@ For horizontal floor offset `x` from the warm point lamp, `d=sqrt(x*x+4.7*4.7)` 
 
 For yaw `y`, pitch `p`, camera forward is `normalize(cos(y)*cos(p),sin(p),sin(y)*cos(p))`. Right is `normalize(cross(forward,worldUp))`; corrected up is `cross(right,forward)`. The view matrix rows use right, up and minus-forward with their eye dot products. Perspective uses `f=1/tan(FOV/2)`, diagonal `f/aspect,f`, depth terms `(far+near)/(near-far),2*far*near/(near-far)`, and bottom row `(0,0,-1,0)`. Gameplay uses FOV 60°, near `.05`, far `400`; isolated construction captures use FOV 45° and fitted clip planes. Bird's-Eye unprojects cursor coordinates into a ray and intersects Y=0 at `eye-ray*(eye.y/ray.y)`, then validates the observation position.
 
-Report Sections 6–7 and the following sections explain the nine texture-generation formulas, face-local UVs, texture arrays, filtering, normal matrix, Lambert diffuse, Phong reflection, point/spot falloff, smoothstep cone, emission, gamma, sky and all three shading modes. For an upward floor normal, the day sun's Lambert factor is about `.828449`. Under the warm lamp at `(-18,4.7,-12)`, distance `4.7` gives point attenuation `1/(1+.09*4.7+.032*4.7²)=.469510`. These are individual equation terms before texture and the final color clamp, not invented framebuffer measurements.
+Report Sections 6–7 and the following sections explain the nine texture-generation formulas, face-local UVs, texture arrays, filtering, normal matrix, Lambert diffuse, Phong reflection, point/spot falloff, smoothstep cone, emission, gamma, sky and all three shading modes. For an upward floor normal, the day sun's Lambert factor is about `.828449`. Under the warm lamp at `(-18,4.7,-12)`, distance `4.7` gives point attenuation `1/(1+.09*4.7+.032*4.7²)=.469510`. These values represent individual lighting terms before texture modulation and the final colour clamp.
 
 ## Texture system
 
-Nine original small maps are generated offline by [generate_textures.cpp](tools/generate_textures.cpp) and shipped under [assets/textures](assets/textures). These are deterministic grain, mortar, noise and weave patterns, not photographs. Runtime loads actual images into GPU textures; it does not evaluate the generator's patterns per fragment.
+Nine material maps are generated offline by [generate_textures.cpp](tools/generate_textures.cpp) and provided under [assets/textures](assets/textures). Grain, mortar, noise and weave are represented through deterministic procedural patterns. These images are loaded into GPU textures at startup; pattern generation is separated from per-fragment sampling.
 
 | Layer / Material | File | Repeats per scaled local meter |
 | --- | --- | --- |
@@ -573,7 +571,7 @@ g++ -std=c++17 -O2 tools/generate_textures.cpp -o generate-textures.exe
 Normal builds do not regenerate textures, protecting replacements. Prefer small resolutions and shared layers before considering larger assets.
 ## Lighting
 
-The existing rig and intensities are preserved; textures feed the same equation. No shadow pass, extra lights or PBR conversion was added. `createLighting` in [Lighting.cpp](src/world/Lighting.cpp) defines the rig; [lighting.glsl](shaders/lighting.glsl) implements reflection. Renderer caches day/night rigs instead of rebuilding their vectors each frame.
+The light rig is defined by `createLighting` in [Lighting.cpp](src/world/Lighting.cpp), and reflection is evaluated in [lighting.glsl](shaders/lighting.glsl). Texture-modulated base colour is combined with diffuse and specular terms. Day/night rigs are cached, allowing source conditions to be switched without rebuilding their vectors each frame. Shadow mapping and PBR are outside the implemented lighting model.
 
 | Source | Actual behavior |
 | --- | --- |
@@ -640,7 +638,7 @@ output = pow(clamp(lit,0,1), vec3(1/2.2))
 
 Distance has a 0.001 lower bound; cone bounds are angle cosines. This is Phong reflection using `reflect`, not Blinn–Phong. The final power is the existing display gamma approximation, without HDR tone mapping.
 
-Defaults are specular 0.12, shininess 24 and emission 0. Weapons use 0.75/80; target plates and fixtures use 0.45/48; crate bodies use specular 0.09. Values are preserved. CPU inverse-transpose normal matrices handle nonuniform scaling/shear.
+Defaults are specular 0.12, shininess 24 and emission 0. Weapons use 0.75/80; target plates and fixtures use 0.45/48; crate bodies use specular 0.09. Inverse-transpose normal matrices are computed on the CPU so that nonuniform scale and shear are handled correctly.
 
 | Key / shading | Implementation | Image |
 | --- | --- | --- |
@@ -668,9 +666,9 @@ Range and thin target health appear only when aimed at a target; out-of-range te
 
 ## Performance and verification
 
-Textures add one filtered array sample per fragment and two small material uniforms per object. A numeric draw-state cache skips unchanged color, material, texture and target-pattern uniform uploads between consecutive cubes; it resets at each scene pass. The shared cube, draw count, cached locations, CPU normal matrices, light count and collision are retained. Selection is numeric; defaults are set at object construction. No per-frame file lookup, texture allocation/upload or mip generation occurs.
+One filtered texture-array sample is evaluated per fragment, with material selection controlled by object uniforms. Unchanged colour, material, texture and target-pattern uploads are skipped through a draw-state cache that is reset at each scene pass. Uniform locations are cached, normal matrices are computed on the CPU, and material defaults are assigned during construction. File loading, texture allocation and mipmap generation are performed outside the frame loop.
 
-Cached day/night rigs and zero-color light skipping reduce avoidable work. UI remains one streamed draw. Existing scene-capacity reservation, aim cache, on-demand NPC shot colliders and background `SnapshotWriter` remain. Pending CSV writes coalesce; normal exit flushes the final snapshot. This does not claim GPU instancing or elimination of all frame allocations.
+Repeated work is reduced by cached light rigs, skipped zero-colour sources, reserved scene capacity and cached aim queries. NPC shot colliders are constructed on demand. The UI is submitted as one streamed draw, while calculation snapshots are written through the background `SnapshotWriter`. Pending writes are combined and the final snapshot is flushed at normal exit. GPU instancing is not implemented, and some frame allocations remain.
 
 `--benchmark` measures 200 frames after 40 warm-ups per day/night condition using the real level-7 scene, 1280 × 800, Phong, VSync off and `glFinish` for GPU completion. Timed regions exclude simulation, scene rebuilding, UI and disk work. This is a renderer comparison, not a whole-game FPS guarantee. See [release-verification.md](docs/release-verification.md) for hardware, measurements and test results.
 
@@ -691,7 +689,7 @@ powershell -File tools/convert_captures.ps1 -Source .release-work -Destination d
 powershell -File tests/verify_calc.ps1 -Path .release-work/smoke.csv -RequirePlayedCoverage -RequireChallengeCoverage -RequireModeCoverage
 ```
 
-Snapshots retain the 29-column transform schema in [src/persistence](src/persistence), describing current/visited cubes rather than invented unvisited scenes. `--export-calc` runs without OpenGL; `--calc`/`--leaderboard` redirect output. Texture layer/scaling are runtime fields, not new CSV columns. Root player records and `calc-init.csv` were preserved during checks.
+Snapshots retain the 29-column transform schema in [src/persistence](src/persistence), describing current/visited cubes rather than invented unvisited scenes. `--export-calc` runs without OpenGL; `--calc`/`--leaderboard` redirect output. Texture layer/scaling are runtime fields, not new CSV columns. Player records are stored separately from generated calculation and demonstration output.
 
 ## References and attribution
 
