@@ -29,6 +29,14 @@ ctest --test-dir .work-cmake --output-on-failure
 
 Textures are shipped assets, not generated during play. All models remain cubes; font and sound are generated in code.
 
+## Generated demonstrations
+
+Every standard game build (`build.bat`, `mingw32-make`, or CMake target `main`) regenerates [object guides](objects/README.md) and the [lighting guide](lighting/lighting.md), including when the game is already compiled. This requires OpenGL 3.3 and adds capture time to builds. Generation failures fail the build rather than silently leaving stale documentation.
+
+[objects/demonstrateObject.cpp](objects/demonstrateObject.cpp) selects deterministic examples from the real scene builders, captures every cube transform and assembly step, and writes numeric matrices and all eight corner calculations. Each type has one directory; alternate states stay inside that directory. [lighting/demonstrateLighting.cpp](lighting/demonstrateLighting.cpp) captures day/night, all three shading modes, all 16 source-family masks, fixtures, materials, emission and target flash using the actual renderer and shaders. Diagnostic source combinations are labeled separately from actual game presets.
+
+Regenerate without rebuilding the game using `mingw32-make demonstrations` (or `cmake --build .work-cmake --target generate_demonstrations`). Generated PNGs and Markdown stay in `objects/` and `lighting/`; the demo executable is not packaged with the game. Validate generated images and links with `powershell -NoProfile -ExecutionPolicy Bypass -File tests/verify_demonstrations.ps1`.
+
 ## Playing and modes
 
 ![Main menu](docs/images/release-menu.png)

@@ -193,7 +193,7 @@ void Renderer::drawTransformedCube(const SceneObject& object) {
     drawStateValid=true;
     glDrawArrays(GL_TRIANGLES,0,36);
 }
-void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection,Vec3 eye,bool night,int isolation) {
+void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection,Vec3 eye,bool night,int isolation,int lightMask) {
     glDisable(GL_DEPTH_TEST); glDepthMask(GL_FALSE);
     glUseProgram(skyProgram);
     if (skyNightLocation<0) skyNightLocation=glGetUniformLocation(skyProgram,"night");
@@ -207,21 +207,21 @@ void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& vi
     const auto& lighting=night?nightLighting:dayLighting;
     // Use cached uniform locations instead of per-frame string lookups.
     glUniform3f(eyePositionLocation,eye.x,eye.y,eye.z);
-    const Vec3 ambient=isolation<0 || isolation==0?lighting.ambient:Vec3{};
-    const Vec3 sun=isolation<0 || isolation==1?lighting.sunColor:Vec3{};
+    const Vec3 ambient=(lightMask&1) && (isolation<0 || isolation==0)?lighting.ambient:Vec3{};
+    const Vec3 sun=(lightMask&2) && (isolation<0 || isolation==1)?lighting.sunColor:Vec3{};
     glUniform3f(ambientColorLocation,ambient.x,ambient.y,ambient.z);
     glUniform3f(sunDirectionLocation,lighting.sunDirection.x,lighting.sunDirection.y,lighting.sunDirection.z);
     glUniform3f(sunColorLocation,sun.x,sun.y,sun.z);
     for (std::size_t i=0;i<lighting.points.size();++i) {
         glUniform3f(pointLocations[i].position,lighting.points[i].position.x,lighting.points[i].position.y,lighting.points[i].position.z);
-        const Vec3 color=isolation<0 || isolation==2?lighting.points[i].color:Vec3{};
+        const Vec3 color=(lightMask&4) && (isolation<0 || isolation==2)?lighting.points[i].color:Vec3{};
         glUniform3f(pointLocations[i].color,color.x,color.y,color.z);
     }
     for (std::size_t i=0;i<lighting.spots.size();++i) {
         const auto& light=lighting.spots[i];
         glUniform3f(spotLocations[i].position,light.position.x,light.position.y,light.position.z);
         glUniform3f(spotLocations[i].direction,light.direction.x,light.direction.y,light.direction.z);
-        const Vec3 color=isolation<0 || isolation==3?light.color:Vec3{};
+        const Vec3 color=(lightMask&8) && (isolation<0 || isolation==3)?light.color:Vec3{};
         glUniform3f(spotLocations[i].color,color.x,color.y,color.z);
         glUniform1f(spotLocations[i].innerCos,light.innerCos);
         glUniform1f(spotLocations[i].outerCos,light.outerCos);

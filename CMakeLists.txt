@@ -60,21 +60,37 @@ target_include_directories(main PRIVATE include)
 target_compile_definitions(main PRIVATE SHOOTER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(main PRIVATE scene_core)
 
+# Documentation uses the exact same builders, renderer, shaders and textures.
+add_executable(demonstrateObject objects/demonstrateObject.cpp lighting/demonstrateLighting.cpp
+    tools/Demonstration.cpp src/rendering/Renderer.cpp src/rendering/TextureCache.cpp src/third_party/glad.c)
+target_include_directories(demonstrateObject PRIVATE include)
+target_link_libraries(demonstrateObject PRIVATE scene_core)
+add_custom_target(generate_demonstrations
+    COMMAND $<TARGET_FILE:demonstrateObject> "${CMAKE_CURRENT_SOURCE_DIR}"
+    DEPENDS demonstrateObject
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMENT "Regenerating object and lighting demonstrations (requires OpenGL 3.3)"
+    VERBATIM)
+add_dependencies(main generate_demonstrations)
+
 if(WIN32)
     target_link_libraries(scene_core PUBLIC winmm)
     if(NOT MINGW)
         message(FATAL_ERROR "The bundled GLFW library requires 64-bit MinGW. Configure with -G \"MinGW Makefiles\".")
     endif()
     target_link_libraries(main PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/lib/libglfw3.a" opengl32 gdi32)
+    target_link_libraries(demonstrateObject PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/lib/libglfw3.a" opengl32 gdi32)
 else()
     find_package(OpenGL REQUIRED)
     find_package(glfw3 3.3 REQUIRED)
     target_link_libraries(main PRIVATE glfw OpenGL::GL)
+    target_link_libraries(demonstrateObject PRIVATE glfw OpenGL::GL)
 endif()
 
 if(MINGW OR CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(scene_core PRIVATE -Wall -Wextra)
     target_compile_options(main PRIVATE -Wall -Wextra)
+    target_compile_options(demonstrateObject PRIVATE -Wall -Wextra)
 endif()
 
 # Runs even when compilation is already up to date. No window or GPU is needed.

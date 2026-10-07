@@ -6,12 +6,21 @@ SRC = src/main.cpp src/core/Application.cpp src/testing/ModeSmoke.cpp $(CORE) sr
 HEADERS = $(wildcard src/*/*.h)
 TARGET = main.exe
 
-.PHONY: all run test clean
+.PHONY: all run test clean demonstrations
 all: $(TARGET)
 	@echo Final version build complete.
 
 $(TARGET): $(SRC) $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(SRC) $(LDFLAGS) -o $(TARGET)
+
+# Order-only phony prerequisite runs on every build without forcing a game relink.
+$(TARGET): | demonstrations
+
+demonstrateObject.exe: objects/demonstrateObject.cpp lighting/demonstrateLighting.cpp tools/Demonstration.cpp tools/Demonstration.h $(CORE) $(HEADERS) src/rendering/Renderer.cpp src/rendering/TextureCache.cpp src/third_party/glad.c
+	$(CXX) $(CXXFLAGS) objects/demonstrateObject.cpp lighting/demonstrateLighting.cpp tools/Demonstration.cpp $(CORE) src/rendering/Renderer.cpp src/rendering/TextureCache.cpp src/third_party/glad.c $(LDFLAGS) -o $@
+
+demonstrations: demonstrateObject.exe
+	./demonstrateObject.exe .
 
 run: all
 	./$(TARGET)
@@ -37,4 +46,4 @@ test: all core_tests.exe challenge_tests.exe mode_tests.exe release_tests.exe
 	./$(TARGET) --modes-smoke-test --calc .release-work/make-smoke-calc.csv --leaderboard .release-work/make-smoke-leaderboard.csv
 
 clean:
-	powershell -NoProfile -Command "Remove-Item -LiteralPath 'main.exe','core_tests.exe','challenge_tests.exe','mode_tests.exe','release_tests.exe' -ErrorAction SilentlyContinue"
+	powershell -NoProfile -Command "Remove-Item -LiteralPath 'main.exe','demonstrateObject.exe','core_tests.exe','challenge_tests.exe','mode_tests.exe','release_tests.exe' -ErrorAction SilentlyContinue"
