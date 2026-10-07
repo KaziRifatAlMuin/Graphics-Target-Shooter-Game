@@ -4,7 +4,7 @@
 
 CSE 4102: Computer Graphics and Image Processing Laboratory, KUET.
 
-**[Read the completed 20-page report](docs/report-revised.pdf)** · [LaTeX source](docs/report.tex) · [Download the game ZIP](TargetShooter-share.zip) · [Source repository](https://github.com/KaziRifatAlMuin/Graphics-Target-Shooter-Game)
+**[Read the completed 20-page report](report/report.pdf)** · [LaTeX source](report/report.tex) · [Download the game ZIP](TargetShooter-share.zip) · [Source repository](https://github.com/KaziRifatAlMuin/Graphics-Target-Shooter-Game)
 
 ## Download, setup and run
 
@@ -25,27 +25,23 @@ Normal game builds also regenerate `objects/` and `lighting/`, including when th
 
 ## Build the report PDF
 
-Install and finish setting up **MiKTeX or TeX Live**, with pdfLaTeX and the packages listed in [report.tex](docs/report.tex). TeXstudio is an editor; it still needs a TeX distribution. From the repository root:
+From the repository root, run this single command in PowerShell or Command Prompt:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_report.ps1
-# If pdfLaTeX is elsewhere:
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_report.ps1 -PdfLatex "C:\path\to\pdflatex.exe"
+.\report\build.bat
 ```
 
-The script copies **176 selected repository images** into `docs/images/report/`, converts the nine original texture PPMs to lossless PNGs, extracts object coordinate tables, compiles twice, and checks that **docs/report-revised.pdf has exactly 20 physical pages, including the cover and references**, with no unresolved citations or overflowing boxes. It also refreshes `docs/report.pdf`, `docs/report-final.pdf`, `docs/report-formatted.pdf` and `docs/report-presentation.pdf` when those files are not locked by a viewer. The official KUET logo is stored separately at `docs/images/kuet_logo.png`. The cover preserves the supplied [template](docs/template.tex), author, teachers and institution.
+The completed PDF is **[report/report.pdf](report/report.pdf)**. The command works from any current directory when the batch file is called by its path. It prepares the 176 selected images and source-derived coordinate tables, runs pdfLaTeX twice, and verifies exactly **20 pages**, resolved references and no overflowing content. No game build or OpenGL context is required.
 
-The scripted build keeps temporary output in `.report-build/pdf/`. If a viewer locks a PDF, close that viewer before replacing its file. Manual PDF commands after preparing images (these produce `docs/report.pdf`):
+**Requirement:** Windows PowerShell and **MiKTeX or TeX Live** with pdfLaTeX. MiKTeX is already installed on the project workstation; missing LaTeX packages are installed automatically during the build (internet access may be needed). For a new Windows machine, install MiKTeX once with `winget install --id MiKTeX.MiKTeX --exact`, finish its first-run setup, then run the command above. TeXstudio alone is not a TeX distribution. A custom installation can be selected with:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/prepare_report.ps1
-cd docs
-pdflatex -interaction=nonstopmode -halt-on-error report.tex
-pdflatex -interaction=nonstopmode -halt-on-error report.tex
+.\report\build.bat -PdfLatex "C:\path\to\pdflatex.exe"
 ```
 
-Edit the report text in [report-sections.tex](docs/report-sections.tex); edit its cover/style in [report.tex](docs/report.tex). `report-data/` contains generated assembly grids and coordinate tables. [report-image-manifest.csv](docs/report-image-manifest.csv) maps every selected image back to its source and records its SHA-256 hash. To compile elsewhere, retain `docs/report.tex`, `docs/report-sections.tex`, `docs/report-data/`, and `docs/images/` together. No game build or OpenGL context is needed just to compile the already prepared report.
+All report material is kept in `report/`: [main source and cover](report/report.tex), [section text](report/report-sections.tex), `report-data/`, `images/`, the original `template.tex`, the project proposal and [image provenance manifest](report/report-image-manifest.csv). Shared release screenshots and game documentation remain in `docs/`; the report's selected image copies are in `report/images/report/`. The report directory includes everything needed to compile its prepared LaTeX directly with pdfLaTeX; the one-command build additionally refreshes assets from the complete repository.
 
+Temporary build output is stored in `.report-build/pdf/`. Close any PDF viewer that locks `report/report.pdf` before rebuilding. Existing alternative PDF filenames in `report/` are refreshed for compatibility. The cover uses the Level 7 night-time player view at `report/images/cover-level-7-night.png`; it can be regenerated with `powershell -NoProfile -ExecutionPolicy Bypass -File tools/capture_report_levels.ps1`.
 
 ## Project introduction
 
@@ -700,6 +696,5 @@ The report and README use the local source as the authority for game-specific eq
 - [GLFW 3.3 Getting Started](https://www.glfw.org/docs/3.3/quick.html): context creation and event handling.
 - Bui Tuong Phong, [“Illumination for Computer Generated Pictures”](https://doi.org/10.1145/360825.360839), *Communications of the ACM*, 18(6), 311–317, 1975: reflection and interpolated-normal shading foundations.
 - Henri Gouraud, [“Continuous Shading of Curved Surfaces”](https://doi.org/10.1109/T-C.1971.223313), *IEEE Transactions on Computers*, C-20(6), 623–629, 1971: interpolated vertex-shading foundations.
-- [KUET](https://www.kuet.ac.bd/): institutional identity on the supplied cover. [Report image credits](docs/images/REPORT-SOURCES.md) identify the official logo source separately from original game assets.
 
 The game does not implement analytic sphere/cylinder meshes, Boolean unions, GPU instancing, skeletal skinning, shadow maps, ambient occlusion or PBR materials. Those are possible future extensions, not claims about the current project. Functional verification is not a universal FPS guarantee; comparisons use fixed scenes and a specified GPU context.

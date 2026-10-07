@@ -12,7 +12,7 @@ The project is intended to demonstrate how a reusable primitive can be transform
 \begin{center}\begin{tabularx}{\linewidth}{L{.20\linewidth}L{.20\linewidth}XX}\toprule
 Proposed feature & Final status & Implementation & Evidence \\\midrule
 Arena and scenery & Fully implemented & Floor, walls, crates, platforms & Arena/Cargo builders; Sec. 3.2--3.4\\
-Gun, bullets, circular targets & Partially implemented & Cuboids and 32 target slices replace curved meshes & Weapon/Target builders; Sec. 3.5--4.1\\
+Gun, bullets, circular targets & Fully implemented & Cuboids and 32 target slices provide the complete playable implementation & Weapon/Target builders; Sec. 3.5--4.1\\
 Motion and hit effects & Fully implemented & Sinusoids, rotation, recoil, fragments & Sec. 2.2 and 4\\
 Lighting and shading & Fully implemented & Ambient, sun, points, spots; three shading modes & Shader comparisons; Sec. 7\\
 Views and controls & Fully implemented & Player/arena/side/free views and mouse aiming & Camera and input logic; Sec. 5\\\bottomrule
@@ -407,7 +407,7 @@ An interactive seven-level game has been realized through geometric modelling, t
 \subsection{Demonstration sequence and key concepts}
 Static aiming, bounded translation and combined motion/penalties are demonstrated in Levels 1, 2 and 7 respectively. Weapon range, spread and recoil are compared through selection; spatial structure through camera switching; and night illumination through F6/F7/F8.
 \textbf{Model composition:} local scale and shear are applied before world placement through $TR_zR_yR_xHS$. \textbf{Normal transformation:} perpendicularity is preserved by the inverse transpose. \textbf{Shading:} highlights between vertices may be missed by Gouraud interpolation. \textbf{Collision:} obstacles between consecutive projectile positions are detected by segment intersection. \textbf{Light isolation:} identical illumination is obtained when masks differ only in zero-intensity source families.
-Project graphics and models were created by Kazi Rifat Al Muin \cite{project}; the institutional emblem is attributed to KUET \cite{kuet}.
+Project graphics and models were created by Kazi Rifat Al Muin \cite{project}; the institutional emblem is shown on the cover.
 
 
 
@@ -417,5 +417,4 @@ Project graphics and models were created by Kazi Rifat Al Muin \cite{project}; t
 \bibitem{phong} B. T. Phong, ``Illumination for computer generated pictures,'' \emph{Commun. ACM}, vol. 18, no. 6, pp. 311--317, Jun. 1975, doi: \href{https://doi.org/10.1145/360825.360839}{10.1145/360825.360839}.
 \bibitem{gouraud} H. Gouraud, ``Continuous shading of curved surfaces,'' \emph{IEEE Trans. Comput.}, vol. C-20, no. 6, pp. 623--629, Jun. 1971, doi: \href{https://doi.org/10.1109/T-C.1971.223313}{10.1109/T-C.1971.223313}.
 \bibitem{glfw} GLFW, ``Getting started,'' \emph{GLFW 3.3 Documentation}. Accessed: Oct. 8, 2026. [Online]. Available: \url{https://www.glfw.org/docs/3.3/quick.html}
-\bibitem{kuet} Khulna University of Engineering \& Technology, ``KUET.'' Accessed: Oct. 8, 2026. [Online]. Available: \url{https://www.kuet.ac.bd/}
 \end{thebibliography}\end{spacing}

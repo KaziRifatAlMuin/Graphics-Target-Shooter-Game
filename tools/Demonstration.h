@@ -25,7 +25,8 @@ public:
     Renderer renderer;
     std::size_t images=0;
     void save(const fs::path& path, const std::vector<SceneObject>& objects,
-              const View& view, bool night=false, int mask=15, int shading=2);
+              const View& view, bool night=false, int mask=15, int shading=2,
+              int width=480, int height=360, float fieldOfView=45);
 };
 Catalogue demonstrateObjects(Capture& capture, const fs::path& root);
 void demonstrateLighting(Capture& capture, const fs::path& root, const Catalogue& examples);
