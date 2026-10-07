@@ -25,9 +25,12 @@ try {
     if($log -match 'undefined references|Citation .+ undefined|Reference .+ undefined|Overfull \\[hv]box') {
         throw 'Unresolved references or overflowing content found; inspect .report-build/pdf/report-built.log.'
     }
-    try { Copy-Item -LiteralPath (Join-Path $buildDirectory 'report-built.pdf') -Destination (Join-Path $root 'docs/report-final.pdf') -Force }
-    catch { throw 'The validated PDF is at .report-build/pdf/report-built.pdf. Close any viewer locking docs/report-final.pdf, then run this command again to replace it.' }
-    try { Copy-Item -LiteralPath (Join-Path $buildDirectory 'report-built.pdf') -Destination (Join-Path $root 'docs/report.pdf') -Force }
-    catch { Write-Warning 'docs/report.pdf is open in another application. The completed report is available as docs/report-final.pdf; rerun after closing the viewer to refresh both copies.' }
-    Write-Output 'Built docs/report-final.pdf: exactly 20 pages, with resolved references and no overfull boxes.'
+    $outputPdf=Join-Path $root 'docs/report-presentation.pdf'
+    try { Copy-Item -LiteralPath (Join-Path $buildDirectory 'report-built.pdf') -Destination $outputPdf -Force }
+    catch { throw 'Close the viewer locking docs/report-presentation.pdf and rerun. The validated PDF remains at .report-build/pdf/report-built.pdf.' }
+    foreach($alias in @('report.pdf','report-final.pdf','report-formatted.pdf')) {
+        try { Copy-Item -LiteralPath (Join-Path $buildDirectory 'report-built.pdf') -Destination (Join-Path $root ('docs/'+$alias)) -Force }
+        catch { Write-Warning "docs/$alias could not be replaced: $($_.Exception.Message) Use docs/report-presentation.pdf; rerun after closing the old viewer to refresh aliases." }
+    }
+    Write-Output 'Built docs/report-presentation.pdf: exactly 20 pages, with resolved references and no overfull boxes.'
 } finally { Pop-Location }
