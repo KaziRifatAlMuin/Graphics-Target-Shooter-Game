@@ -4,7 +4,7 @@
 
 CSE 4102: Computer Graphics and Image Processing Laboratory, KUET.
 
-**[Read the completed 20-page report](docs/report-final.pdf)** · [LaTeX source](docs/report.tex) · [Download the game ZIP](TargetShooter-share.zip) · [Source repository](https://github.com/KaziRifatAlMuin/Graphics-Target-Shooter-Game)
+**[Read the completed 20-page report](docs/report-presentation.pdf)** · [LaTeX source](docs/report.tex) · [Download the game ZIP](TargetShooter-share.zip) · [Source repository](https://github.com/KaziRifatAlMuin/Graphics-Target-Shooter-Game)
 
 ## Download, setup and run
 
@@ -33,7 +33,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_report.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_report.ps1 -PdfLatex "C:\path\to\pdflatex.exe"
 ```
 
-The script copies **190 selected repository images** into `docs/images/report/`, converts the nine original texture PPMs to lossless PNGs, extracts object coordinate tables, compiles twice, and checks that **docs/report-final.pdf has exactly 20 physical pages, including the cover and references**, with no unresolved citations or overflowing boxes. It also refreshes `docs/report.pdf` when that file is not locked by a viewer. The official KUET logo is stored separately at `docs/images/kuet_logo.png`. The cover preserves the supplied [template](docs/template.tex), author, teachers and institution.
+The script copies **176 selected repository images** into `docs/images/report/`, converts the nine original texture PPMs to lossless PNGs, extracts object coordinate tables, compiles twice, and checks that **docs/report-presentation.pdf has exactly 20 physical pages, including the cover and references**, with no unresolved citations or overflowing boxes. It also refreshes `docs/report.pdf`, `docs/report-final.pdf` and `docs/report-formatted.pdf` when those files are not locked by a viewer. The official KUET logo is stored separately at `docs/images/kuet_logo.png`. The cover preserves the supplied [template](docs/template.tex), author, teachers and institution.
 
 The scripted build keeps temporary output in `.report-build/pdf/`. If a viewer locks a PDF, close that viewer before replacing its file. Manual PDF commands after preparing images (these produce `docs/report.pdf`):
 
@@ -46,32 +46,45 @@ pdflatex -interaction=nonstopmode -halt-on-error report.tex
 
 Edit the report text in [report-sections.tex](docs/report-sections.tex); edit its cover/style in [report.tex](docs/report.tex). `report-data/` contains generated assembly grids and coordinate tables. [report-image-manifest.csv](docs/report-image-manifest.csv) maps every selected image back to its source and records its SHA-256 hash. To compile elsewhere, retain `docs/report.tex`, `docs/report-sections.tex`, `docs/report-data/`, and `docs/images/` together. No game build or OpenGL context is needed just to compile the already prepared report.
 
+
+### Seven levels from above
+
+The seven level views use the same camera: eye `(0,140,-25)`, look-at `(0,0,-50)`, 45-degree perspective, day lighting and Phong shading at the initial simulation state.
+
+| Level 1: 3 static targets | Level 2: horizontal motion | Level 3: separate motion axes |
+| --- | --- | --- |
+| ![Level 1 top view](docs/images/level-top-1.png) | ![Level 2 top view](docs/images/level-top-2.png) | ![Level 3 top view](docs/images/level-top-3.png) |
+| **Level 4: walking and cover** | **Level 5: 8 birds** | **Level 6: 16 birds** |
+| ![Level 4 top view](docs/images/level-top-4.png) | ![Level 5 top view](docs/images/level-top-5.png) | ![Level 6 top view](docs/images/level-top-6.png) |
+| **Level 7: 12 targets, 48 birds, 36 humans** | | |
+| ![Level 7 top view](docs/images/level-top-7.png) | | |
+
+To regenerate these images from the current game builders and renderer, use MinGW and an OpenGL 3.3 driver:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/capture_report_levels.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_report.ps1
+```
+
+The capture tool creates a hidden graphics context and saves `docs/images/level-top-1.png` through `level-top-7.png`. PDF-only compilation uses the saved images.
+
 ## Report contents and implementation overview
 
-The proposed game includes an arena, aimed gun, ring targets, stands, moving bullets, boxes/platforms, hit effects, lighting, multiple views and interactive controls. The completed implementation uses **transformed cubes for every world object**: barrels and bullets are cuboids; the circular-looking target consists of **32 cube slices**, with six rings drawn in the fragment shader. Assemblies are separate draw calls, not Boolean mesh unions. The following report map also organizes the detailed implementation documentation below.
+The proposed game includes an arena, aimed gun, ring targets, stands, moving bullets, boxes/platforms, hit effects, lighting, multiple views and interactive controls. The completed implementation uses **transformed cubes for every world object**: barrels and bullets are cuboids; the circular-looking target consists of **32 cube slices**, with six rings drawn in the fragment shader. Assemblies are separate draw calls, not Boolean mesh unions. The report uses **11-point Times text, 0.6-inch margins on all four sides, one-and-a-half body spacing, nine numbered major sections and numbered subsections (1.1, 1.2, etc.)**, with no chapters or forced section-per-page breaks. Captions use 11-point text, and references use IEEE numbered citation format in order of first citation. The cover and references are included in its exact 20-page total.
 
-| PDF page | Topic and evidence |
+| Section | Topic and evidence |
 | --- | --- |
-| 1 | Template cover: course, title, Kazi Rifat Al Muin, roll 2107042, teachers, KUET |
-| 2 | Project description, objectives, proposal-to-implementation correspondence |
-| 3 | Gameplay, five modes, controls, scoring, penalties and persistence |
-| 4 | All seven levels; bounded sinusoidal translation, phase and spin; world validation |
-| 5 | Unit cube, column-vector matrix order, all rotations/shears, inverse-transpose normals |
-| 6 | Floor, walls, towers, battlements, route markers and equipment platform |
-| 7 | Full numeric shear/rotation/translation calculation and ground anchoring |
-| 8 | Four-step crate assembly with actual coordinates and seeded layout rules |
-| 9 | All 11 pistol assembly steps, coordinates, grip shear, aiming and recoil |
-| 10 | All 14 shotgun and 15 rifle assembly steps and source-derived coordinate tables |
-| 11 | All 38 target/stand assembly steps, slice widths/centers, continuous ring mapping |
-| 12 | Three projectile models, muzzle aiming, spread, travel and inverse-transform slab collision |
-| 13 | All human/bird assembly steps, proportions, articulation, falls, blood and celebration |
-| 14 | Camera vectors, view/perspective matrices, movement and Bird's-Eye ray picking |
-| 15 | All nine texture maps, deterministic generation, planar UVs, array caching and mipmaps |
-| 16 | Ambient/directional diffuse and specular reflection, normal handling, emission and gamma |
-| 17 | Point/spot coordinates, colors, falloff, cone smoothstep and fixture construction |
-| 18 | Controlled flat/Gouraud/Phong comparisons and actual rendering limitations |
-| 19 | Architecture, build/run/report commands, practical optimizations and verification |
-| 20 | Conclusions, limits, source attribution and references |
+| Cover | Original template identity: course, title, author/roll, teachers and KUET |
+| 1. Introduction and Objectives | Project scope and proposal-versus-implementation status |
+| 2. Gameplay and Level Design | Five modes, scoring, all seven levels, seven top-angle layout images and bounded motion |
+| 3. Object Construction and 3D Transformations | Model matrices; arena; worked shear; crate; complete weapon coordinate tables; all pistol, shotgun, rifle and target assembly frames |
+| 4. Animation, Shooting and Collision | All three projectile transformations, spread, ray/box collision, complete human/bird assemblies and effects |
+| 5. Camera and User Interaction | View/projection matrices, controls-to-code table and ground picking |
+| 6. Texture Techniques | Nine procedural maps, exact generation rules, face UVs, arrays and filtering |
+| 7. Lighting and Shading | Source types, equations, attenuation, cone, gamma and flat/Gouraud/Phong comparisons |
+| 8. Implementation, Advanced Features and Verification | Major functions, build commands, optimizations, adjustable parameters and checks |
+| 9. Conclusion and Demonstration | Limits, demonstration sequence, key concepts and attribution |
+| References | IEEE-style project, specification, library and original research citations |
 
 A cube-built arena with seven Challenge levels, five modes, three weapons, moving targets, penalty NPCs and persistent leaderboards. This release adds a compact HUD and reusable surface textures while preserving gameplay, geometry, controls, scoring, spawning and collision.
 
@@ -421,7 +434,7 @@ The vertical half-extent is `0.5*(abs(M10)+abs(M11)+abs(M12)) ≈ 2.9833298`; tr
 
 | Unit cube | Scale | Shear | Final world placement |
 | --- | --- | --- | --- |
-| ![Support unit](docs/images/report/objects/boundary-sheared-stone-support/part-0-0.png) | ![Support scale](docs/images/report/objects/boundary-sheared-stone-support/part-0-1.png) | ![Support shear](docs/images/report/objects/boundary-sheared-stone-support/part-0-2.png) | ![Support final](docs/images/report/objects/boundary-sheared-stone-support/part-0-6.png) |
+| ![Support unit](objects/boundary-sheared-stone-support/part-0-0.png) | ![Support scale](objects/boundary-sheared-stone-support/part-0-1.png) | ![Support shear](objects/boundary-sheared-stone-support/part-0-2.png) | ![Support final](objects/boundary-sheared-stone-support/part-0-6.png) |
 
 Final inspection cameras recenter on world coordinates to preserve visibility; this is not an additional object transformation. [Complete support trace](objects/boundary-sheared-stone-support/boundary-sheared-stone-support.md).
 
@@ -438,7 +451,7 @@ Crate side `s=2.1/3=0.7`. The first seed-2107042 crate has yaw zero and body cen
 
 | 1: body | 2: vertical band | 3: horizontal band | 4: plate |
 | --- | --- | --- | --- |
-| ![Cargo step 1](docs/images/report/objects/cargo-crate/assembly-1.png) | ![Cargo step 2](docs/images/report/objects/cargo-crate/assembly-2.png) | ![Cargo step 3](docs/images/report/objects/cargo-crate/assembly-3.png) | ![Cargo step 4](docs/images/report/objects/cargo-crate/assembly-4.png) |
+| ![Cargo step 1](objects/cargo-crate/assembly-1.png) | ![Cargo step 2](objects/cargo-crate/assembly-2.png) | ![Cargo step 3](objects/cargo-crate/assembly-3.png) | ![Cargo step 4](objects/cargo-crate/assembly-4.png) |
 
 The bands extend by `.008` m and the label sits `.006` m beyond the face. Layout spacing is `.735` m; seeded 90° rotations, bounded lane jitter, 1–5-crate stacks and nonoverlapping L/T formations produce variety while preserving corridors. [Full cargo guide](objects/cargo-crate/cargo-crate.md).
 
@@ -458,7 +471,7 @@ partCenter = playerPosition + Q * (offset + (0,0,recoil*0.20))
 partModel = T(partCenter) * Ry(-playerYaw-90) * Rx(playerPitch) * H * S
 ```
 
-At player startup `(0,1.7,-5)`, yaw `-90°`, pitch `3.8°`, the pistol body center is approximately `(.32,1.49562,-5.69507)`. Firing sets recoil to 1; it decays by `7*dt`. Recoil above `.65` adds one emissive muzzle-flash cube. The report shows **every assembly frame and every permanent part's center, scale and rotation** on pages 9–10; the complete guides additionally show all individual transformation stages:
+At player startup `(0,1.7,-5)`, yaw `-90°`, pitch `3.8°`, the pistol body center is approximately `(.32,1.49562,-5.69507)`. Firing sets recoil to 1; it decays by `7*dt`. Recoil above `.65` adds one emissive muzzle-flash cube. Section 3 shows **every assembly frame and complete component coordinate tables for all three weapons**, with worked body, grip and magazine calculations. Individual transformation stages are also available in these guides:
 
 - [Pistol: 11 steps and all numeric traces](objects/weapon-pistol/weapon-pistol.md)
 - [Shotgun: 14 steps and all numeric traces](objects/weapon-shotgun/weapon-shotgun.md)
@@ -480,23 +493,26 @@ Slice 0 has center `(0,1.925,-19)` and width `.396863`; slice 15 has center `(0,
 
 | Base | Support structure complete | Half of plate assembled | All 38 cubes |
 | --- | --- | --- | --- |
-| ![Target base](docs/images/report/objects/target/assembly-1.png) | ![Target stand](docs/images/report/objects/target/assembly-6.png) | ![Target plate progress](docs/images/report/objects/target/assembly-22.png) | ![Target complete](docs/images/report/objects/target/assembly-38.png) |
+| ![Target base](objects/target/assembly-1.png) | ![Target stand](objects/target/assembly-6.png) | ![Target plate progress](objects/target/assembly-22.png) | ![Target complete](objects/target/assembly-38.png) |
 
 To keep rings continuous between slices, `patternScale=(width/1.6,.05/1.6,1)` and `patternOffset=(0,sliceY/1.6,0)`. The shader computes `q=localPosition*patternScale+patternOffset`, `radius=2*length(q.xy)`, `ring=clamp(int(radius*6),0,5)`. `fract(radius*6)>.95` draws separators; only local +Z faces print rings. [Every target assembly/transform step](objects/target/target.md).
 
 ### Projectiles, actors and effects
 
-Pistol/shotgun/rifle projectile scales are `(.10,.10,.25)`, `(.08,.08,.18)`, `(.13,.13,.30)`. The display centers are `(-12,1.17,-8.7)`, `(-8,1.17,-8.7)`, `(-4,1.17,-8.7)`, all directed along -Z. Actual shots start at `playerPosition + Q*(.32,-.22,-1.02)` for pistol or Z offset `-1.52` for long guns. They aim at the camera ray's nearest contact, then move by `min(speed*dt, range-travelled)` shortened to the nearest collision. Projectile orientation is X=`asin(direction.y)` and Y=`atan2(-direction.x,-direction.z)` in degrees. The report explains deterministic spread, camera/muzzle parallax correction and inverse-model slab intersection on page 12.
+Pistol/shotgun/rifle projectile scales are `(.10,.10,.25)`, `(.08,.08,.18)`, `(.13,.13,.30)`. The display centers are `(-12,1.17,-8.7)`, `(-8,1.17,-8.7)`, `(-4,1.17,-8.7)`, all directed along -Z. Actual shots start at `playerPosition + Q*(.32,-.22,-1.02)` for pistol or Z offset `-1.52` for long guns. They aim at the camera ray's nearest contact, then move by `min(speed*dt, range-travelled)` shortened to the nearest collision. Projectile orientation is X=`asin(direction.y)` and Y=`atan2(-direction.x,-direction.z)` in degrees. The report explains deterministic spread, camera/muzzle parallax correction and inverse-model slab intersection in Section 4.
 
 Humans have 21 cuboids and use `height/1.82` to scale reference dimensions to seeded heights of 2.05–2.20 m. Birds have 10 cuboids. Both place offsets using `npcPosition + Ry(heading)*Rx(fall)*offset`. Human walking swings limbs by `22*sin(animation)` degrees; bird wings flap by `35*side*sin(animation)` with sinusoidal center offsets. Human fall is `90*min(1,deathTime/.75)^2`; bird falling uses gravity 14 and pitch rate 260°/s. [Human construction](objects/human/human.md) and [bird construction](objects/bird/bird.md) show every part.
 
-Hit flash blends ring color toward `(1,.76,.2)` by `(hitTime/.25)*.5`. Twelve break fragments use radial velocities `(2.4*cos(a),2+2*sin(a),1.5)`, `a=2*pi*i/12`, gravity 7, and lifetime `.75`. Seeded blood uses gravity 13.5, expires, and flattens at the floor. Celebration uses a fixed golden-angle distribution, delayed particle ages, ballistic Y movement and cube rotations; its complete formula appears on report page 13 and in [Effects.cpp](src/gameplay/Effects.cpp). These cosmetic particles do not score or create new light sources.
+Hit flash blends ring color toward `(1,.76,.2)` by `(hitTime/.25)*.5`. Twelve break fragments use radial velocities `(2.4*cos(a),2+2*sin(a),1.5)`, `a=2*pi*i/12`, gravity 7, and lifetime `.75`. Seeded blood uses gravity 13.5, expires, and flattens at the floor. Celebration uses a fixed golden-angle distribution, delayed particle ages, ballistic Y movement and cube rotations; its complete formula appears in Section 4 and in [Effects.cpp](src/gameplay/Effects.cpp). These cosmetic particles do not score or create new light sources.
+
+
+For horizontal floor offset `x` from the warm point lamp, `d=sqrt(x*x+4.7*4.7)` and `N·L=4.7/d`. Its diffuse contribution is `(2.2,1.65,.9)*4.7 / (d*(1+.09*d+.032*d*d))`. This combines angular and distance falloff. The spotlight transition `I=t*t*(3-2*t)` has derivative `6*t*(1-t)`, zero at both cone boundaries; `t=.5` gives half intensity in cosine space. Report Section 7 includes the corresponding distance and fixture images.
 
 ### Camera and lighting equations in the report
 
 For yaw `y`, pitch `p`, camera forward is `normalize(cos(y)*cos(p),sin(p),sin(y)*cos(p))`. Right is `normalize(cross(forward,worldUp))`; corrected up is `cross(right,forward)`. The view matrix rows use right, up and minus-forward with their eye dot products. Perspective uses `f=1/tan(FOV/2)`, diagonal `f/aspect,f`, depth terms `(far+near)/(near-far),2*far*near/(near-far)`, and bottom row `(0,0,-1,0)`. Gameplay uses FOV 60°, near `.05`, far `400`; isolated construction captures use FOV 45° and fitted clip planes. Bird's-Eye unprojects cursor coordinates into a ray and intersects Y=0 at `eye-ray*(eye.y/ray.y)`, then validates the observation position.
 
-Report pages 15–18 and the following sections explain the nine texture-generation formulas, face-local UVs, texture arrays, filtering, normal matrix, Lambert diffuse, Phong reflection, point/spot falloff, smoothstep cone, emission, gamma, sky and all three shading modes. For an upward floor normal, the day sun's Lambert factor is about `.828449`. Under the warm lamp at `(-18,4.7,-12)`, distance `4.7` gives point attenuation `1/(1+.09*4.7+.032*4.7²)=.469510`. These are individual equation terms before texture and the final color clamp, not invented framebuffer measurements.
+Report Sections 6–7 and the following sections explain the nine texture-generation formulas, face-local UVs, texture arrays, filtering, normal matrix, Lambert diffuse, Phong reflection, point/spot falloff, smoothstep cone, emission, gamma, sky and all three shading modes. For an upward floor normal, the day sun's Lambert factor is about `.828449`. Under the warm lamp at `(-18,4.7,-12)`, distance `4.7` gives point attenuation `1/(1+.09*4.7+.032*4.7²)=.469510`. These are individual equation terms before texture and the final color clamp, not invented framebuffer measurements.
 
 ## Texture system
 
@@ -688,4 +704,4 @@ The report and README use the local source as the authority for game-specific eq
 - Henri Gouraud, [“Continuous Shading of Curved Surfaces”](https://doi.org/10.1109/T-C.1971.223313), *IEEE Transactions on Computers*, C-20(6), 623–629, 1971: interpolated vertex-shading foundations.
 - [KUET](https://www.kuet.ac.bd/): institutional identity on the supplied cover. [Report image credits](docs/images/REPORT-SOURCES.md) identify the official logo source separately from original game assets.
 
-The report preserves the template's cover and replaces its unrelated sample content. The game does not implement analytic sphere/cylinder meshes, Boolean unions, GPU instancing, skeletal skinning, shadow maps, ambient occlusion or PBR materials. Those are possible future extensions, not claims about the current project. Functional verification is not a universal FPS guarantee; comparisons use fixed scenes and a specified GPU context.
+The game does not implement analytic sphere/cylinder meshes, Boolean unions, GPU instancing, skeletal skinning, shadow maps, ambient occlusion or PBR materials. Those are possible future extensions, not claims about the current project. Functional verification is not a universal FPS guarantee; comparisons use fixed scenes and a specified GPU context.

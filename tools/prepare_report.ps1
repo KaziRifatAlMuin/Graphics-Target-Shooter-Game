@@ -5,8 +5,8 @@ $data=Join-Path $Root 'docs/report-data'
 New-Item -ItemType Directory -Force -Path $data | Out-Null
 function Write-Utf8($Path,$Text) { [IO.File]::WriteAllText($Path,$Text,$utf8) }
 function Assembly($Name,$Count,$Columns) {
-    $width=if($Columns -eq 8) { '.112' } elseif($Columns -eq 4) { '.237' } else { '.315' }
-    $text="\begin{center}\begin{tabular}{*{$Columns}{p{$width\linewidth}}}`n"
+    $width=if($Columns -eq 8) { '.112' } elseif($Columns -eq 6) { '.155' } elseif($Columns -eq 4) { '.237' } else { '.315' }
+    $text="\centering\begin{tabular}{*{$Columns}{p{$width\linewidth}}}`n"
     for($i=1;$i -le $Count;$i++) {
         $text+='\pic{objects/'+$Name+'/assembly-'+$i+'.png}{'+$i+'}'
         if($i % $Columns -eq 0) { $text+="\\[3pt]`n" } else { $text+=' & ' }
@@ -15,10 +15,10 @@ function Assembly($Name,$Count,$Columns) {
         for($i=$Count % $Columns;$i -lt $Columns-1;$i++) { $text+=' & ' }
         $text+="\\`n"
     }
-    $text+="\end{tabular}\end{center}`n"
+    $text+="\end{tabular}`n"
     Write-Utf8 (Join-Path $data ($Name+'-assembly.tex')) $text
 }
-Assembly 'weapon-pistol' 11 4
+Assembly 'weapon-pistol' 11 6
 Assembly 'weapon-shotgun' 14 8
 Assembly 'weapon-rifle' 15 8
 Assembly 'target' 38 8
@@ -33,7 +33,7 @@ foreach($name in @('weapon-pistol','weapon-shotgun','weapon-rifle','cargo-crate'
     $pattern='(?s)### ([^\r\n]+) \u2014 `([^`]+)`\s+.*?Position T = (\([^\r\n]+?\)) m; scale S = (\([^\r\n]+?\)); rotation \(Rx,Ry,Rz\) = (\([^\r\n]+?\)) degrees\.'
     $rows=[regex]::Matches($guide,$pattern)
     if($rows.Count -eq 0) { throw "No numeric rows found for $name" }
-    $text="\begin{center}\scriptsize\begin{tabular}{rllll}\toprule`nStep & Component & World center (m) & Scale (m) & Rotation (deg) \\\midrule`n"
+    $text="\begin{center}\normalsize\begin{tabular}{rllll}\toprule`nStep & Component & World center (m) & Scale (m) & Rotation (deg) \\\midrule`n"
     $i=0
     foreach($row in $rows) {
         $i++
@@ -50,7 +50,11 @@ foreach($name in @('weapon-pistol','weapon-shotgun','weapon-rifle','cargo-crate'
     Write-Utf8 (Join-Path $data ($name+'-values.tex')) $text
 }
 
-$files=@((Join-Path $Root 'docs/report-sections.tex')) + @(Get-ChildItem $data -Filter '*.tex' | ForEach-Object FullName)
+$body=Join-Path $Root 'docs/report-sections.tex'
+$files=@($body)
+foreach($inputMatch in [regex]::Matches([IO.File]::ReadAllText($body),'\\input\{([^}]+)\}')) {
+    $files+=Join-Path $Root ('docs/'+$inputMatch.Groups[1].Value)
+}
 $selected=New-Object 'System.Collections.Generic.SortedSet[string]'
 foreach($file in $files) {
     foreach($match in [regex]::Matches([IO.File]::ReadAllText($file),'\\pic\{([^}]+)\}')) { $null=$selected.Add($match.Groups[1].Value) }
