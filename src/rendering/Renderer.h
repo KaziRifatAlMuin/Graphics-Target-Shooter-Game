@@ -16,7 +16,8 @@ public:
     void initialize(const std::filesystem::path& shaderDirectory);
     int shadingMode=2;
     // isolation is used only by documentation captures: 0 ambient, 1 sun, 2 points, 3 spots.
-    void drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection, Vec3 eye, bool night, int isolation=-1);
+    // Documentation mask: ambient=1, sun=2, points=4, spots=8. Default preserves gameplay.
+    void drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection, Vec3 eye, bool night, int isolation=-1, int lightMask=15);
     void drawInterface(const std::vector<UiVertex>& vertices);
 private:
     TextureCache textures;
