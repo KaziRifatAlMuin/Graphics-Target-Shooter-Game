@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <stdexcept>
 namespace shooter {
+// Select one of the seven level definitions; reject out-of-range numbers.
 LevelConfig levelConfiguration(int number) {
     switch (number) {
     case 1:return Level1{}.configure(); case 2:return Level2{}.configure();
@@ -18,14 +19,17 @@ LevelConfig levelConfiguration(int number) {
     default:throw std::invalid_argument("Level must be 1 through 7.");
     }
 }
+// Load a level with a fresh intro timer and zero level time.
 void LevelManager::load(int number) {
     config=levelConfiguration(number); stage=LevelStage::Intro; transition=0; levelTime=0;
 }
+// Advance non-playing transition time and start gameplay after the 1.5-second intro.
 void LevelManager::updateTransition(float dt) {
     if (stage==LevelStage::Active) return;
     transition+=dt;
     if (stage==LevelStage::Intro && transition>=1.5f) { stage=LevelStage::Active; transition=0; }
 }
+// Finish only when all targets are eliminated, then checkpoint statistics for restarts.
 bool LevelManager::finishIfComplete(const std::vector<Target>& targets, RunStats& stats) {
     if (stage!=LevelStage::Active || targets.empty() ||
         !std::all_of(targets.begin(),targets.end(),[](const Target& t) { return t.eliminated; })) return false;
@@ -33,7 +37,9 @@ bool LevelManager::finishIfComplete(const std::vector<Target>& targets, RunStats
     stage=config.number==7?LevelStage::Finished:LevelStage::Complete;
     return true;
 }
+// Require a completed level and a one-second results delay before continuing.
 bool LevelManager::readyToAdvance() const { return stage==LevelStage::Complete && transition>=1.0f; }
+// Load the next numbered level only after the completion delay.
 bool LevelManager::advance() {
     if (!readyToAdvance()) return false;
     load(config.number+1); return true;

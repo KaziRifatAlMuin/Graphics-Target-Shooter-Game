@@ -10,9 +10,11 @@
 
 namespace shooter::demo {
 namespace {
+// Identify a weapon family from its scene object ID for documentation grouping.
 std::string weaponName(const SceneObject& o) {
     return o.id.find("PISTOL")!=std::string::npos?"pistol":o.id.find("SHOTGUN")!=std::string::npos?"shotgun":"rifle";
 }
+// Assign a stable example name and group from an object's type, component, and ID.
 std::pair<std::string,std::string> identity(const SceneObject& o) {
     if(o.type=="Cargo") return {"cargo-crate",o.parent};
     if(o.type=="Weapon") return {"weapon-"+weaponName(o),o.parent+(o.id.find("DISPLAY_")!=std::string::npos?"-display":"-held")};
@@ -29,6 +31,7 @@ std::pair<std::string,std::string> identity(const SceneObject& o) {
     if(o.type=="Environment" && o.id.find("EQUIPMENT_")!=std::string::npos) return {"equipment-table","table"};
     return {slug(o.type+"-"+o.component),o.id};
 }
+// List the implementation files explaining this example's geometry and behavior.
 std::vector<std::string> sources(const std::string& name,const Example& ex) {
     const auto& type=ex.parts.front().type;
     if(type=="Boundary" || type=="Arena") return {"src/world/Arena.cpp"};
@@ -43,6 +46,7 @@ std::vector<std::string> sources(const std::string& name,const Example& ex) {
     if(name.find("projectile")!=std::string::npos) return {"src/gameplay/Projectile.cpp","src/gameplay/Weapon.cpp"};
     return {"src/gameplay/GameScene.cpp","src/gameplay/Game.cpp"};
 }
+// Document a cube's transform stages, intermediate coordinates, and matching rendered images.
 void describePart(Capture& capture,std::ostream& out,const fs::path& folder,const SceneObject& o,const std::string& stem) {
     const auto& t=o.transform;
     out<<"\n### "<<o.component<<" — `"<<o.id<<"`\n\n"<<o.notes<<"\n\n"
@@ -110,6 +114,7 @@ void describePart(Capture& capture,std::ostream& out,const fs::path& folder,cons
     out<<"\nFinal M = T Rz Ry Rx H S:\n\n"; matrix(out,composeModelMatrix(t));
 }
 }
+// Collect real scene assemblies and alternate states, then generate their illustrated construction guides.
 Catalogue demonstrateObjects(Capture& capture,const fs::path& root) {
     Catalogue examples;
     std::map<std::string,std::string> covered;
@@ -227,6 +232,7 @@ Catalogue demonstrateObjects(Capture& capture,const fs::path& root) {
     return examples;
 }
 }
+// Initialize hidden OpenGL rendering and generate object and lighting demonstrations from the project.
 int main(int argc,char** argv) {
     using namespace shooter::demo;
     GLFWwindow* window=nullptr;

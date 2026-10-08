@@ -4,6 +4,7 @@
 #include <iostream>
 
 // Report photographs share the game's builders, shaders, textures and seeded levels.
+// Create a hidden OpenGL context and capture seven initial level views plus a nighttime cover image.
 int main(int argc, char** argv) {
     using namespace shooter;
     using namespace shooter::demo;

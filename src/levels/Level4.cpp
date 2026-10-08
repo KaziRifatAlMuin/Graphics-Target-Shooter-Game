@@ -1,5 +1,6 @@
 #include "Level4.h"
 namespace shooter {
+// Enable walking and cover with six targets, including spinning plates.
 LevelConfig Level4::configure() const {
     LevelConfig c; c.number=4; c.title="MOVE AROUND COVER"; c.playerMovement=true;
     c.targets={configuredTarget({-8,2.4f,-26},{1.5f,0,0},1.2f,0,1),

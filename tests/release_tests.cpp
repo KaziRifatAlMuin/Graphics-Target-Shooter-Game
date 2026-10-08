@@ -14,8 +14,11 @@
 using namespace shooter;
 namespace fs=std::filesystem;
 namespace {
+// Throw a readable failure when an expected release behavior is not satisfied.
 void check(bool value,const char* message) { if (!value) throw std::runtime_error(message); }
+// Read an entire test artifact so its saved contents can be compared.
 std::string read(const fs::path& path) { std::ifstream f(path); return {(std::istreambuf_iterator<char>(f)),{}}; }
+// Check human size, safe walking positions, and behavior around target stands.
 void humans() {
     Game game; game.startMode(GameMode::Developer,7); game.update(1.51f);
     int obstructions=0;
@@ -55,6 +58,7 @@ void humans() {
     check(game.soundEvents.back()==SoundEvent::HumanPenalty,"Human penalty reused weaker bird cue.");
     std::cout<<"PASS: proportional adult humans, actual Level 7 target obstruction, projectile interception and single stronger penalty.\n";
 }
+// Verify crate dimensions and stacked layouts against the shared human-size reference.
 void cargo() {
     const auto parts=generateCargoLayout(2107042);
     std::set<std::string> crates;
@@ -68,6 +72,7 @@ void cargo() {
     for (const auto& h:heights) { check(h.second>=1 && h.second<=5,"Stack out of bounds."); if(h.second==1) ++low; else if(h.second==5) ++high; else ++middle; }
     check(low && high && middle>low+high,"Stack distribution lost middle-height tendency.");
 }
+// Verify current and retained scene observations plus asynchronous snapshot writing.
 void snapshots(const fs::path& path) {
     Game game; CsvLogger logger;
     game.startMode(GameMode::Developer,1); auto first=game.scene(); logger.observe(first,0,false);
@@ -95,6 +100,7 @@ void snapshots(const fs::path& path) {
     check(failed,"CSV write failure was silently reported as success.");
     std::cout<<"PASS: every component retained across visited levels, complete schema, latest snapshot, shutdown flush and write errors.\n";
 }
+// Check intro/result timing and generated presentation geometry and sound cues.
 void presentation() {
     for (int i=0;i<int(SoundEvent::Count);++i) {
         const auto samples=synthesizeSound(SoundEvent(i)); float energy=0;
@@ -113,6 +119,7 @@ void presentation() {
     game.update(1);
     check(!drawPresentation(p,game,Screen::LevelComplete,state),"Completion animation never reveals results.");
 }
+// Check fatal character hits, falling poses, retained bodies, and single-shot penalties.
 void deaths() {
     Game g; g.startMode(GameMode::Free); g.update(1.51f);
     const auto living=createHumanObjects(g.humans[0],0);
@@ -154,6 +161,7 @@ void deaths() {
     check(g.elapsed==elapsed && g.birds[0].dead && g.humans[0].dead,"Results screen freezes falls or advances score clock.");
     std::cout<<"PASS: fatal NPC hits, coherent grounded falls, death audio, permanent absence, bounded expiring blood and cosmetic result updates.\n";
 }
+// Exercise name entry and duplicate-name confirmation against isolated leaderboard records.
 void names(const fs::path& path) {
     auto file=path.string()+".names.csv"; fs::remove(file);
     Leaderboard board(file); board.load(); RunStats best; best.score=900; best.levelsCleared=2; best.elapsed=25;
@@ -181,6 +189,7 @@ void names(const fs::path& path) {
     check(restarted.records().size()==2 && restarted.sorted(GameMode::Challenge)[0].stats.score==900,"Confirmation broke mode key/restart persistence.");
     std::cout<<"PASS: required name entry, trimmed same-mode duplicate warning, separate confirmation/rewrite, blank rejection and best-record preservation.\n";
 }
+// Verify day/night source settings, surviving-character redistribution, and required player names.
 void lightingAndSurvivors(const fs::path& path) {
     const auto day=createLighting(false),night=createLighting(true);
     check(day.sunColor.x>0 && length(night.sunColor)==0,"Sun must switch off at night.");
@@ -215,6 +224,7 @@ void lightingAndSurvivors(const fs::path& path) {
     std::cout<<"PASS: day/night lights, boundary floodlights, survivor reassignment/caps, required names in every mode.\n";
 }
 }
+// Run release regression scenarios and return failure if any assertion throws.
 int main(int argc,char** argv) {
     try { check(argc==2,"Expected isolated CSV test path."); humans(); cargo(); snapshots(argv[1]); presentation(); deaths(); names(argv[1]); lightingAndSurvivors(argv[1]);
         std::cout<<"PASS: reference-sized cargo, final presentation clocks and all audio cues.\n"; return 0;

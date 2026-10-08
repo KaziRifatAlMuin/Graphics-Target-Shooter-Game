@@ -1,6 +1,7 @@
 #include "gameplay/Weapon.h"
 
 namespace shooter {
+// Look up each weapon's range, speed, firing interval, spread, pellet count, and bullet size.
 const WeaponSpec& weaponSpec(WeaponType type) {
     static const WeaponSpec specs[]={
         {"PISTOL",25,42,.28f,0,1,{.10f,.10f,.25f}},
@@ -10,17 +11,21 @@ const WeaponSpec& weaponSpec(WeaponType type) {
     return specs[static_cast<int>(type)];
 }
 namespace {
+// Rotate a -Z-facing weapon by player pitch and yaw so it follows the camera aim.
 Mat4 orientation(const Camera& player) {
     return makeRotationY(-player.yaw-90)*makeRotationX(player.pitch);
 }
+// Rotate a local weapon offset as a direction (w=0), then add the player's position.
 Vec3 worldOffset(const Camera& player, Vec3 offset) {
     const auto p=transformPoint(orientation(player),{offset.x,offset.y,offset.z,0});
     return player.position+Vec3{p.x,p.y,p.z};
 }
 }
+// Return the barrel tip in world coordinates so projectiles begin at the visible weapon.
 Vec3 weaponMuzzle(WeaponType type, const Camera& player) {
     return worldOffset(player,{.32f,-.22f,type==WeaponType::Pistol?-1.02f:-1.52f});
 }
+// Assemble weapon-specific cube parts relative to the player, including recoil and a brief muzzle flash.
 std::vector<SceneObject> createWeapon(WeaponType type, const Camera& player, float recoil) {
     std::vector<SceneObject> result;
     const std::string prefix=type==WeaponType::Pistol?"PISTOL":type==WeaponType::Shotgun?"SHOTGUN":"RIFLE";

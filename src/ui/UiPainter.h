@@ -3,6 +3,7 @@
 #include <array>
 #include <cctype>
 namespace shooter {
+// Each UI vertex stores a 2D position and RGB color plus alpha (opacity).
 struct UiVertex { float x,y,r,g,b,a=1; };
 namespace ui {
 inline const Vec3 ink{.88f,.92f,.94f}, muted{.53f,.63f,.69f}, teal{.26f,.82f,.71f}, amber{.98f,.70f,.31f};
@@ -40,18 +41,22 @@ inline std::array<unsigned char,7> glyph(char character) {
 struct Painter {
     std::vector<UiVertex> vertices;
     float opacity=1;
+    // A rectangle is two triangles; six vertices give the GPU the required triangle corners.
     void rect(float x,float y,float w,float h,Vec3 c) {
         for (auto p:std::array<std::array<float,2>,6>{{{x,y},{x+w,y},{x+w,y+h},{x,y},{x+w,y+h},{x,y+h}}})
             vertices.push_back({p[0],p[1],c.x,c.y,c.z,opacity});
     }
+    // Read each character's 5x7 bit pattern and draw a small rectangle for every set bit.
     void text(float x,float y,const std::string& value,float scale,Vec3 c) {
         for (char ch:value) {
             const auto rows=glyph(ch);
             for (int row=0; row<7; ++row) for (int col=0; col<5; ++col)
+                // Bit mask 1<<(4-col) selects one font pixel from the current row's five stored bits.
                 if (rows[row]&(1<<(4-col))) rect(x+col*scale,y+row*scale,scale,scale,c);
             x+=6*scale;
         }
     }
+    // Make a thick line into a rectangle using perpendicular offset=(-dy,dx)*thickness/(2*length).
     void line(float x1,float y1,float x2,float y2,float thickness,Vec3 c) {
         const float dx=x2-x1,dy=y2-y1, length=std::sqrt(dx*dx+dy*dy);
         if (length==0) return;

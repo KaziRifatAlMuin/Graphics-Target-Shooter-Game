@@ -4,10 +4,12 @@
 #include <iomanip>
 #include <sstream>
 namespace shooter {
+// Round remaining seconds upward and display minutes=floor(s/60), seconds=s%60.
 std::string clockText(double seconds) {
     const int s=int(std::ceil(std::max(0.0,seconds-1e-5)));
     std::ostringstream out; out<<std::setfill('0')<<std::setw(2)<<s/60<<':'<<std::setw(2)<<s%60; return out.str();
 }
+// Draw mode-specific pages and return whether they replace the normal gameplay interface.
 bool drawModePage(ui::Painter& p,const Game& game,Screen screen,const UiState& state) {
     using namespace ui;
     if (screen==Screen::Menu) {
@@ -60,6 +62,7 @@ bool drawModePage(ui::Painter& p,const Game& game,Screen screen,const UiState& s
     }
     return false;
 }
+// Draw the mode timer, respawn notices, and Developer diagnostics over the game.
 void drawModeHud(ui::Painter& p,const Game& game,const UiState& state) {
     using namespace ui;
     const double seconds=game.mode==GameMode::Free?game.freeRemaining:game.usesLevel()?game.levels.levelTime:game.elapsed;

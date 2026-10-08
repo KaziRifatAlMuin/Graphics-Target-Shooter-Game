@@ -5,6 +5,7 @@
 #include "persistence/CsvLogger.h"
 #include <fstream>
 
+// Exercise deterministic cargo, collisions, firing/scoring, camera controls, exported observations, UI, and sound.
 void gameTests() {
     const auto cargo=generateCargoLayout(2107042), same=generateCargoLayout(2107042), other=generateCargoLayout(17);
     require(!cargo.empty() && cargo.size()==same.size(),"Cargo generation is not deterministic.");
@@ -51,6 +52,7 @@ void gameTests() {
     moving.movePlayer(1,0,4,true);
     require(moving.player.position.z>-8.1f,"Player walked through cargo.");
 
+    // Build a stationary single-target fixture so collision and scoring tests have predictable outcomes.
     auto controlled=[]() {
         Game game; game.staticObjects.clear(); game.targets.resize(1);
         game.player.pitch=0;
@@ -159,6 +161,7 @@ void gameTests() {
     require(std::isfinite(back.distance) && back.ring==-1,"Back face accepted a scoring hit.");
     auto edge=intersectTarget({5,0,0},{-1,0,0},circle,10);
     require(std::isfinite(edge.distance) && edge.ring==-1,"Target edge accepted a scoring hit.");
+    // Rotate both ray and target together; the same local ring should still be hit in every orientation.
     for (float yaw:{0.0f,90.0f,180.0f,270.0f}) for (int ring=0;ring<6;++ring) {
         circle.yaw=yaw;
         const Mat4 rotation=makeRotationY(yaw);

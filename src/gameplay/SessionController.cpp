@@ -1,29 +1,34 @@
 #include "gameplay/SessionController.h"
 #include <algorithm>
 namespace shooter {
+// Connect game, menu state, and saved rankings, requesting a name when the current mode needs one.
 SessionController::SessionController(Game& g,Leaderboard& b):game(g),leaderboard(b) {
     ui.name=game.playerName;
     if (game.usesLevel()) ui.screen=Screen::Playing;
     refreshBoard();
     if(game.mode==GameMode::Challenge || (game.usesLevel() && ui.name.empty())) requestName(game.mode);
 }
+// Trim surrounding spaces and continue editing if the name is blank.
 void SessionController::acceptName() {
     const auto first=ui.name.find_first_not_of(' '),last=ui.name.find_last_not_of(' ');
     ui.name=first==std::string::npos?"":ui.name.substr(first,last-first+1);
     ui.editingName=ui.name.empty();
 }
+// Accept printable ASCII characters up to 24 characters and refresh duplicate-name feedback.
 void SessionController::type(unsigned int codepoint) {
     if (ui.editingName && codepoint>=32 && codepoint<=126 && ui.name.size()<24) {
         ui.name+=char(codepoint); ui.duplicateConfirmation=false;
         if (ui.screen==Screen::ChallengeName) checkChallengeName();
     }
 }
+// Remove the last typed character and recalculate name warnings.
 void SessionController::backspace() {
     if (ui.editingName && !ui.name.empty()) {
         ui.name.pop_back(); ui.duplicateConfirmation=false;
         if (ui.screen==Screen::ChallengeName) checkChallengeName();
     }
 }
+// Look up the entered name in the current table and display its existing best result.
 void SessionController::checkChallengeName() {
     const auto first=ui.name.find_first_not_of(' '),last=ui.name.find_last_not_of(' ');
     const auto name=first==std::string::npos?std::string{}:ui.name.substr(first,last-first+1);
@@ -41,6 +46,7 @@ void SessionController::checkChallengeName() {
         }
     }
 }
+// Start a named session and reset UI/input state so the launch click cannot fire a shot.
 void SessionController::begin(GameMode mode,int level) {
     acceptName();
     if(ui.name.empty()) { requestName(mode); return; }
@@ -49,16 +55,19 @@ void SessionController::begin(GameMode mode,int level) {
     if (!ui.saveFailed) ui.message.clear();
     pointerUnlocked=false; snapshotDirty=inputReset=true;
 }
+// Open name entry for the selected mode and refresh its leaderboard.
 void SessionController::requestName(GameMode mode) {
     ui.pendingMode=mode; ui.screen=Screen::ChallengeName; ui.screenTime=0; ui.editingName=true;
     ui.duplicateConfirmation=false; ui.boardMode=mode; ui.hasResult=false;
     refreshBoard(); checkChallengeName(); inputReset=true;
 }
+// Route Developer to level selection or start the chosen playable mode.
 void SessionController::launchNamedMode() {
     if(ui.pendingMode==GameMode::Developer) {
         acceptName(); game.playerName=ui.name; ui.screen=Screen::Developer; inputReset=true;
     } else begin(ui.pendingMode);
 }
+// Reload rankings and rank, preserving pending-save warnings if disk access fails.
 void SessionController::refreshBoard() {
     try {
         leaderboard.load(); ui.rows=leaderboard.sorted(ui.boardMode);
@@ -68,6 +77,7 @@ void SessionController::refreshBoard() {
     } catch (const std::exception& e) { ui.message=e.what(); ui.saveFailed=true; }
     scroll(0);
 }
+// Retry queued results in order; retain an unsaved result when persistence throws an error.
 void SessionController::saveResults() {
     while (!pendingSaves.empty()) {
         try {
@@ -77,9 +87,11 @@ void SessionController::saveResults() {
     }
     refreshBoard();
 }
+// Clamp the first displayed row to [0, rowCount-visibleRows] so scrolling stays within the table.
 void SessionController::scroll(int rows) {
     ui.firstRow=std::clamp(ui.firstRow+rows,0,std::max(0,int(ui.rows.size())-leaderboardVisibleRows));
 }
+// Translate button/key actions into screen changes, mode launches, settings, or save retries.
 void SessionController::action(Action a) {
     if (a>=Action::Level1 && a<=Action::Level7) { begin(GameMode::Developer,1+int(a)-int(Action::Level1)); return; }
     switch (a) {
@@ -140,6 +152,7 @@ void SessionController::action(Action a) {
     }
     if (a!=Action::None) snapshotDirty=true;
 }
+// Advance UI/game time, save newly completed results, and select the appropriate results screen.
 void SessionController::update(float dt) {
     ui.animationTime+=dt;
     if (ui.screen!=animatedScreen) { animatedScreen=ui.screen; ui.screenTime=0; }

@@ -2,20 +2,26 @@
 #include "core/Collision.h"
 #include <algorithm>
 namespace shooter {
+// Create both overhead and ground observation cameras in their initial positions.
 BirdEyeCamera::BirdEyeCamera() { reset(); }
+// Place the overhead camera almost straight down; a small tilt avoids parallel forward/up vectors.
 void BirdEyeCamera::reset() {
     overhead.position={0,120,-50}; overhead.yaw=-90; overhead.pitch=-89.9f;
     observation.position={0,1.7f,-5}; observation.yaw=-90; observation.pitch=0; observing=false;
 }
+// Switch back to the overhead camera without changing its position.
 void BirdEyeCamera::overview() { observing=false; }
+// Move the overhead view horizontally by speed*dt and keep it inside the arena limits.
 void BirdEyeCamera::pan(float f,float r,float dt) {
     if (observing) return;
     overhead.position.x=std::clamp(overhead.position.x+r*25*dt,-25.f,25.f);
     overhead.position.z=std::clamp(overhead.position.z-f*25*dt,-90.f,-10.f);
 }
+// Change camera height by 8 meters per wheel step, clamped to 65-180 meters.
 void BirdEyeCamera::zoom(float steps) {
     if (!observing) overhead.position.y=std::clamp(overhead.position.y-steps*8,65.f,180.f);
 }
+// Convert normalized screen coordinates (u,v) into a world ray and intersect it with ground Y=0.
 std::optional<Vec3> BirdEyeCamera::groundPoint(float u,float v,float aspect) const {
     if (u<0 || u>1 || v<0 || v>1 || aspect<=0) return {};
     // Invert the same 60-degree perspective/view mapping used by Renderer.
@@ -23,15 +29,18 @@ std::optional<Vec3> BirdEyeCamera::groundPoint(float u,float v,float aspect) con
     const float half=std::tan(radians(60)*.5f);
     const auto ray=normalize(forward+right*((2*u-1)*aspect*half)+up*((1-2*v)*half));
     if (ray.y>=-.0001f) return {};
+    // Ray-plane intersection: t=-eye.y/ray.y, groundPoint=eye+t*ray.
     const auto p=overhead.position+ray*(-overhead.position.y/ray.y);
     if (!std::isfinite(p.x) || !std::isfinite(p.z)) return {};
     return Vec3{p.x,0,p.z};
 }
+// Accept only ground positions clear of solid obstacles and target stands.
 bool BirdEyeCamera::validPosition(Vec3 p,const std::vector<SceneObject>& obstacles,const std::vector<Target>& targets) const {
     if (!canStandAt(p,obstacles)) return false;
     for (const auto& t:targets) if (std::abs(p.x-t.position.x)<1.45f && std::abs(p.z-t.position.z)<1.25f) return false;
     return true;
 }
+// Place the observer 1.7 m above clear clicked ground, keeping overhead yaw but looking horizontally.
 bool BirdEyeCamera::observeAt(float u,float v,float aspect,const std::vector<SceneObject>& obstacles,const std::vector<Target>& targets) {
     const auto point=groundPoint(u,v,aspect);
     if (!point || !validPosition(*point,obstacles,targets)) return false;
@@ -40,6 +49,7 @@ bool BirdEyeCamera::observeAt(float u,float v,float aspect,const std::vector<Sce
     observation.position=*point+Vec3{0,1.7f,0}; observation.yaw=overhead.yaw; observation.pitch=0;
     observing=true; return true;
 }
+// Move the observation camera in small collision-checked horizontal steps.
 void BirdEyeCamera::moveObservation(float f,float r,float dt,bool fast,const std::vector<SceneObject>& obstacles,const std::vector<Target>& targets) {
     auto forward=observation.forward(); forward.y=0; forward=normalize(forward);
     const auto delta=normalize(forward*f+cross(forward,{0,1,0})*r)*((fast?9.f:5.f)*dt);
@@ -51,6 +61,7 @@ void BirdEyeCamera::moveObservation(float f,float r,float dt,bool fast,const std
         if (validPosition(next,obstacles,targets)) observation.position=next;
     }
 }
+// Build a visible marker showing the ground observation camera's location.
 std::vector<SceneObject> BirdEyeCamera::referenceObjects() const {
     // This visible marker is anchored to the real observation camera, not a CSV-only sample.
     auto base=makeCube("OBSERVATION_MARKER","Camera reference","Observation ground marker",

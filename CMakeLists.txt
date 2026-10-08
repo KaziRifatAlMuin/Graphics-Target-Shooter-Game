@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 3.15)
 project(TargetShooter VERSION 1.0.0 LANGUAGES C CXX)
 
+# Require C++17 for filesystem, optional values, and the other language features used by the game.
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(Threads REQUIRED)
 
+# Compile shared simulation, scene, and UI code once for the game, tools, and tests.
 add_library(scene_core
     src/world/Arena.cpp
     src/gameplay/GameMode.cpp
@@ -55,6 +57,7 @@ target_link_libraries(scene_core PUBLIC Threads::Threads)
 add_executable(scene_reference EXCLUDE_FROM_ALL tools/scene_reference.cpp)
 target_link_libraries(scene_reference PRIVATE scene_core)
 
+# Combine the application and GPU renderer with the generated OpenGL function loader.
 add_executable(main src/main.cpp src/core/Application.cpp src/testing/ModeSmoke.cpp src/rendering/Renderer.cpp src/rendering/TextureCache.cpp src/third_party/glad.c)
 target_include_directories(main PRIVATE include)
 target_compile_definitions(main PRIVATE SHOOTER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -73,6 +76,7 @@ add_custom_target(generate_demonstrations
     VERBATIM)
 add_dependencies(main generate_demonstrations)
 
+# Choose platform libraries; the bundled Windows GLFW archive requires the MinGW toolchain.
 if(WIN32)
     target_link_libraries(scene_core PUBLIC winmm)
     if(NOT MINGW)
@@ -101,6 +105,7 @@ add_custom_target(generate_calculations
     COMMENT "Regenerating calc.csv from the current scene"
     VERBATIM)
 
+# Register automated math, gameplay, persistence, and calculation-export checks with CTest.
 include(CTest)
 if(BUILD_TESTING)
     add_executable(release_tests tests/release_tests.cpp)

@@ -1,3 +1,4 @@
+// Generated GLAD loader resolves OpenGL function addresses at runtime; application startup calls gladLoadGL.
 /**
  * SPDX-License-Identifier: (WTFPL OR CC0-1.0) AND Apache-2.0
  */

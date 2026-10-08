@@ -1,3 +1,4 @@
+// Third-party GLFW API declarations provide windows, keyboard/mouse input, timing, and OpenGL contexts.
 /*************************************************************************
  * GLFW 3.5 - www.glfw.org
  * A library for OpenGL, window and input

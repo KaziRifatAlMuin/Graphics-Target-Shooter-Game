@@ -6,12 +6,14 @@
 
 namespace shooter::demo {
 namespace {
+// Decode bits 1,2,4,8 into the enabled ambient, sun, point, and spot source names.
 std::string maskName(int mask) {
     std::string result;
     const char* names[]={"ambient","sun","points","spots"};
     for(int i=0;i<4;++i) if(mask&(1<<i)) result+=(result.empty()?"":" + ")+std::string(names[i]);
     return result.empty()?"no light sources":result;
 }
+// Evaluate the shader's Phong reflection terms on the CPU to print a worked lighting calculation.
 void calculation(std::ostream& out,Vec3 p,Vec3 n,Vec3 eye,const LightingRig& rig,float ks,float shine) {
     n=normalize(n);const auto v=normalize(eye-p);Vec3 diffuse=rig.ambient,specular{};
     out<<"\nAt world surface P="<<vector(p)<<", N="<<vector(n)<<", eye="<<vector(eye)
@@ -19,6 +21,7 @@ void calculation(std::ostream& out,Vec3 p,Vec3 n,Vec3 eye,const LightingRig& rig
          "| Source | L | d | attenuation | cone dot | smoothstep | N dot L (clamped) | R dot V (clamped) | Diffuse RGB increment | Specular RGB increment |\n"
          "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |\n";
     auto add=[&](const std::string& name,Vec3 l,Vec3 color,float d,float attenuation,float cone,float intensity) {
+        // Reflection direction R=2*(N.L)*N-L; diffuse strength=max(N.L,0).
         const float ndl=std::max(0.f,dot(n,l));const auto r=n*(2*dot(n,l))-l;
         const float rdv=std::max(0.f,dot(r,v));
         const auto cd=color*(attenuation*intensity*ndl);
@@ -35,6 +38,7 @@ void calculation(std::ostream& out,Vec3 p,Vec3 n,Vec3 eye,const LightingRig& rig
     for(std::size_t i=0;i<rig.spots.size();++i) {
         const auto& l=rig.spots[i]; const auto delta=l.position-p;const float d=std::max(length(delta),.001f);
         const float cone=dot(delta*(-1/d),l.direction);
+        // Cone fade uses t=clamp((cosAngle-outerCos)/(innerCos-outerCos),0,1), then t*t*(3-2*t).
         const float t=std::clamp((cone-l.outerCos)/(l.innerCos-l.outerCos),0.f,1.f);
         add("spot "+std::to_string(i),delta*(1/d),l.color,d,1/(1+.025f*d+.002f*d*d),cone,t*t*(3-2*t));
     }
@@ -44,6 +48,7 @@ void calculation(std::ostream& out,Vec3 p,Vec3 n,Vec3 eye,const LightingRig& rig
          "the table does not invent a texture sample or claim to be a measured framebuffer pixel.\n";
 }
 }
+// Capture day/night, three shading modes, and all 16 light masks using the real game renderer.
 void demonstrateLighting(Capture& capture,const fs::path& root,const Catalogue& examples) {
     std::cout<<"Demonstrating lighting: day/night x 3 shading modes x 16 source masks\n";
     auto out=document(root/"lighting"/"lighting.md");const auto dir=root/"lighting";
@@ -124,6 +129,7 @@ void demonstrateLighting(Capture& capture,const fs::path& root,const Catalogue& 
     const auto side=normalize(cross(spot.direction,{0,1,0}));
     for(float angle:{0.f,32.f,42.5f,53.f,60.f}) {
         const auto ray=spot.direction*std::cos(radians(angle))+side*std::sin(radians(angle));
+        // Intersect the angled spotlight ray with Y=0: t=-light.y/ray.y, point=light+t*ray.
         const auto p=spot.position+ray*(-spot.position.y/ray.y);
         const View view{p+Vec3{3,5,6},p,.05f,250};const auto file="spot-angle-"+slug(number(angle))+".png";
         capture.save(dir/file,scene,view,true,8);

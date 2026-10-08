@@ -3,6 +3,7 @@ $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Drawing
 $count=0
 $diagramCount=0
+# Validate generated image dimensions, document links, and SVG structure before checking lighting coverage.
 foreach($folder in @('objects','lighting')) {
     $path=Join-Path $Root $folder
     foreach($file in Get-ChildItem -LiteralPath $path -Recurse -Filter '*.png') {
@@ -32,6 +33,7 @@ foreach($folder in @('objects','lighting')) {
     }
 }
 if($count -lt 1000) { throw "Incomplete demonstration output: $count images" }
+# Require every day/night, shading, and light-mask screenshot in the demonstration grid.
 foreach($period in @('day','night')) {
     foreach($shading in 0..2) { foreach($mask in 0..15) {
         foreach($suffix in @('','-close')) {

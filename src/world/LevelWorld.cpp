@@ -7,11 +7,13 @@
 #include <queue>
 #include <stdexcept>
 namespace shooter {
+// Cast a ray from one point to another; any closer cube contact blocks the line of sight.
 bool clearSightline(Vec3 from, Vec3 to, const std::vector<SceneObject>& objects) {
     const auto direction=normalize(to-from); const float distance=length(to-from);
     for (const auto& o:objects) if (intersectCube(from,direction,o.transform,distance)<distance) return false;
     return true;
 }
+// Check target visibility for fixed players, or reachable firing positions for walking players.
 void validateLevelWorld(const LevelConfig& c, const std::vector<SceneObject>& objects) {
     const Vec3 spawn{0,1.7f,-5};
     if (!c.playerMovement) {
@@ -23,6 +25,7 @@ void validateLevelWorld(const LevelConfig& c, const std::vector<SceneObject>& ob
         return;
     }
     // Flood fill the walkable meter grid from spawn; no diagonal corner cutting.
+    // Flatten grid coordinates with index=z*width+x; breadth-first search visits connected open cells.
     constexpr int width=51,depth=91;
     std::vector<bool> open(width*depth),visited(width*depth);
     auto position=[](int x,int z) { return Vec3{float(x-25),1.7f,float(-5-z)}; };
@@ -52,6 +55,7 @@ void validateLevelWorld(const LevelConfig& c, const std::vector<SceneObject>& ob
         if (!accessible) throw std::runtime_error("No reachable firing position for target "+std::to_string(index+1));
     }
 }
+// Combine the arena, fixtures, and cargo, retrying up to four seeded layouts if accessibility fails.
 std::vector<SceneObject> createLevelWorld(const LevelConfig& c) {
     auto objects=createArena();
     for (const auto& group:{createLightFixtures(),createEquipmentDisplay()}) objects.insert(objects.end(),group.begin(),group.end());

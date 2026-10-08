@@ -4,17 +4,20 @@
 #include <stdexcept>
 namespace shooter {
 namespace {
+// Choose walking destinations near the target, often crossing its firing lane.
 Vec3 humanDestination(Human& h) {
     // Cross the near side of the target zone often enough to obscure a firing lane.
     // Other waypoints still cover the full bounded neighborhood, so waiting/repositioning works.
     if (npcRandom(h)<.55f) return {h.home.x+(npcRandom(h)-.5f)*3.6f,0,h.home.z+1.6f+npcRandom(h)*.7f};
     return npcDestination(h,false);
 }
+// Check both solid-world clearance and the rectangular space occupied by each target stand.
 bool clearHumanPosition(Vec3 p,const std::vector<SceneObject>& obstacles,const std::vector<Target>& targets) {
     if (!canStandAt(p,obstacles)) return false;
     for (const auto& t:targets) if (std::abs(p.x-t.position.x)<1.4f && std::abs(p.z-t.position.z)<1.2f) return false;
     return true;
 }
+// Try up to 512 repeatable random positions, failing explicitly if no safe placement exists.
 void placeHuman(Human& h,const std::vector<SceneObject>& obstacles,const std::vector<Target>& targets) {
     for (int tries=0;tries<512;++tries) {
         const auto candidate=npcDestination(h,false);
@@ -23,6 +26,7 @@ void placeHuman(Human& h,const std::vector<SceneObject>& obstacles,const std::ve
     throw std::runtime_error("Human target zone has no safe standing position.");
 }
 }
+// Create a walker with seeded speed/height variation and a collision-free starting position.
 Human createHuman(std::size_t zone, Vec3 home, unsigned seed, const std::vector<SceneObject>& obstacles,const std::vector<Target>& targets) {
     Human h; h.zone=zone; h.home=home; h.random=seed; h.speed=.7f+npcRandom(h)*.8f;
     h.animation=npcRandom(h)*6;
@@ -35,10 +39,12 @@ Human createHuman(std::size_t zone, Vec3 home, unsigned seed, const std::vector<
     }
     h.destination=humanDestination(h); return h;
 }
+// Handle falling, resolve overlaps with moving stands, and walk toward bounded waypoints.
 void updateHuman(Human& h, float dt, const std::vector<SceneObject>& obstacles, const std::vector<Target>& targets) {
     if (h.dying) {
         h.deathTime+=dt;
         const float progress=std::min(1.f,h.deathTime/.75f);
+        // Falling angle=90*progress^2 gives a fall that starts slowly and accelerates.
         h.deathPitch=90*progress*progress;
         if (h.deathTime>=0.75f) {
             h.dying=false;
@@ -73,6 +79,7 @@ void updateHuman(Human& h, float dt, const std::vector<SceneObject>& obstacles, 
     if (!valid) { h.destination=humanDestination(h); h.pause=.1f+npcRandom(h)*.3f; }
     else { h.position=next; h.heading=std::atan2(-velocity.x,-velocity.z)*180/pi; }
 }
+// Assemble a proportionally scaled cube person with opposite arm and leg swings.
 std::vector<SceneObject> createHumanObjects(const Human& h, std::size_t index) {
     if (!h.active && !h.dying && !h.dead) return {};
     const auto id=(h.dead?"DEAD_HUMAN_":h.dying?"DYING_HUMAN_":"HUMAN_")+std::to_string(index);
@@ -80,6 +87,7 @@ std::vector<SceneObject> createHumanObjects(const Human& h, std::size_t index) {
     const Vec3 skin=skins[(index/3)%3], trousers{.15f,.20f,.28f};
     const Vec3 shirts[]={{.76f,.48f,.16f},{.21f,.47f,.53f},{.56f,.30f,.28f}};
     const Vec3 shirt=shirts[index%3];
+    // Walking swing=22*sin(animation) degrees; stop swinging while paused or fallen.
     const float walk=(h.dying || h.dead)?0.0f:(h.pause>0?0:std::sin(h.animation)*22);
     std::vector<SceneObject> parts;
     const float proportion=h.height/1.82f;

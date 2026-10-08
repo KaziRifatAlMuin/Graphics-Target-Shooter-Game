@@ -8,14 +8,18 @@
 #include <sstream>
 using namespace shooter;
 namespace {
+// Print XYZ with three decimal places for the generated scene reference.
 std::string vector(Vec3 v) { std::ostringstream s; s<<std::fixed<<std::setprecision(3)<<'('<<v.x<<", "<<v.y<<", "<<v.z<<')'; return s.str(); }
+// Take the smaller coordinate on each axis to accumulate lower bounds.
 Vec3 minimum(Vec3 a,Vec3 b) { return {std::min(a.x,b.x),std::min(a.y,b.y),std::min(a.z,b.z)}; }
+// Take the larger coordinate on each axis to accumulate upper bounds.
 Vec3 maximum(Vec3 a,Vec3 b) { return {std::max(a.x,b.x),std::max(a.y,b.y),std::max(a.z,b.z)}; }
 struct Group {
     std::array<int,7> counts{};
     Vec3 lowSize{1e6f,1e6f,1e6f},highSize{},lowPosition{1e6f,1e6f,1e6f},highPosition{-1e6f,-1e6f,-1e6f};
 };
 }
+// Measure real level builders and export cube counts, component ranges, and target-motion settings.
 int main(int argc,char** argv) {
     if(argc!=2) { std::cerr<<"Usage: scene_reference OUTPUT.md\n"; return 1; }
     std::ofstream out(argv[1]); if(!out) return 1;

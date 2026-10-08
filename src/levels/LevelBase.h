@@ -1,6 +1,7 @@
 #pragma once
 #include "gameplay/Target.h"
 namespace shooter {
+// Describe a level's targets, movement permission, seed, and character counts without running it.
 struct LevelConfig {
     int number=1;
     std::string title;
@@ -15,5 +16,6 @@ public:
     virtual ~LevelBase()=default;
     virtual LevelConfig configure() const=0;
 };
+// Set base position and sinusoidal motion; variation changes phase/direction while spin uses degrees/second.
 Target configuredTarget(Vec3 position, Vec3 amplitude={}, float speed=1, float spin=0, int variation=0);
 }

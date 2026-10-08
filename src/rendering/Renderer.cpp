@@ -5,12 +5,14 @@
 
 namespace shooter {
 namespace {
+// Read and compile a GPU program, reporting the compiler log if the shader is invalid.
 GLuint compileShader(GLenum kind, const std::filesystem::path& path) {
     std::ifstream file(path);
     if (!file) throw std::runtime_error("Cannot read shader: " + path.string());
     std::ostringstream buffer;
     buffer << file.rdbuf();
     std::string source = buffer.str();
+    // Expand the shared lighting include ourselves because this shader loader supplies GLSL as plain text.
     const std::string directive="#include \"lighting.glsl\"";
     const auto include=source.find(directive);
     if (include!=std::string::npos) {
@@ -34,6 +36,7 @@ GLuint compileShader(GLenum kind, const std::filesystem::path& path) {
     return shader;
 }
 }
+// Release GPU programs and buffers while the OpenGL context still exists.
 Renderer::~Renderer() {
     if (skyProgram) glDeleteProgram(skyProgram);
     if (uiVbo) glDeleteBuffers(1,&uiVbo);
@@ -43,6 +46,7 @@ Renderer::~Renderer() {
     if (vao) glDeleteVertexArrays(1,&vao);
     if (program) glDeleteProgram(program);
 }
+// Compile shaders, link drawing programs, and upload the shared cube and interface vertex layouts.
 void Renderer::initialize(const std::filesystem::path& directory) {
     textures.initialize(directory.parent_path()/"assets"/"textures");
     const GLuint vertex=compileShader(GL_VERTEX_SHADER,directory/"object.vert");
@@ -60,6 +64,7 @@ void Renderer::initialize(const std::filesystem::path& directory) {
         glGetProgramInfoLog(program,sizeof(log),nullptr,log);
         throw std::runtime_error(std::string("Shader link failed: ")+log);
     }
+    // Cache uniform locations: uniforms are settings shared by every vertex or pixel in a draw call.
     modelLocation=glGetUniformLocation(program,"model");
     viewLocation=glGetUniformLocation(program,"view");
     projectionLocation=glGetUniformLocation(program,"projection");
@@ -111,9 +116,11 @@ void Renderer::initialize(const std::filesystem::path& directory) {
         const Vec3 n=normals[face];
         vertices.insert(vertices.end(),{p.x,p.y,p.z,n.x,n.y,n.z});
     }
+    // A VBO stores vertex data; a VAO remembers how to read positions and normals from that data.
     glGenVertexArrays(1,&vao); glGenBuffers(1,&vbo);
     glBindVertexArray(vao); glBindBuffer(GL_ARRAY_BUFFER,vbo);
     glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(float)),vertices.data(),GL_STATIC_DRAW);
+    // Each vertex has six floats: XYZ position followed by XYZ surface normal.
     glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,6*sizeof(float),nullptr);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,6*sizeof(float),reinterpret_cast<void*>(3*sizeof(float)));
@@ -143,6 +150,7 @@ void Renderer::initialize(const std::filesystem::path& directory) {
     glGetProgramiv(skyProgram,GL_LINK_STATUS,&ok);
     if (!ok) throw std::runtime_error("Sky shader link failed.");
 }
+// Draw interface triangles over the scene; alpha blending gives C=alpha*front+(1-alpha)*back.
 void Renderer::drawInterface(const std::vector<UiVertex>& vertices) {
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
@@ -151,10 +159,12 @@ void Renderer::drawInterface(const std::vector<UiVertex>& vertices) {
     glDrawArrays(GL_TRIANGLES,0,static_cast<GLsizei>(vertices.size()));
     glBindVertexArray(0); glDisable(GL_BLEND); glEnable(GL_DEPTH_TEST);
 }
+// Set this cube's transform and material, then draw its 12 triangles (36 vertices).
 void Renderer::drawTransformedCube(const SceneObject& object) {
     const Mat4 model=composeModelMatrix(object.transform);
     glUniformMatrix4fv(modelLocation,1,GL_FALSE,model.data.data());
     // Compute normal matrix on CPU to avoid per-vertex transpose(inverse(mat3(model))) in the shader.
+    // Normals use N'=(M^-1)^T*N so they remain perpendicular after unequal scaling or shearing.
     if (normalMatrixLocation>=0) {
         const Vec3 a{model.at(0,0),model.at(1,0),model.at(2,0)}, b{model.at(0,1),model.at(1,1),model.at(2,1)},
                    c{model.at(0,2),model.at(1,2),model.at(2,2)};
@@ -167,6 +177,7 @@ void Renderer::drawTransformedCube(const SceneObject& object) {
             glUniformMatrix3fv(normalMatrixLocation,1,GL_FALSE,nm);
         }
     }
+    // Only resend material settings when their values change, reducing calls to the graphics driver.
     auto vectorUniform=[&](GLint location,Vec3 value,Vec3& previous) {
         if(!drawStateValid || value.x!=previous.x || value.y!=previous.y || value.z!=previous.z) {
             glUniform3f(location,value.x,value.y,value.z); previous=value;
@@ -193,6 +204,7 @@ void Renderer::drawTransformedCube(const SceneObject& object) {
     drawStateValid=true;
     glDrawArrays(GL_TRIANGLES,0,36);
 }
+// Draw the sky first, upload camera and light settings, then draw every transformed cube.
 void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection,Vec3 eye,bool night,int isolation,int lightMask) {
     glDisable(GL_DEPTH_TEST); glDepthMask(GL_FALSE);
     glUseProgram(skyProgram);
@@ -207,6 +219,7 @@ void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& vi
     const auto& lighting=night?nightLighting:dayLighting;
     // Use cached uniform locations instead of per-frame string lookups.
     glUniform3f(eyePositionLocation,eye.x,eye.y,eye.z);
+    // Light-mask bits 1,2,4,8 independently enable ambient, directional, point, and spot lighting.
     const Vec3 ambient=(lightMask&1) && (isolation<0 || isolation==0)?lighting.ambient:Vec3{};
     const Vec3 sun=(lightMask&2) && (isolation<0 || isolation==1)?lighting.sunColor:Vec3{};
     glUniform3f(ambientColorLocation,ambient.x,ambient.y,ambient.z);

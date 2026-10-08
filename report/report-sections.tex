@@ -1,14 +1,17 @@
 % Presentation report: continuous sections, 11-point body text.
 \section{Introduction and Objectives}
-3D Target Shooter has been developed as an interactive computer graphics project in which a three-dimensional shooting arena is explored, moving targets are engaged, and performance is evaluated through accuracy-based scoring. Seven progressive levels are provided, beginning with stationary targets and extending to combined translation, rotation, environmental cover and non-player characters. Through this progression, spatial judgement, weapon selection and controlled aiming are required within a consistent virtual environment \cite{project}.
-
-The project has been implemented in C++17 using OpenGL 3.3. Window creation and input handling are supported by GLFW, OpenGL functions are loaded through GLAD, and surface appearance is evaluated using GLSL shaders. All scene objects are assembled from a shared cube primitive. Consequently, complex-looking structures can be explained through explicit scaling, shearing, rotation and translation, without relying on imported models. The arena, weapons, targets and animated characters are therefore presented as practical applications of geometric modelling.
-
-The principal educational value is established through the integration of the graphics pipeline with observable gameplay. Model, view and projection transformations are used to position objects and form camera views; texture mapping is applied to distinguish materials; and ambient, diffuse and specular illumination are combined with directional, point and spot sources. Flat, Gouraud and Phong shading can be compared in the same scene. Motion, ray-based collision and interactive controls are connected to these calculations, allowing mathematical concepts to be demonstrated through a complete playable application.
+3D Target Shooter is an interactive computer graphics project built around a three-dimensional shooting arena, moving targets and accuracy-based scoring. The seven levels progress from stationary targets to animated targets, environmental cover and non-player characters. Implemented in C++17 with OpenGL 3.3, the project demonstrates modelling with a shared cube primitive, transformations, textures, lighting, shading, animation and collision detection. These graphics concepts are integrated into a complete playable application with multiple views, weapons and gameplay modes \cite{project}.
 \subsection{Relationship to the proposed project}
 The proposed arena, aiming system, targets, bullets, scenery and hit effects have been implemented with multiple views and lighting conditions. Curved geometry has been simplified: cuboids are used for barrels and bullets, and 32 slices with shader-generated rings are used for target plates. Functional completion and geometric simplification are distinguished below.
 \subsection{Objectives and proposal fulfilment}
-The project is intended to demonstrate how a reusable primitive can be transformed into a complete environment, how surface appearance can be produced through textures and illumination, and how rendered geometry can be connected to animation, aiming and collision. Particular emphasis is placed on reproducible object dimensions and agreement between visible surfaces and gameplay interactions.
+The project objectives are:
+\begin{enumerate}
+\item Construct a complete arena and its scenery from reusable cube-based geometry.
+\item Demonstrate scale, shear, rotation, translation, camera projection and normal transformation.
+\item Apply textures, materials, ambient, directional, point and spot lighting, and compare flat, Gouraud and Phong shading.
+\item Connect rendered geometry to animation, weapon aiming, projectile motion and ray-based collision.
+\item Verify reproducible dimensions, seeded layouts, scoring, persistence and agreement between visible surfaces and gameplay interactions.
+\end{enumerate}
 \begin{center}\begin{tabularx}{\linewidth}{L{.20\linewidth}L{.20\linewidth}XX}\toprule
 Proposed feature & Final status & Implementation & Evidence \\\midrule
 Arena and scenery & Fully implemented & Floor, walls, crates, platforms & Arena/Cargo builders; Sec. 3.2--3.4\\
@@ -21,9 +24,11 @@ Views and controls & Fully implemented & Player/arena/side/free views and mouse 
 World coordinates use meters; angles use degrees unless stated otherwise.
 \section{Gameplay and Level Design}\subsection{Game modes, scoring and interaction}
 \begin{figure}[htbp]\centering
+\setlength{\panelheight}{6cm}
 \begin{tabular}{p{.48\linewidth}p{.48\linewidth}}
 \pic{game/release-pistol.png}{Player view: aiming and HUD.}&\pic{game/release-arena.png}{Arena view: walls, lanes and targets.}
 \end{tabular}\caption{The finished game: one scene viewed from the player and arena cameras.}\end{figure}
+\setlength{\panelheight}{2.5cm}
 Gameplay is initiated through mode selection, after which targets are engaged from their printed front faces. A 1.5-second introduction is displayed before each Challenge level, and victory is recorded after Level 7 has been cleared. Simulation is suspended during menus, pause and results. Muzzle obstruction is evaluated independently of camera visibility, so a shot may be blocked by nearby cover even when the target is visible.
 \begin{center}\begin{tabularx}{\linewidth}{lX}\toprule
 Mode & Rules and persistence \\\midrule
@@ -33,7 +38,7 @@ Developer & Directly inspect any level; restart and diagnostics; no competitive 
 Bird's-Eye & Level-7 overview and safe click-to-observe camera; noncompetitive, no shooting.\\
 Practice & Seven sandbox targets; free movement; 1.8-second target respawn; separate scoring.\\\bottomrule
 \end{tabularx}\end{center}
-\textbf{Hit rules.} Each target is assigned 60 health. For ring index $r=0,\ldots,5$, integer damage is calculated as $D(r)=60/(r+1)$, yielding $60,30,20,15,12,10$. A fresh target is therefore destroyed by 1--6 equal-ring hits. Rear and edge contacts are blocked without ring damage. A shared shot ID is assigned to shotgun pellets, and only the maximum ring damage from that trigger is applied. Level-mode rewards are set to $+150$ for a one-shot elimination and $+100$ otherwise; bird and human penalties are $-100$ and $-200$. In Practice, applied damage and a 100-point destruction bonus are awarded. Negative scores are retained.
+\textbf{Hit rules:} Each target is assigned 60 health. For ring index $r=0,\ldots,5$, integer damage is calculated as $D(r)=60/(r+1)$, yielding $60,30,20,15,12,10$. A fresh target is therefore destroyed by 1--6 equal-ring hits. Rear and edge contacts are blocked without ring damage. A shared shot ID is assigned to shotgun pellets, and only the maximum ring damage from that trigger is applied. Level-mode rewards are set to $+150$ for a one-shot elimination and $+100$ otherwise; bird and human penalties are $-100$ and $-200$. In Practice, applied damage and a 100-point destruction bonus are awarded. Negative scores are retained.
 
 
 Leaderboard records are separated by mode and normalized player name. Best results are saved at eligible completion boundaries; quoted names and negative scores are supported by the CSV parser.
@@ -59,7 +64,7 @@ For configuration variation $v$, direction factor $d$ is assigned $-1$ for odd $
 \]
 Frequencies are expressed in radians per second, while spin is expressed in degrees per second. A coordinate is held fixed when its amplitude is zero. For the Level 2 centre target, $v=0$ and $k=1.1$ give $x(1)=2.3\sin(1.1)\approx2.0498$, $y=3$ and $z=-31$. Horizontal displacement is bounded by $[-2.3,2.3]$, and the time-zero centre is $(0,3,-31)$. In subsequent levels, initial displacement is also determined by the nonzero phase terms.
 
-\textbf{World validation.} In locked-player levels, visibility and range are checked at 32 motion samples separated by $.43$ s. In walkable levels, a $51\times91$ grid is flood-filled and reachable firing positions are required. Layout generation is retried with up to four seeds, incremented by 7919. Playability is improved by these sampled checks, although visibility is not guaranteed at every continuous instant. Target respawn is scheduled after 30 s in Free mode and 1.8 s in Practice. Configuration is defined in \path{src/levels/}; motion is evaluated by \texttt{updateTarget}.
+\textbf{World validation:} In locked-player levels, visibility and range are checked at 32 motion samples separated by $.43$ s. In walkable levels, a $51\times91$ grid is flood-filled and reachable firing positions are required. Layout generation is retried with up to four seeds, incremented by 7919. Playability is improved by these sampled checks, although visibility is not guaranteed at every continuous instant. Target respawn is scheduled after 30 s in Free mode and 1.8 s in Practice. Configuration is defined in \path{src/levels/}; motion is evaluated by \texttt{updateTarget}.
 \subsection{Level progression in the released game}
 The seven Challenge levels are illustrated through the released gameplay captures. The elevated arena view is used to reveal target placement, cargo cover and the available firing lanes, while the HUD identifies the active level and recorded session state. These are gameplay snapshots rather than identical time-zero states; accumulated scores and hit feedback may therefore be visible. Increasing spatial and motion complexity is demonstrated across the sequence.
 \begin{figure}[htbp]\centering
@@ -94,7 +99,7 @@ for (const auto& stage : modelTransformStages(t))
     model = stage.matrix * model;
 return model;
 \end{verbatim}
-\textbf{Normal transformation.} Under scale and shear, normals are transformed by $\mathbf N=\operatorname{normalize}((A^{-1})^T\mathbf n_l)$, where $A=M_{3\times3}$. For basis columns $\mathbf a,\mathbf b,\mathbf c$ and determinant $d=\mathbf a\cdot(\mathbf b\times\mathbf c)$, the normal-matrix columns are obtained as $(\mathbf b\times\mathbf c,\mathbf c\times\mathbf a,\mathbf a\times\mathbf b)/d$. Normal--surface perpendicularity is preserved, and consistent illumination is maintained on sheared parts. Shader attributes are subsequently interpolated during rasterization \cite{opengl}.
+\textbf{Normal transformation:} Under scale and shear, normals are transformed by $\mathbf N=\operatorname{normalize}((A^{-1})^T\mathbf n_l)$, where $A=M_{3\times3}$. For basis columns $\mathbf a,\mathbf b,\mathbf c$ and determinant $d=\mathbf a\cdot(\mathbf b\times\mathbf c)$, the normal-matrix columns are obtained as $(\mathbf b\times\mathbf c,\mathbf c\times\mathbf a,\mathbf a\times\mathbf b)/d$. Normal--surface perpendicularity is preserved, and consistent illumination is maintained on sheared parts. Shader attributes are subsequently interpolated during rasterization \cite{opengl}.
 \subsection{Arena, walls and environmental construction}
 A $60\times100$ m floor is used as the main arena surface. It is centred at $(0,-0.1,-50)$ and scaled by $(60,0.2,100)$, placing its upper face at $y=0$. Progression is directed along $-Z$. The environment is enclosed by four continuous 8 m walls; supports, towers and crenellations are added to establish scale and visual structure without opening the boundary.
 \begin{center}\begin{tabular}{llll}\toprule
@@ -157,7 +162,7 @@ Horizontal band & $(0,0,0)$ & $(s+.008,.055s,s+.008)$\\
 Plate & $(.15s,.19s,.5s+.006)$ & $(.27s,.16s,.012)$\\\bottomrule
 \end{tabular}\end{center}
 The plate centre is obtained as $(-21.125,.483,-19.644)$ with size $(.189,.112,.012)$. Surface separation is provided by the $0.008$ and $0.006$ offsets, preventing the visible details from being placed exactly coplanar with the body. Ground contact is established by the lower bound $.35-.7/2=0$.
-\textbf{Repeatable layout.} Cargo lanes are generated with \texttt{std::mt19937(seed)} at $x=-20,-15,15,20$, with jitter $(r\bmod7-3).08$. Crate spacing is set to $.735$, row depth to $z=-20-10\,row$, run length to $3+r\bmod5$, and yaw to $90(r\bmod4)$. Stack height is determined by $1+r_1\bmod3+r_2\bmod3$. Reserved corridors and target clearance are enforced to preserve movement and firing opportunities. Source: \path{Cargo.cpp}.
+\textbf{Repeatable layout:} Cargo lanes are generated with \texttt{std::mt19937(seed)} at $x=-20,-15,15,20$, with jitter $(r\bmod7-3).08$. Crate spacing is set to $.735$, row depth to $z=-20-10\,row$, run length to $3+r\bmod5$, and yaw to $90(r\bmod4)$. Stack height is determined by $1+r_1\bmod3+r_2\bmod3$. Reserved corridors and target clearance are enforced to preserve movement and firing opportunities. Source: \path{Cargo.cpp}.
 \subsection{Pistol assembly, aiming and recoil}
 The pistol is constructed from 11 permanent cuboids. Body offset $(.32,-.25,-.68)$ and scale $(.22,.22,.56)$ produce display centre $(-12.68,1.40,-8.68)$; the grip is scaled by $(.18,.37,.20)$. For the equipment display, anchor $\mathbf c=(-13,1.65,-8)$, yaw $-90^\circ$, pitch $0^\circ$ and zero recoil are used, giving identity orientation. One component is added at each assembly stage.
 \begin{figure}[htbp]
@@ -165,11 +170,11 @@ The pistol is constructed from 11 permanent cuboids. Body offset $(.32,-.25,-.68
 \caption{Pistol assembly: body, grip, barrel, sight, muzzle inset, lower trigger guard, front guard, then four side details. Every added cube is retained in the following state.}
 \end{figure}
 \input{report-data/weapon-pistol-values.tex}
-\textbf{Grip shear.} Before rotation, $h_{yz}=-0.3$ is applied, mapping a scaled point to $(x,y-.3z,z)$. The corner $(.5,.5,.5)$ is scaled to $(.09,.185,.10)$ and sheared to $(.09,.155,.10)$. After translation by $(-12.68,1.19,-8.5)$, the world coordinate $(-12.59,1.345,-8.4)$ is obtained. The grip slope is represented by
+\textbf{Grip shear:} Before rotation, $h_{yz}=-0.3$ is applied, mapping a scaled point to $(x,y-.3z,z)$. The corner $(.5,.5,.5)$ is scaled to $(.09,.185,.10)$ and sheared to $(.09,.155,.10)$. After translation by $(-12.68,1.19,-8.5)$, the world coordinate $(-12.59,1.345,-8.4)$ is obtained. The grip slope is represented by
 \[
  M_{grip}=\begin{bmatrix}.18&0&0&-12.68\\0&.37&-.06&1.19\\0&0&.20&-8.50\\0&0&0&1\end{bmatrix}.
 \]
-\textbf{Aiming and recoil in gameplay.} For player yaw $\psi$, pitch $\alpha$, component offset $\mathbf o$ and recoil $r$,
+\textbf{Aiming and recoil in gameplay:} For player yaw $\psi$, pitch $\alpha$, component offset $\mathbf o$ and recoil $r$,
 \[
  Q=R_y(-\psi-90)R_x(\alpha),\quad
  \mathbf p=\mathbf c+Q(\mathbf o+(0,0,.20r)),\quad
@@ -211,7 +216,7 @@ Slice & Local $y_i$ & Width $w_i$ & World center \\\midrule
 \end{tabular}\end{center}
 The stand height is $H=\max(.3,2.7-.8)=1.9$. Base: center $(0,.15,-19)$, scale $(2,.3,1.5)$. Pole: $(0,.95,-19)$, scale $(.24,1.9,.24)$. For side $q=\pm1$, brace center is $(.28q,.751,-19)$, scale $(.10,1.064,.12)$, $R_z=18q$ degrees; warning-strip center is $(.7q,.307,-19)$, scale $(.16,.012,1.36)$.
 
-\textbf{Ring continuity across slices.} Each slice has scale vector $\mathbf a=(w_i/1.6,.05/1.6,1)$ and offset vector $\mathbf b=(0,y_i/1.6,0)$. These correspond to the uniforms \texttt{patternScale} and \texttt{patternOffset}. Then $\mathbf q=\mathbf p_l\odot\mathbf a+\mathbf b$ and $\rho=2\|\mathbf q_{xy}\|$. The ring index is $\operatorname{clamp}(\lfloor6\rho\rfloor,0,5)$. Separators occur at $\operatorname{fract}(6\rho)>.95$. Only local $+Z$ faces print rings; others use $(.15,.18,.21)$. Yaw rotates the slices, normals and scoring front together. Sources: \path{Target.cpp}, \path{object.frag}.
+\textbf{Ring continuity across slices:} Each slice has scale vector $\mathbf a=(w_i/1.6,.05/1.6,1)$ and offset vector $\mathbf b=(0,y_i/1.6,0)$. These correspond to the uniforms \texttt{patternScale} and \texttt{patternOffset}. Then $\mathbf q=\mathbf p_l\odot\mathbf a+\mathbf b$ and $\rho=2\|\mathbf q_{xy}\|$. The ring index is $\operatorname{clamp}(\lfloor6\rho\rfloor,0,5)$. Separators occur at $\operatorname{fract}(6\rho)>.95$. Only local $+Z$ faces print rings; others use $(.15,.18,.21)$. Yaw rotates the slices, normals and scoring front together. Sources: \path{Target.cpp}, \path{object.frag}.
 
 \section{Animation, Shooting and Collision}\subsection{Projectiles and exact hit detection}
 The pistol, shotgun and rifle projectiles are scaled by $(.10,.10,.25)$, $(.08,.08,.18)$ and $(.13,.13,.30)$ respectively. Colour $(1,.8,.22)$, emission $.6$ and specular coefficient $.8$ are assigned to all three. Their motion is directed from the muzzle towards the selected aim point.
@@ -232,7 +237,7 @@ The muzzle is positioned at $\mathbf m=\mathbf c+Q(.32,-.22,z_m)$, with $z_m=-1.
 
 At each update, travel is calculated as $\ell=\min(v\Delta t,range-travelled)$ and shortened at the nearest collision. Position is advanced by $\mathbf p\leftarrow\mathbf p+\ell\mathbf d$. Simulation steps are limited to $1/120$ s. Visual orientation is obtained from $\theta_x=\arcsin(d_y)$ and $\theta_y=\operatorname{atan2}(-d_x,-d_z)$ in degrees, preserving alignment with the direction of travel.
 
-\textbf{Affine-box collision.} Ray origin and direction are transformed into local coordinates as $\mathbf o_l=A^{-1}(\mathbf o-\mathbf t)$ and $\mathbf d_l=A^{-1}\mathbf d$, without renormalization. Intersections with each $[-.5,.5]$ slab are computed using $t_1=(-.5-o_l)/d_l$ and $t_2=(.5-o_l)/d_l$. A hit is accepted when accumulated entry does not exceed exit; parallel rays outside a slab are rejected. Target slices are tested after inverse yaw, and animated cuboids are tested for NPCs. Front scoring additionally requires local $d_z<0$ and contact at $z=thickness/2$. The visible target shape is therefore respected instead of its enclosing square being treated as a scoring surface.
+\textbf{Affine-box collision:} Ray origin and direction are transformed into local coordinates as $\mathbf o_l=A^{-1}(\mathbf o-\mathbf t)$ and $\mathbf d_l=A^{-1}\mathbf d$, without renormalization. Intersections with each $[-.5,.5]$ slab are computed using $t_1=(-.5-o_l)/d_l$ and $t_2=(.5-o_l)/d_l$. A hit is accepted when accumulated entry does not exceed exit; parallel rays outside a slab are rejected. Target slices are tested after inverse yaw, and animated cuboids are tested for NPCs. Front scoring additionally requires local $d_z<0$ and contact at $z=thickness/2$. The visible target shape is therefore respected instead of its enclosing square being treated as a scoring surface.
 
 \subsection{People, birds and transient effects}
 For non-player characters, offsets are transformed by $\mathbf p=\mathbf p_{npc}+R_y(heading)R_x(fall)\mathbf o$ and component orientation by $R_y(heading)R_x(rx+fall)$. Humans are assembled from 21 cuboids and birds from 10. Rendered silhouettes and collision parts are generated by the same builders, so animated obstacles share the same geometric representation.
@@ -245,7 +250,7 @@ For non-player characters, offsets are transformed by $\mathbf p=\mathbf p_{npc}
 \caption{Bird assembly: body, head, beak, tail, wings, wing tips and eyes.}
 \end{figure}
 Human offsets and sizes are scaled by $q=H/1.82$ for seeded height $H\in[2.05,2.20]$. Torso offset $(0,1.12,0)$ and size $(.46,.58,.25)$ are used as reference proportions. Opposing limb swings are calculated as $22\sin(animation)$ degrees, and falling angle as $90\min(1,t/.75)^2$. Bird body size is set to $(.62,.26,.28)$. Bob $b=.045\sin(animation/2)$ and side-dependent flap $a_q=35q\sin(animation)$ are applied for $q=\pm1$. A wing centre of $(-.03,b-.35q\sin a_q,.35q\cos a_q)$ and size $(.38,.055,.64)$ produce articulated flight. Gravity 14 and pitch rate $260^\circ$/s are applied after fatal bird hits. Sources: \path{Human.cpp}, \path{Bird.cpp}.
-\textbf{Effects equations.} Hit feedback is produced by $f=hitTime/.25$, with ring colour blended towards $(1,.76,.2)$ by $f/2$. On destruction, 12 fragments are emitted with $\alpha_i=2\pi i/12$, velocity $(2.4\cos\alpha_i,2+2\sin\alpha_i,1.5)$, lifetime $.75$ s and gravity 7. Blood particles are assigned gravity 13.5 and seeded sizes $.035$--$.07$, then flattened near the floor. For celebration particle $i$, age $a=t-.045(i\bmod7)$, angle $\beta=2.39996i$ and speed $u=5+1.4(i\bmod5)$ give position $(0,22,-26)+(ua\cos\beta,(5+i\bmod4)a-2.5a^2,ua\sin\beta)$. Grounding is based on the lowest transformed corner. Temporary particles are removed after expiry, and no additional score is awarded by these visual effects.
+\textbf{Effects equations:} Hit feedback is produced by $f=hitTime/.25$, with ring colour blended towards $(1,.76,.2)$ by $f/2$. On destruction, 12 fragments are emitted with $\alpha_i=2\pi i/12$, velocity $(2.4\cos\alpha_i,2+2\sin\alpha_i,1.5)$, lifetime $.75$ s and gravity 7. Blood particles are assigned gravity 13.5 and seeded sizes $.035$--$.07$, then flattened near the floor. For celebration particle $i$, age $a=t-.045(i\bmod7)$, angle $\beta=2.39996i$ and speed $u=5+1.4(i\bmod5)$ give position $(0,22,-26)+(ua\cos\beta,(5+i\bmod4)a-2.5a^2,ua\sin\beta)$. Grounding is based on the lowest transformed corner. Temporary particles are removed after expiry, and no additional score is awarded by these visual effects.
 
 \section{Camera and User Interaction}\subsection{Views and projection}
 \begin{figure}[htbp]\centering
@@ -279,7 +284,7 @@ F5 & Snapshot & CSV request in \texttt{runScene} & Calculation file updates\\\bo
 \end{tabularx}\end{center}
 Input is processed by \texttt{runScene} in \path{Application.cpp}. For grounded movement, the forward vector is flattened and normalized. Collision is resolved separately along X and Z in steps no larger than $.15$ m, with player bounds $x\in[-26,26]$ and $z\in[-96,-4]$. Free-camera speeds are set to 12/30 m/s and height is constrained to at least $.3$ m.
 
-\textbf{Picking.} The overhead camera is initialized at $(0,120,-50)$ with yaw $-90^\circ$ and pitch $-89.9^\circ$. For normalized cursor $(u,v)$, the ray is calculated as $\mathbf r=\operatorname{normalize}[\mathbf f+(2u-1)a\tan30^\circ\mathbf s+(1-2v)\tan30^\circ\mathbf u]$. Ground intersection is obtained at $\mathbf e-\mathbf r(e_y/r_y)$. Unsafe or occluded positions are rejected; otherwise, the observation eye is placed 1.7 m above the selected point. Marker scale $(.9,.08,.9)$ and centre $(x,.045,z)$ are used, with a heading cube aligned to observation yaw/pitch.
+\textbf{Picking:} The overhead camera is initialized at $(0,120,-50)$ with yaw $-90^\circ$ and pitch $-89.9^\circ$. For normalized cursor $(u,v)$, the ray is calculated as $\mathbf r=\operatorname{normalize}[\mathbf f+(2u-1)a\tan30^\circ\mathbf s+(1-2v)\tan30^\circ\mathbf u]$. Ground intersection is obtained at $\mathbf e-\mathbf r(e_y/r_y)$. Unsafe or occluded positions are rejected; otherwise, the observation eye is placed 1.7 m above the selected point. Marker scale $(.9,.08,.9)$ and centre $(x,.045,z)$ are used, with a heading cube aligned to observation yaw/pitch.
 
 \section{Texture Techniques}\subsection{Generation, mapping and sampling}
 \begin{figure}[htbp]\centering
@@ -295,11 +300,11 @@ Nine grayscale reflectance maps are generated offline by \path{tools/generate_te
 \end{tabular}
 \caption{The actual texture pixels; tiling values are repeats per scaled local meter, not image enlargement factors.}
 \end{figure}
-\textbf{Offline pattern formulas.} Integer hash noise starts with $n=(x\mathbin{\&}255)374761393+(y\mathbin{\&}255)668265263+seed\,2246822519$ modulo $2^{32}$, scrambles $n\leftarrow(n\oplus(n\gg13))1274126177$, then returns $((n\oplus(n\gg16))\mathbin{\&}65535)/65535$. A wrapped grid interpolates noise using $g(t)=t^2(3-2t)$ in both dimensions. Masonry staggers 128-pixel bricks on 64-pixel courses; wood uses $\sin(.49x+3\sin(2\pi y/256)+2c)$ and plank seams every 64 pixels. Concrete/gravel combine coarse/fine noise; metal varies mainly along rows; fabric alternates $(x+y)\bmod2$; rubber adds an 8-pixel grip grid. Values are clamped to $[0,1]$, multiplied by 255 and copied to RGB.
+\textbf{Offline pattern formulas:} Integer hash noise starts with $n=(x\mathbin{\&}255)374761393+(y\mathbin{\&}255)668265263+seed\,2246822519$ modulo $2^{32}$, scrambles $n\leftarrow(n\oplus(n\gg13))1274126177$, then returns $((n\oplus(n\gg16))\mathbin{\&}65535)/65535$. A wrapped grid interpolates noise using $g(t)=t^2(3-2t)$ in both dimensions. Masonry staggers 128-pixel bricks on 64-pixel courses; wood uses $\sin(.49x+3\sin(2\pi y/256)+2c)$ and plank seams every 64 pixels. Concrete/gravel combine coarse/fine noise; metal varies mainly along rows; fabric alternates $(x+y)\bmod2$; rubber adds an 8-pixel grip grid. Values are clamped to $[0,1]$, multiplied by 255 and copied to RGB.
 
-\textbf{Face-local UVs.} For local position $\mathbf p_l$, scale $\mathbf s$ and tiling $\tau$, mapping coordinates are defined by $\mathbf q=(\mathbf p_l+.5)\odot|\mathbf s|\tau$. Pairs $(q_x,q_z)$, $(q_z,q_y)$ and $(q_x,q_y)$ are assigned to Y, X and Z faces respectively. With $\tau=.65$, a 60 m floor is tiled 39 times across X and 65 times across Z. Texture placement is attached to local geometry, so rotation and translation do not cause texture swimming. Under shear, the pattern is deformed with the surface. Planar face mapping is used throughout.
+\textbf{Face-local UVs:} For local position $\mathbf p_l$, scale $\mathbf s$ and tiling $\tau$, mapping coordinates are defined by $\mathbf q=(\mathbf p_l+.5)\odot|\mathbf s|\tau$. Pairs $(q_x,q_z)$, $(q_z,q_y)$ and $(q_x,q_y)$ are assigned to Y, X and Z faces respectively. With $\tau=.65$, a 60 m floor is tiled 39 times across X and 65 times across Z. Texture placement is attached to local geometry, so rotation and translation do not cause texture swimming. Under shear, the pattern is deformed with the surface. Planar face mapping is used throughout.
 
-\textbf{Sampling and colour.} Wrapping is set to \texttt{GL\_REPEAT}; linear magnification and trilinear mipmap minification are applied. Mip levels are generated once. Before illumination, base colour is evaluated as $\mathbf B=\mathbf C_{surface}\odot\operatorname{texture}(UV,layer)$. Plain is selected for emission $>.5$, Paper for target patterns, and the assigned material otherwise. Maps are treated as linear multipliers without automatic sRGB decoding. Nominal RGB storage is approximately 1.69 MiB for the base images and 2.25 MiB with mipmaps. Normal, roughness and displacement maps are not used.
+\textbf{Sampling and colour:} Wrapping is set to \texttt{GL\_REPEAT}; linear magnification and trilinear mipmap minification are applied. Mip levels are generated once. Before illumination, base colour is evaluated as $\mathbf B=\mathbf C_{surface}\odot\operatorname{texture}(UV,layer)$. Plain is selected for emission $>.5$, Paper for target patterns, and the assigned material otherwise. Maps are treated as linear multipliers without automatic sRGB decoding. Nominal RGB storage is approximately 1.69 MiB for the base images and 2.25 MiB with mipmaps. Normal, roughness and displacement maps are not used.
 
 \section{Lighting and Shading}\subsection{Ambient, directional and material lighting}
 Phong reflection is evaluated in the shader from world position and the inverse-transpose normal \cite{phong}. Surface orientation is represented by normalized $\mathbf N$, viewer direction by $\mathbf V=\operatorname{normalize}(eye-position)$, and incident-light direction by $\mathbf L$ pointing towards the source. Effective RGB intensity $\mathbf C$ is obtained after attenuation and cone factors have been applied. Diffuse shape cues and view-dependent highlights are then calculated as follows.
@@ -327,7 +332,7 @@ Values may exceed one before the final clamp; there is no HDR tone-mapping opera
  \mathbf C_{out}=\left[\operatorname{clamp}((1-e)\mathbf L_{lit}+e\mathbf B,0,1)\right]^{1/2.2}.
 \]
 Emission is implemented by blending towards unlit base colour with factor $e$; surrounding surfaces are illuminated only by the light sources. The daytime sun is represented by an emissive cube at $(25,35,-80)$ with scale $(4,4,4)$ and rotation $(0,25,15)^\circ$, and is omitted at night. Fixture-lens emission is set to 1 at night and 0 by day. The sky is rendered separately as $mix(horizon,zenith,smoothstep(.15,1,uv_y))$, independently of scene lighting and camera orientation.
-\textbf{Shader implementation.} The diffuse accumulator and reflection direction are evaluated in \path{lighting.glsl} by the following statements. Attenuation is included in \texttt{color} before the function is called.
+\textbf{Shader implementation:} The diffuse accumulator and reflection direction are evaluated in \path{lighting.glsl} by the following statements. Attenuation is included in \texttt{color} before the function is called.
 \begin{verbatim}
 float ndotl=max(dot(N,L),0.0);
 diffuse+=color*ndotl;
@@ -350,7 +355,7 @@ For a spot, $c=\operatorname{dot}(-\mathbf L,\mathbf d_{spot})$, $t=\operatornam
 \end{tabular}
 \caption{Night source isolation at a fixed camera; combining the families fills different regions of the same arena.}
 \end{figure}
-\textbf{Point example.} Directly under the warm lamp $(-18,4.7,-12)$, floor point $(-18,0,-12)$ has $d=4.7$, $\mathbf L=(0,1,0)$ and $A_p=1/(1+.423+.70688)=.469510$ approximately. Its diffuse increment is $(2.2,1.65,.9)A_p\approx(1.032922,.774692,.422559)$. This contribution joins the other light terms before texture modulation, specular reflection, emission and gamma.
+\textbf{Point example:} Directly under the warm lamp $(-18,4.7,-12)$, floor point $(-18,0,-12)$ has $d=4.7$, $\mathbf L=(0,1,0)$ and $A_p=1/(1+.423+.70688)=.469510$ approximately. Its diffuse increment is $(2.2,1.65,.9)A_p\approx(1.032922,.774692,.422559)$. This contribution joins the other light terms before texture modulation, specular reflection, emission and gamma.
 \begin{figure}[htbp]\centering
 \begin{tabular}{*{3}{p{.315\linewidth}}}
 \pic{lighting/point-floor-offset-1.png}{Floor offset: 1 m.}&\pic{lighting/point-floor-offset-5.png}{Floor offset: 5 m.}&\pic{lighting/point-floor-offset-12.png}{Floor offset: 12 m.}
@@ -388,7 +393,7 @@ Phong (F8)&Interpolate position/normal; normalize and evaluate lighting in the f
 \end{tabularx}\end{center}
 For a smooth varying $a$, perspective-correct interpolation is expressed as $a=(\sum_i\lambda_i a_i/w_i)/(\sum_i\lambda_i/w_i)$; this interpolation is bypassed for flat varyings \cite{opengl}. Smooth and flat diffuse/specular outputs are assigned in \path{object.vert}. They are selected for modes 0/1 in \path{object.frag}, while \texttt{lighting(worldPosition,worldNormal,...)} is evaluated for mode 2. Per-fragment evaluation provides finer local-light detail at the cost of additional fragment work.
 
-\textbf{Coverage.} Two presets, three shading modes, sixteen source masks and two viewpoints form $2\times3\times16\times2=192$ lighting comparisons. Bits are ambient=1, sun=2, points=4, spots=8. Inactive families produce identical images: points/spots by day, sun by night. Sky and emissive geometry remain visible without these sources. Shadows, AO, bloom and PBR are not implemented.
+\textbf{Coverage:} Two presets, three shading modes, sixteen source masks and two viewpoints form $2\times3\times16\times2=192$ lighting comparisons. Bits are ambient=1, sun=2, points=4, spots=8. Inactive families produce identical images: points/spots by day, sun by night. Sky and emissive geometry remain visible without these sources. Shadows, AO, bloom and PBR are not implemented.
 
 \section{Implementation, Advanced Features and Verification}
 Context/input are provided by GLFW and OpenGL entry points by GLAD \cite{glfw}. Input and timing are handled by \texttt{runScene}; gameplay by \texttt{Game::update/fire}; and geometry by world/level builders. The scene is submitted by \texttt{Renderer::drawArena}, with matrices uploaded by \texttt{drawTransformedCube}. Textures are managed by \texttt{TextureCache}, illumination by GLSL, and records/HUD by persistence/UI components. Each frame is processed in input, simulation, scene construction, world/sky rendering and UI order.

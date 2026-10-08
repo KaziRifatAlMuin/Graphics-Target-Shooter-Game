@@ -4,6 +4,7 @@
 #include <map>
 
 namespace shooter {
+// Export a real cube corner through scale, shear, rotation, and translation for every observed object.
 void writeCalculations(const std::vector<SceneObject>& objects, const std::filesystem::path& path);
 // Exact last-observed transient transforms survive between periodic disk writes.
 // Cleared at process startup; never imports stale CSV.

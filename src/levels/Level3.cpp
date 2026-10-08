@@ -1,5 +1,6 @@
 #include "Level3.h"
 namespace shooter {
+// Introduce separate X, Y, and Z target motions so each axis can be observed.
 LevelConfig Level3::configure() const {
     LevelConfig c; c.number=3; c.title="MULTI-AXIS INTRODUCTION";
     c.targets={configuredTarget({-8,2.8f,-30},{2,0,0},1.2f,0,1),
