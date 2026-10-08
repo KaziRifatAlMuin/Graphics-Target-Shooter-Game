@@ -2,6 +2,7 @@
 #include "world/Environment.h"
 #include "gameplay/Effects.h"
 namespace shooter {
+// Combine static scenery and current animated objects into the cube list used for this frame.
 std::vector<SceneObject> Game::scene(bool includePlayer) const {
     // Reserve capacity to avoid repeated reallocations. Static objects go first as a
     // block copy, then dynamic objects are appended. This is much cheaper than the
@@ -68,6 +69,7 @@ std::vector<SceneObject> Game::scene(bool includePlayer) const {
     }
     return objects;
 }
+// Add explanatory lighting metadata to the current scene for the calculation CSV.
 std::vector<SceneObject> Game::calculationObjects() const {
     auto objects=scene(true);
     // Full lighting annotation strings are only needed for CSV calculation exports,

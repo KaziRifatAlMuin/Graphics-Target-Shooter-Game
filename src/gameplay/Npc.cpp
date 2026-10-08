@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <limits>
 namespace shooter {
+// Repeatable random sequence: seed=1664525*seed+1013904223 (unsigned wrap), then map selected bits to [0,1].
 float npcRandom(NpcState& n) {
     n.random=n.random*1664525u+1013904223u;
     return float((n.random>>8)&65535)/65535;
 }
+// Choose a nearby waypoint: x=home.x+r*cos(angle), z=home.z+r*sin(angle), with bounded flight height.
 Vec3 npcDestination(NpcState& n, bool flying) {
     const float radius=flying?3.5f:3.0f;
     const float angle=npcRandom(n)*2*pi, distance=1.4f+npcRandom(n)*(radius-1.4f);
@@ -14,6 +16,7 @@ Vec3 npcDestination(NpcState& n, bool flying) {
         flying?std::clamp(n.home.y-1.0f+npcRandom(n)*3.0f,1.3f,7.0f):0,
         std::clamp(n.home.z+std::sin(angle)*distance,-94.0f,-13.0f)};
 }
+// Place a body part with worldOffset=Ry(heading)*Rx(fall)*localOffset, then add the character's position.
 SceneObject npcPart(const NpcState& n, const std::string& id, const std::string& type,
                    const std::string& component, Vec3 offset, Vec3 size, Vec3 color, float rx) {
     const float fall=(n.dying || n.dead)?n.deathPitch:0;
@@ -24,6 +27,7 @@ SceneObject npcPart(const NpcState& n, const std::string& id, const std::string&
     part.notes+="; life="+std::string(n.dead?"dead":n.dying?"falling":"alive")+"; death time="+std::to_string(n.deathTime);
     return part;
 }
+// Lift the whole assembly until its lowest transformed cube touches the ground.
 void groundNpcParts(std::vector<SceneObject>& parts,float ground) {
     float lowest=ground;
     for (const auto& part:parts) {
@@ -34,6 +38,7 @@ void groundNpcParts(std::vector<SceneObject>& parts,float ground) {
     }
     for (auto& part:parts) part.transform.position.y+=ground-lowest;
 }
+// Test each character's cube parts and return the nearest ray contact.
 NpcContact intersectNpcs(Vec3 o, Vec3 d, float maximum, const std::vector<NpcCollider>& colliders) {
     NpcContact result{std::numeric_limits<float>::infinity(),-1};
     for (std::size_t i=0;i<colliders.size();++i) for (const auto& part:colliders[i].parts) {

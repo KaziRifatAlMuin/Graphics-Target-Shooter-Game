@@ -13,6 +13,7 @@ void click(SessionController& session,Game& game,Action action) {
     throw std::runtime_error("Smoke: requested button is absent.");
 }
 }
+// Drive scripted session actions at specific frames to exercise Free, Developer, and Bird's-Eye modes.
 float modeSmokeStep(int frame,SessionController& session,Game& game,Leaderboard& board) {
     constexpr int counts[]={3,3,4,6,8,10,12};
     if (frame==0) { session.action(Action::Menu); click(session,game,Action::Developer); }
@@ -77,6 +78,7 @@ float modeSmokeStep(int frame,SessionController& session,Game& game,Leaderboard&
     if(frame==1005) { click(session,game,Action::ConfirmChallenge); require(session.ui.screen==Screen::Playing && game.levels.config.number==1,"Confirmed existing name failed to restart Challenge."); }
     return 1.f/60;
 }
+// Name selected smoke-test frames so screenshots correspond to known UI/game states.
 std::string modeSmokeCapture(int frame) {
     if (frame==0) return "developer-menu";
     if (frame>=1 && frame<=700 && (frame-1)%100==92) return "developer-"+std::to_string((frame-1)/100+1);
@@ -95,6 +97,7 @@ std::string modeSmokeCapture(int frame) {
     if (frame==993) return "free-leaderboard";
     return {};
 }
+// Check final scripted-session outcomes and signal when the smoke run may stop.
 bool modeSmokeFinished(int frame,SessionController&,Game& game,Leaderboard& board) {
     if (frame!=1010) return false;
     board.load();

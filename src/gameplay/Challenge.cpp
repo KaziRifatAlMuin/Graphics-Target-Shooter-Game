@@ -2,13 +2,17 @@
 #include "world/LevelWorld.h"
 #include <algorithm>
 namespace shooter {
+// Allow play in practice or while a level is in its active stage.
 bool Game::gameplayActive() const { return !usesLevel() || levels.stage==LevelStage::Active; }
+// Count targets that are neither eliminated nor waiting to respawn.
 int Game::remainingTargets() const {
     return int(std::count_if(targets.begin(),targets.end(),[](const Target& t) { return !t.eliminated && t.respawn<=0; }));
 }
+// Start Challenge through the shared mode initialization path.
 void Game::startChallenge(int firstLevel) {
     startMode(GameMode::Challenge,firstLevel);
 }
+// Reset run state and choose the requested level; Free and Bird's-Eye use the final arena.
 void Game::startMode(GameMode selected,int level) {
     if (selected==GameMode::Practice) { reset(); return; }
     const int number=(selected==GameMode::Free || selected==GameMode::BirdsEye)?7:level;
@@ -19,9 +23,11 @@ void Game::startMode(GameMode selected,int level) {
     loadCurrentLevel();
     if (mode==GameMode::BirdsEye) levels.stage=LevelStage::Active;
 }
+// Return a completed result once, then clear it to prevent duplicate submissions.
 std::optional<EligibleResult> Game::takeResult() {
     auto result=pendingResult; pendingResult.reset(); return result;
 }
+// Rebuild level scenery, targets, player state, and seeded character populations.
 void Game::loadCurrentLevel() {
     cachedAimFrame=-1;
     staticObjects=createLevelWorld(levels.config); targets=levels.config.targets;
@@ -40,20 +46,24 @@ void Game::loadCurrentLevel() {
     for (std::size_t zone=0;zone<targets.size();++zone) for (int i=0;i<std::clamp(c.humansPerTarget,0,10);++i)
         humans.push_back(createHuman(zone,targets[zone].base,c.seed+unsigned(zone)*547+unsigned(i)*193,staticObjects,targets));
 }
+// Advance only an eligible completed Challenge level and then rebuild its scene.
 bool Game::nextLevel() {
     if (mode!=GameMode::Challenge || !levels.advance()) return false;
     loadCurrentLevel(); return true;
 }
+// Restart the mode or restore statistics from the last completed Challenge level.
 void Game::restartLevel() {
     if (mode==GameMode::Free || mode==GameMode::BirdsEye || mode==GameMode::Developer) { startMode(mode,levels.config.number); return; }
     if (!usesLevel() || (levels.stage!=LevelStage::Active && levels.stage!=LevelStage::Intro)) return;
     static_cast<RunStats&>(*this)=levels.completedStats;
     levels.load(levels.config.number); loadCurrentLevel();
 }
+// Keep already-started death animations moving even when normal gameplay is no longer active.
 void Game::updateNpcDeaths(float dt) {
     for (auto& b:birds) if (b.dying) updateBird(b,dt,staticObjects);
     for (auto& h:humans) if (h.dying) updateHuman(h,dt,staticObjects,targets);
 }
+// Redistribute surviving characters from eliminated target zones, then advance their motion.
 void Game::updateNpcs(float dt) {
     // Keep survivors alive. Reassign only when their target is permanently eliminated.
     // Counts are separate for birds/humans; excess survivors wait in their old zone.
@@ -83,6 +93,7 @@ void Game::updateNpcs(float dt) {
     for(auto& b:birds) if(b.active) updateBird(b,dt,staticObjects);
     for(auto& h:humans) if(h.active) updateHuman(h,dt,staticObjects,targets);
 }
+// Use the same live character cube transforms for visible bodies and bullet collisions.
 std::vector<NpcCollider> Game::npcColliders() const {
     std::vector<NpcCollider> result;
     for (std::size_t i=0;i<birds.size();++i) if (birds[i].active) {
@@ -97,6 +108,7 @@ std::vector<NpcCollider> Game::npcColliders() const {
     }
     return result;
 }
+// Penalize each shot ID at most once per character, then start its death sound, particles, and animation.
 void Game::applyNpcHit(bool human,std::size_t index,std::uint64_t shotId) {
     if (!usesLevel() || mode==GameMode::BirdsEye || !gameplayActive()) return;
     NpcState& npc=human?static_cast<NpcState&>(humans.at(index)):static_cast<NpcState&>(birds.at(index));

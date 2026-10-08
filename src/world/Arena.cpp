@@ -1,6 +1,7 @@
 #include "world/Arena.h"
 
 namespace shooter {
+// Construct the 60x100 m arena from scaled cubes; Y is height and the floor surface is Y=0.
 std::vector<SceneObject> createArena() {
     std::vector<SceneObject> objects;
     const Vec3 stone{0.49f,0.55f,0.61f}, top{0.62f,0.68f,0.72f};

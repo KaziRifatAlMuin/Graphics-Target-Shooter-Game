@@ -7,12 +7,14 @@ namespace shooter {
 namespace {
 constexpr int sliceCount=32;
 // Thin cube slabs form a stepped circular silhouette. The same slabs drive hits.
+// Approximate a circular plate with 32 horizontal cube slices, reused for rendering and hit detection.
 const std::array<Transform,sliceCount>& slices() {
     static const auto shapes=[] {
         std::array<Transform,sliceCount> result{};
         const float height=2*Target::radius/sliceCount;
         for (int i=0;i<sliceCount;++i) {
             const float y=-Target::radius+(i+.5f)*height;
+            // Circle equation x^2+y^2=r^2 gives slice width=2*sqrt(r^2-y^2).
             const float width=2*std::sqrt(Target::radius*Target::radius-y*y);
             result[i].position={0,y,0};
             result[i].scale={width,height,Target::thickness};
@@ -22,8 +24,10 @@ const std::array<Transform,sliceCount>& slices() {
     return shapes;
 }
 }
+// Ring damage=60/(ring+1), so inner-to-outer rings need 1-6 separate hits against 60 health.
 int ringDamage(int ring) { return ring>=0 && ring<6?60/(ring+1):0; }
 
+// Undo target translation/yaw, test its slices, and score only entry through the printed front face.
 TargetContact intersectTarget(Vec3 origin, Vec3 direction, const Target& target, float maximum) {
     const auto inverse=makeRotationY(-target.yaw);
     const auto offset=origin-target.position;
@@ -38,11 +42,13 @@ TargetContact intersectTarget(Vec3 origin, Vec3 direction, const Target& target,
         const Vec3 hit=p+d*distance;
         const bool front=d.z<0 && p.z>=Target::thickness/2 &&
             std::abs(hit.z-Target::thickness/2)<.0001f;
+        // Hit radius=sqrt(x*x+y*y); ring=min(5,floor(6*radius/targetRadius)).
         const float radial=std::sqrt(hit.x*hit.x+hit.y*hit.y);
         result={distance,front?std::min(5,int(radial/Target::radius*6)):-1};
     }
     return result;
 }
+// Create seven practice targets with fixed starting positions and varied motion.
 std::vector<Target> createSandboxTargets() {
     const Vec3 positions[]={{0,2.7f,-19},{-8,3,-29},{8,4.4f,-38},{-6,3.5f,-52},
                             {8,5,-65},{0,3.7f,-82},{5,2.2f,-16}};
@@ -53,6 +59,7 @@ std::vector<Target> createSandboxTargets() {
     }
     return targets;
 }
+// Advance hit/respawn timers and evaluate position or spin from elapsed simulation time.
 void updateTarget(Target& t, float elapsed, float dt) {
     if (t.eliminated) return;
     t.hitTime=std::max(0.0f,t.hitTime-dt);
@@ -61,6 +68,7 @@ void updateTarget(Target& t, float elapsed, float dt) {
         if (t.respawn==0) { t.health=60; t.damageByShot.clear(); }
     }
     t.position=t.base;
+    // Sine motion stays within +/-amplitude; spin wraps at 360 degrees using the remainder.
     if (t.movement==0) t.position.x+=std::sin(elapsed*2.1f+t.phase)*4;
     if (t.movement==1) t.position.y+=std::sin(elapsed*2.8f+t.phase)*.8f;
     if (t.movement==2) t.yaw=std::fmod(elapsed*140+t.phase*30,360.0f);
@@ -69,6 +77,7 @@ void updateTarget(Target& t, float elapsed, float dt) {
         t.yaw=std::fmod(elapsed*t.motion.spinSpeed,360.0f);
     }
 }
+// Build the stand, supports, and plate slices, or show a warning while the target respawns.
 std::vector<SceneObject> createTargetObjects(const Target& t, std::size_t index) {
     std::vector<SceneObject> objects;
     const auto id="TARGET_"+std::to_string(index+1);
@@ -98,6 +107,7 @@ std::vector<SceneObject> createTargetObjects(const Target& t, std::size_t index)
         auto part=makeCube(id+"_SLICE_"+std::to_string(i++),"Target","Cube-built six-ring plate",
             t.position+slice.position,slice.scale,{.8f,.8f,.8f},t.yaw);
         part.targetPattern=true; part.specular=.45f; part.shininess=48; part.flash=t.hitTime/.25f;
+        // Map every slice into the same full-plate coordinates so ring colors join across slice boundaries.
         part.patternScale={slice.scale.x/(2*Target::radius),slice.scale.y/(2*Target::radius),1};
         part.patternOffset={0,slice.position.y/(2*Target::radius),0};
         part.notes="32 transformed cube slices; printed front +Z; health="+std::to_string(t.health)+"/60; exact slice collider";

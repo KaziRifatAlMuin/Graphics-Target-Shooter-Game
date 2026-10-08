@@ -17,6 +17,7 @@ namespace fs=std::filesystem;
 using namespace shooter;
 
 namespace {
+// Search upward from the executable and working directory to locate the game's shaders and textures.
 fs::path projectDirectory(const char* executable) {
     for (auto candidate:{fs::absolute(executable).parent_path(),fs::current_path()}) {
         for (;;) {
@@ -32,6 +33,7 @@ fs::path projectDirectory(const char* executable) {
 #endif
     throw std::runtime_error("Cannot locate assets/textures and shaders beside the executable.");
 }
+// Read rendered RGB/depth pixels to check visible output, optionally saving a lossless PPM screenshot.
 double verifyFrame(int width,int height,const fs::path& capture,bool checkScene) {
     std::vector<unsigned char> pixels(static_cast<std::size_t>(width)*height*3);
     glPixelStorei(GL_PACK_ALIGNMENT,1);
@@ -54,6 +56,7 @@ double verifyFrame(int width,int height,const fs::path& capture,bool checkScene)
     if (!capture.empty()) {
         std::ofstream out(capture,std::ios::binary);
         out<<"P6\n"<<width<<' '<<height<<"\n255\n";
+        // OpenGL rows start at the bottom; reverse them for image files that start at the top.
         for (int row=height-1;row>=0;--row)
             out.write(reinterpret_cast<const char*>(pixels.data()+static_cast<std::size_t>(row)*width*3),width*3);
         out.close();
@@ -62,6 +65,7 @@ double verifyFrame(int width,int height,const fs::path& capture,bool checkScene)
     if (glGetError()!=GL_NO_ERROR) throw std::runtime_error("OpenGL rendering error.");
     return brightness/(width*height);
 }
+// Run the frame loop: collect input, advance simulation, render scene/UI, and schedule calculation snapshots.
 void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path& csvPath,
               bool smoke,const fs::path& capture,bool challengeSmoke,bool modesSmoke,const fs::path& boardPath) {
     CsvLogger calculations;
@@ -102,10 +106,12 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         const double now=glfwGetTime();
+        // dt is seconds since the previous frame; smoke tests use a fixed 1/60 second for repeatability.
         const float dt=smoke?1.0f/60:static_cast<float>(now-previous);
         previous=now;
         std::array<bool,GLFW_KEY_LAST+1> keys{};
         for (int key=GLFW_KEY_SPACE;key<=GLFW_KEY_LAST;++key) keys[key]=glfwGetKey(window,key)==GLFW_PRESS;
+        // A press edge is heldNow && !heldLastFrame, so toggles trigger once rather than every frame.
         auto pressed=[&](int key) { return keys[key]&&!previousKeys[key]; };
         const bool editing=session.ui.editingName;
         for (auto cp:input.text) session.type(cp);
@@ -149,6 +155,7 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
         glfwGetCursorPos(window,&mouseX,&mouseY);
         int windowW,windowH;
         glfwGetWindowSize(window,&windowW,&windowH);
+        // Scale window mouse coordinates into the fixed 1280x800 coordinate system used by UI buttons.
         const float ux=float(mouseX)*1280/std::max(1,windowW),uy=float(mouseY)*800/std::max(1,windowH);
         bool pointerFree=screen!=Screen::Playing || pointerUnlocked || (game.mode==GameMode::BirdsEye?!game.birdEye.observing:(game.cameraMode!=1 && game.cameraMode!=4));
         if (clickEdge && pointerFree && !consumed) {
@@ -263,6 +270,7 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
         if (width==0 || height==0) { glfwWaitEventsTimeout(.05); continue; }
         glViewport(0,0,width,height);
         glClearColor(.56f,.73f,.86f,1);
+        // Clear last frame's colors and depth; depth testing keeps nearer surfaces in front of farther ones.
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
         const Camera camera=screen==Screen::Playing?game.activeCamera():Camera{};
         const auto objects=game.scene(screen!=Screen::Playing || game.cameraMode!=1);
@@ -351,12 +359,14 @@ void runScene(GLFWwindow* window,const fs::path& root,Game& game,const fs::path&
             }
             if (modeSmokeFinished(frame-1805,session,game,leaderboard)) glfwSetWindowShouldClose(window,GLFW_TRUE);
         }
+        // Swap the completed back buffer onto the display to present one finished frame.
         glfwSwapBuffers(window); ++frame;
     }
     calculations.observe(game.scene(screen!=Screen::Playing || game.cameraMode!=1),game.elapsed,game.night);
     snapshots.submit(calculations.snapshot()); snapshots.flush();
 }
 }
+// Parse launch options, initialize the graphics context, run the application, and clean up on errors.
 int shooter::Application::run(int argc,char** argv) {
     GLFWwindow* window=nullptr; bool initialized=false;
     try {
@@ -435,6 +445,7 @@ int shooter::Application::run(int argc,char** argv) {
         window=glfwCreateWindow(1280,800,"3D Target Shooter | N: day/night | M: sound | Esc: menu",nullptr,nullptr);
         if (!window) throw std::runtime_error("Cannot create an OpenGL 3.3 window.");
         glfwMakeContextCurrent(window);
+        // Load OpenGL function addresses from the active driver before calling modern graphics functions.
         if (!gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress)) || !GLAD_GL_VERSION_3_3)
             throw std::runtime_error("OpenGL 3.3 is required.");
         glfwSwapInterval(smoke || benchmark?0:1);
@@ -450,6 +461,7 @@ int shooter::Application::run(int argc,char** argv) {
                     const double start=glfwGetTime();
                     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
                     renderer.drawArena(objects,camera.getViewMatrix(),makePerspective(60,1.6f,.05f,400),camera.position,night);
+                    // Wait for GPU completion so timing includes rendering work rather than only queued CPU commands.
                     glFinish();
                     if(frame>=40) times.push_back((glfwGetTime()-start)*1000);
                 }

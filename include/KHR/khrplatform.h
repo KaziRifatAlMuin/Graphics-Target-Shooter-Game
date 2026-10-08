@@ -1,3 +1,4 @@
+// Shared Khronos integer types and calling conventions keep graphics APIs compatible across platforms.
 #ifndef __khrplatform_h_
 #define __khrplatform_h_
 

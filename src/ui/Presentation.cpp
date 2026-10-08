@@ -1,7 +1,9 @@
 #include "ui/Presentation.h"
 #include <algorithm>
 namespace shooter {
+// Choose how long each completion animation lasts before showing the result page.
 float resultAnimationDuration(Screen s) { return s==Screen::Victory?2.4f:s==Screen::FreeComplete?1.6f:.85f; }
+// Draw an intro countdown or completion overlay while its transition timer is active.
 bool drawPresentation(ui::Painter& p,const Game& game,Screen screen,const UiState&) {
     using namespace ui;
     const bool intro=screen==Screen::Playing && game.usesLevel() && game.levels.stage==LevelStage::Intro;
@@ -12,6 +14,7 @@ bool drawPresentation(ui::Painter& p,const Game& game,Screen screen,const UiStat
     const float enter=std::clamp(t/.2f,0.f,1.f),exit=intro?std::clamp((duration-t)/.2f,0.f,1.f):1.f;
     p.opacity=.68f*enter*exit; p.rect(0,0,1280,800,{.015f,.025f,.045f});
     p.opacity=enter*exit;
+    // Quadratic easing: verticalOffset=50*(1-enter)^2, so the panel settles smoothly into place.
     const float slide=(1-enter)*(1-enter)*50;
     p.rect(224,226+slide,832,342,{.025f,.055f,.078f});
     p.rect(224,226+slide,832*std::min(1.f,t/duration),5,teal);

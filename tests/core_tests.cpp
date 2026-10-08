@@ -7,13 +7,16 @@
 #include <stdexcept>
 
 using namespace shooter;
+// Fail the test immediately with a readable message when an expected condition is false.
 void require(bool condition, const char* message) {
     if (!condition) throw std::runtime_error(message);
 }
+// Allow floating-point rounding error: require |actual-expected| < 0.0001.
 void near(float actual, float expected) {
     require(std::abs(actual-expected)<0.0001f,"Numeric result differs from the expected mapping.");
 }
 #include "game_tests.h"
+// Check known transform results, camera projection, and arena geometry before running gameplay tests.
 int main() {
     try {
         Transform t;
@@ -39,6 +42,7 @@ int main() {
         near(origin.x,0); near(origin.y,0); near(origin.z,0);
         near(transformPoint(view,{3,5,6,1}).z,-1);
         const auto projection=makePerspective(60,1.6f,0.1f,400);
+        // After perspective division, OpenGL maps the near plane to z=-1 and the far plane to z=+1.
         const auto nearClip=transformPoint(projection,{0,0,-0.1f,1});
         const auto farClip=transformPoint(projection,{0,0,-400,1});
         near(nearClip.z/nearClip.w,-1); near(farClip.z/farClip.w,1);
@@ -64,6 +68,7 @@ int main() {
         const auto north=transformPoint(composeModelMatrix(northWall->transform),{.5f,.5f,.5f,1});
         near(north.x,30); near(north.y,8); near(north.z,-99.5f);
         struct Bounds { Vec3 min, max; };
+        // Transform all eight cube corners to independently measure world-space minimum and maximum coordinates.
         auto bounds=[](const SceneObject& object) {
             Bounds b{{1e6f,1e6f,1e6f},{-1e6f,-1e6f,-1e6f}};
             for (float x : {-0.5f,0.5f}) for (float y : {-0.5f,0.5f}) for (float z : {-0.5f,0.5f}) {

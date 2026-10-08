@@ -5,9 +5,13 @@
 #include <iostream>
 #include <stdexcept>
 using namespace shooter;
+// Stop this test with its diagnostic message if an expected rule fails.
 void check(bool condition,const char* message) { if (!condition) throw std::runtime_error(message); }
+// Count nonzero motion amplitudes to distinguish one-, two-, and three-axis targets.
 int axes(const Target& t) { return (t.motion.amplitude.x>0)+(t.motion.amplitude.y>0)+(t.motion.amplitude.z>0); }
+// Advance beyond the intro and verify that gameplay actually becomes active.
 void activate(Game& game) { game.update(1.51f); check(game.gameplayActive(),"Intro failed to activate level."); }
+// Construct a front-facing shot fixture to exercise projectile contact with the chosen target.
 void shootTarget(Game& game,std::size_t index,std::uint64_t shot) {
     auto& t=game.targets[index];
     // This helper isolates target scoring/progression. Survivors now redistribute,
@@ -20,6 +24,7 @@ void shootTarget(Game& game,std::size_t index,std::uint64_t shot) {
     game.projectiles.push_back({shot,WeaponType::Pistol,t.position+normal*.3f,normal*-1,0,shot});
     game.update(.008f);
 }
+// Validate all seven level rules, target motion, character penalties, and progression using isolated CSV output.
 int main(int argc,char** argv) {
     try {
         const int counts[]={3,3,4,6,8,10,12};

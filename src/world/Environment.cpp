@@ -3,6 +3,7 @@
 #include "gameplay/Projectile.h"
 
 namespace shooter {
+// Reuse the actual weapon and projectile builders to construct a stationary equipment exhibit.
 std::vector<SceneObject> createEquipmentDisplay() {
     std::vector<SceneObject> result;
     result.push_back(makeCube("EQUIPMENT_TABLE","Environment","Equipment table",{-9,.55f,-8},
@@ -31,6 +32,7 @@ std::vector<SceneObject> createEquipmentDisplay() {
     }
     return result;
 }
+// Create the daytime sun's visible cube; actual sunlight is calculated separately by the lighting rig.
 std::vector<SceneObject> createCelestialObjects(bool night) {
     if (night) return {}; // Night has no celestial light or visible moon.
     Transform t; t.position={25,35,-80}; t.scale={4,4,4}; t.rotation={0,25,15};

@@ -11,6 +11,7 @@ struct SceneObject {
     Transform transform;
     Vec3 color;
     std::string notes;
+    // Specular sets highlight strength, shininess sets highlight tightness, and emission bypasses lighting.
     float specular=.12f, shininess=24, emission=0, flash=0;
     bool targetPattern=false;
     Vec3 patternScale{1,1,1}, patternOffset{};
@@ -22,8 +23,11 @@ struct SceneObject {
     Material material=defaultMaterial(type,component);
     float textureScale=materialTiling(material); // Repeats per local scaled meter.
 };
+// Keep XYZ only; this helper does not perform the perspective divide by w.
 inline Vec3 asVec3(Vec4 v) { return {v.x,v.y,v.z}; }
+// Vector length = sqrt(x*x+y*y+z*z), the 3D Pythagorean theorem.
 inline float length(Vec3 v) { return std::sqrt(dot(v,v)); }
+// Describe one cube by center, dimensions, color, and yaw; the renderer reuses one shared mesh.
 inline SceneObject makeCube(std::string id, std::string type, std::string component,
                             Vec3 pos, Vec3 scale, Vec3 color, float yaw=0) {
     Transform t; t.position=pos; t.scale=scale; t.rotation.y=yaw;

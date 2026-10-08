@@ -10,8 +10,10 @@
 namespace shooter {
 using namespace ui;
 namespace {
+// Rectangle hit test: left<=x<=left+width and top<=y<=top+height.
 bool inside(const Button& b,float x,float y) { return x>=b.x && x<=b.x+b.w && y>=b.y && y<=b.y+b.h; }
 }
+// Define each screen's button rectangles and actions, shared by drawing and mouse hit testing.
 std::vector<Button> screenButtons(Screen screen,GameMode mode) {
     if (screen==Screen::Menu) return {
         {96,194,500,52,"",Action::EditName},
@@ -60,10 +62,12 @@ std::vector<Button> screenButtons(Screen screen,GameMode mode) {
             {96,616,430,56,paused?(mode==GameMode::Developer?"SELECT LEVEL":"EXIT"):"PRACTICE SANDBOX",paused?(mode==GameMode::Developer?Action::Developer:Action::Exit):Action::Practice},
             {650,466,264,52,"",Action::DayNight},{932,466,278,52,"",Action::Sound}};
 }
+// Return the first button containing the pointer, or None when no button is hit.
 Action clickedAction(Screen screen,float x,float y,GameMode mode) {
     for (const auto& b:screenButtons(screen,mode)) if (inside(b,x,y)) return b.action;
     return Action::None;
 }
+// Build colored triangles for the current page, status display, crosshair, buttons, and animations.
 std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,float my,bool pointerFree,const UiState* supplied) {
     Painter p;
     const UiState defaults;
@@ -143,6 +147,7 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
             std::ostringstream label; label<<std::fixed<<std::setprecision(1)<<distance<<" M  /  "<<int(weaponSpec(game.weapon).range)<<" M";
             p.opacity=.85f; p.rect(580,436,155,38,{.035f,.065f,.09f}); p.opacity=1;
             p.text(590,444,label.str(),1.5f,distance>weaponSpec(game.weapon).range?amber:muted);
+            // Health-bar width=100*clamp(health/60,0,1), proportional to the target's remaining health.
             p.rect(590,465,100,3,{.08f,.12f,.15f});
             p.rect(590,465,100*std::clamp(game.targets[target].health/60.f,0.f,1.f),3,teal);
         }
@@ -160,6 +165,7 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
             if (game.weapon==WeaponType::Shotgun) {
                 const float radius=38+game.recoil*12;
                 for (int i=0; i<48; ++i) {
+                    // Approximate a circle with 48 lines using x=cx+r*cos(a), y=cy+r*sin(a).
                     const float a=i*2*pi/48,b=(i+1)*2*pi/48;
                     p.line(cx+std::cos(a)*radius,cy+std::sin(a)*radius,cx+std::cos(b)*radius,cy+std::sin(b)*radius,2,color);
                 }
@@ -212,6 +218,7 @@ std::vector<UiVertex> buildInterface(const Game& game,Screen screen,float mx,flo
             b.action==Action::EditName?"NAME: "+state.name+(state.editingName?"_":""):b.text;
         p.text(b.x+12,b.y+(b.h-14)/2,label,screen==Screen::Playing?1.6f:2.f,primary||selected?Vec3{.03f,.08f,.10f}:ink);
     }
+    // Fade the dark screen overlay with opacity=0.72*(1-screenTime/0.3).
     if (supplied && state.screenTime<.3f) {
         p.opacity=.72f*(1-state.screenTime/.3f);
         p.rect(0,0,1280,800,{.015f,.025f,.04f});

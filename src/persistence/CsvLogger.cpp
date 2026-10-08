@@ -11,18 +11,21 @@
 
 namespace shooter {
 namespace {
+// Format XYZ with six decimals and a fixed decimal point independent of the computer's locale.
 std::string vectorText(Vec3 v) {
     std::ostringstream s;
     s.imbue(std::locale::classic());
     s << std::fixed << std::setprecision(6) << '(' << v.x << ',' << v.y << ',' << v.z << ')';
     return s.str();
 }
+// Escape quotes and wrap text so one value remains one CSV column.
 std::string csvQuote(const std::string& value) {
     std::string result = "\"";
     for (char c : value) { if (c == '"') result += '"'; result += c; }
     return result + '"';
 }
 }
+// Export a real cube corner through scale, shear, rotation, and translation for every observed object.
 void writeCalculations(const std::vector<SceneObject>& objects, const std::filesystem::path& path) {
     const auto temporary=std::filesystem::path(path.wstring()+L".tmp");
     std::ofstream out(temporary, std::ios::trunc);
@@ -77,6 +80,7 @@ void writeCalculations(const std::vector<SceneObject>& objects, const std::files
     if (!out) throw std::runtime_error("Failed to finish calculations: " + path.string());
     replaceFile(temporary,path);
 }
+// Copy the current scene and retain the most recent observations for later export.
 void CsvLogger::observe(const std::vector<SceneObject>& objects, double time, bool night) {
     current=objects;
     for (auto& o:current) {
@@ -90,6 +94,7 @@ void CsvLogger::observe(const std::vector<SceneObject>& objects, double time, bo
         }
     }
 }
+// Remember brief effects and character poses that could disappear between scheduled snapshots.
 void CsvLogger::observeTransient(const std::vector<SceneObject>& objects,double time,bool night) {
     // Preserve short-lived effects and NPC death poses without copying every static crate each frame.
     for(const auto& source:objects) {
@@ -101,6 +106,7 @@ void CsvLogger::observeTransient(const std::vector<SceneObject>& objects,double 
         observed[key]=std::move(o);
     }
 }
+// Merge current objects with unique last-seen objects, marking older observations as retained.
 std::vector<SceneObject> CsvLogger::snapshot() const {
     auto records=current;
     std::set<std::string> ids;
@@ -114,5 +120,6 @@ std::vector<SceneObject> CsvLogger::snapshot() const {
     }
     return records;
 }
+// Write the merged snapshot using the same transform calculations as rendering.
 void CsvLogger::save(const std::filesystem::path& path) const { writeCalculations(snapshot(),path); }
 }

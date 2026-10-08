@@ -1,5 +1,6 @@
 #include "LevelBase.h"
 namespace shooter {
+// Set base position and sinusoidal motion; variation changes phase/direction while spin uses degrees/second.
 Target configuredTarget(Vec3 p, Vec3 amplitude, float speed, float spin, int variation) {
     Target t; t.base=t.position=p; t.movement=4;
     t.motion.amplitude=amplitude;

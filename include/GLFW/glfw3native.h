@@ -1,3 +1,4 @@
+// Third-party GLFW native-access declarations expose operating-system window/context handles when needed.
 /*************************************************************************
  * GLFW 3.5 - www.glfw.org
  * A library for OpenGL, window and input

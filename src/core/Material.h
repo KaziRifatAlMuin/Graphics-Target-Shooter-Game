@@ -4,6 +4,7 @@
 namespace shooter {
 // Layer order is shared with TextureCache and tools/generate_textures.cpp.
 enum class Material { Plain, Concrete, Masonry, Gravel, Wood, Metal, Fabric, Paper, Rubber };
+// Choose a texture by object role, such as wood for crates and fabric for characters.
 inline Material defaultMaterial(const std::string& type,const std::string& component) {
     if (type=="Boundary") return Material::Masonry;
     if (type=="Arena") return component=="Floor slab"?Material::Gravel:Material::Concrete;
@@ -16,6 +17,7 @@ inline Material defaultMaterial(const std::string& type,const std::string& compo
     if (type=="Environment") return component=="Equipment mat"?Material::Rubber:Material::Metal;
     return Material::Plain;
 }
+// Return texture repeats per meter; higher values make the visible pattern smaller.
 inline float materialTiling(Material material) {
     switch(material) {
         case Material::Masonry: return .5f;

@@ -1,6 +1,7 @@
 #pragma once
 #include "persistence/Leaderboard.h"
 namespace shooter {
+// Screens name the current page; actions below name user commands independently of mouse or keyboard.
 enum class Screen { Menu, Controls, Playing, Paused, LevelComplete, Victory, FreeComplete, Developer, Leaderboard, ChallengeName };
 enum class Action {
     None, Start, Free, Developer, BirdsEye, Practice, NextLevel, Replay, Resume, Controls, Back, Menu, Exit,
@@ -8,6 +9,7 @@ enum class Action {
     ScrollUp, ScrollDown, RetrySave, ConfirmChallenge, UseExistingName, RewriteName,
     Level1, Level2, Level3, Level4, Level5, Level6, Level7
 };
+// Store display/editing state, rankings, and animation timers separately from the game's simulation.
 struct UiState {
     Screen screen=Screen::Menu,controlsReturn=Screen::Menu,boardReturn=Screen::Menu;
     std::string name,message;
@@ -22,6 +24,7 @@ struct UiState {
     float fps=0;
     float animationTime=0,screenTime=0;
 };
+// Identify the three completion screens that share result presentation and leaderboard behavior.
 inline bool resultScreen(Screen s) { return s==Screen::LevelComplete || s==Screen::Victory || s==Screen::FreeComplete; }
 inline constexpr int leaderboardVisibleRows=7;
 }

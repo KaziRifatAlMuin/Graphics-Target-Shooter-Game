@@ -5,6 +5,7 @@
 
 namespace shooter {
 namespace { constexpr float infinity=std::numeric_limits<float>::infinity(); }
+// Build the practice arena, cargo, fixtures, and equipment, then initialize the session.
 Game::Game() {
     staticObjects=createArena();
     const auto cargo=generateCargoLayout(2107042);
@@ -15,6 +16,7 @@ Game::Game() {
     staticObjects.insert(staticObjects.end(),equipment.begin(),equipment.end());
     reset();
 }
+// Restore practice targets and clear temporary effects, or restart the current level.
 void Game::resetTargets() {
     cachedAimFrame=-1;
     if (usesLevel()) { restartLevel(); return; }
@@ -22,6 +24,7 @@ void Game::resetTargets() {
     targets=createSandboxTargets();
     elapsed=0; cooldown=0; recoil=0;
 }
+// Return to practice defaults and reset run statistics while preserving unique entity ID counters.
 void Game::reset() {
     if (usesLevel()) {
         mode=GameMode::Practice; staticObjects=createArena();
@@ -36,7 +39,9 @@ void Game::reset() {
     // This keeps retained CSV observations distinct from new shots/fragments.
     shots=hits=destroyed=score=bullseyes=0; resetTargets();
 }
+// Delegate walking clearance to the shared world collision test.
 bool Game::canStand(Vec3 p) const { return canStandAt(p,staticObjects); }
+// Normalize input, split movement into <=0.15 m steps, and check X/Z separately to slide along walls.
 void Game::movePlayer(float forward, float right, float dt, bool fast) {
     if (mode==GameMode::BirdsEye || (usesLevel() && (!gameplayActive() || !levels.config.playerMovement))) return;
     Vec3 f=player.forward(); f.y=0; f=normalize(f);
@@ -49,11 +54,13 @@ void Game::movePlayer(float forward, float right, float dt, bool fast) {
         if (canStand(next)) player.position=next;
     }
 }
+// Select player, overview, side, or free view; entering free view starts from the current camera.
 void Game::setCamera(int mode) {
     if (this->mode==GameMode::BirdsEye) { if (mode==2) birdEye.overview(); return; }
     if (mode==4 && cameraMode!=4) freeCamera=activeCamera();
     cameraMode=mode;
 }
+// Return the camera pose selected by the current mode and view setting.
 Camera Game::activeCamera() const {
     if (mode==GameMode::BirdsEye) return birdEye.activeCamera();
     if (cameraMode==1) return player;
@@ -63,6 +70,7 @@ Camera Game::activeCamera() const {
     camera.position={25,15,-42}; camera.yaw=-175; camera.pitch=-17;
     return camera;
 }
+// Find the nearest unobstructed target under the player's aiming ray and reuse unchanged queries.
 int Game::aimedTarget(float& distance) const {
     // Return cached result if player aim hasn't changed since last query.
     const Vec3 fwd=player.forward();
@@ -87,6 +95,7 @@ int Game::aimedTarget(float& distance) const {
     cachedAimPos=player.position; cachedAimDir=fwd; cachedAimFrame=0;
     return result;
 }
+// Aim from the muzzle toward the crosshair's contact point, then spawn pellets if firing is allowed.
 bool Game::fire() {
     if (mode==GameMode::BirdsEye || cooldown>0 || !gameplayActive()) return false;
     const auto& spec=weaponSpec(weapon);
@@ -106,6 +115,7 @@ bool Game::fire() {
     for (int i=0; i<spec.pellets; ++i) {
         float x=0,y=0;
         if (weapon==WeaponType::Shotgun && i>0) {
+            // Place eight outer shotgun pellets on a circle: x=spread*cos(angle), y=spread*sin(angle).
             const float angle=2*pi*(i-1)/8;
             x=std::cos(angle)*spec.spread; y=std::sin(angle)*spec.spread;
         } else if (weapon==WeaponType::Rifle) {
@@ -117,11 +127,13 @@ bool Game::fire() {
     soundEvents.push_back(weapon==WeaponType::Pistol?SoundEvent::Pistol:weapon==WeaponType::Shotgun?SoundEvent::Shotgun:SoundEvent::Rifle);
     return true;
 }
+// Split elapsed time into steps no larger than 1/120 second to stabilize the simulation.
 void Game::update(float dt) {
     cachedAimFrame=-1;
     // Small simulation steps avoid tunnelling and keep motion stable across frame rates.
     while (dt>0) { const float step=std::min(dt,1.0f/120); updateStep(step); dt-=step; }
 }
+// Create a capped set of seeded particles with varied velocity, color, size, and lifetime.
 void Game::spawnBlood(Vec3 position, int count) {
     constexpr std::size_t limit=250;
     count=std::clamp(count,0,int(limit));
@@ -143,6 +155,7 @@ void Game::spawnBlood(Vec3 position, int count) {
         debris.push_back({nextDebris++, position, vel, {float(rx*180), float(ry*180), float(rz*180)}, rl, bloodColor, {size, size, size}, true});
     }
 }
+// Advance effects, timers, targets, characters, and projectiles for one small simulation step.
 void Game::updateStep(float dt) {
     for (auto& piece:debris) {
         piece.life-=dt;
@@ -196,6 +209,7 @@ void Game::updateStep(float dt) {
     }
 
 }
+// Apply shot-specific ring damage and trigger score, destruction effects, or respawn when health reaches zero.
 void Game::applyTargetHit(std::size_t index,int ring,std::uint64_t shotId) {
     auto& t=targets.at(index);
     if (mode==GameMode::BirdsEye || !gameplayActive() || t.eliminated || t.respawn>0 || ring<0 || ring>5) return;

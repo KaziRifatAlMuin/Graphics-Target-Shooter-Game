@@ -7,6 +7,7 @@
 
 namespace shooter {
 namespace {
+// Add a crate plus bands and a label, rotating each detail's offset with its parent.
 void addCrate(std::vector<SceneObject>& objects,SceneObject crate) {
     const auto id=crate.id;
     crate.parent=id; crate.specular=.09f;
@@ -24,6 +25,7 @@ void addCrate(std::vector<SceneObject>& objects,SceneObject crate) {
 }
 }
 
+// Add level-dependent cover and remove crates that overlap the targets' possible movement area.
 std::vector<SceneObject> generateChallengeCargo(const LevelConfig& level) {
     auto objects=generateCargoLayout(level.seed,{dimensions::humanHeight,level.number<4?4:7});
     constexpr float size=dimensions::crateSize;
@@ -58,6 +60,7 @@ std::vector<SceneObject> generateChallengeCargo(const LevelConfig& level) {
     }),objects.end());
     return objects;
 }
+// Use a fixed random seed to reproduce crate stacks while preserving walking corridors.
 std::vector<SceneObject> generateCargoLayout(unsigned seed, const CargoConfig& config) {
     if (config.humanHeight<1 || config.humanHeight>2.4f || config.rows<1 || config.rows>8)
         throw std::invalid_argument("Cargo configuration exceeds sandbox reserved zones.");

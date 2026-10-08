@@ -3,11 +3,13 @@
 #include "core/Collision.h"
 
 namespace shooter {
+// Sweep each bullet's whole travel segment and stop at its nearest obstacle, target, or character.
 void updateProjectiles(std::vector<Projectile>& projectiles, const std::vector<Target>& targets,
                        const std::vector<SceneObject>& obstacles, float dt, const TargetHitCallback& hit,
                        const std::vector<NpcCollider>& npcs, const NpcHitCallback& npcHit) {
     for (auto& p:projectiles) {
         const auto& spec=weaponSpec(p.weapon);
+        // Travel=min(speed*dt, remainingRange); sweeping this distance prevents jumping through thin surfaces.
         const float travel=std::min(spec.speed*dt,spec.range-p.travelled);
         float nearest=travel; int hitTarget=-1,hitRing=-1; bool blocked=false;
         for (const auto& o:obstacles) {
@@ -32,6 +34,7 @@ void updateProjectiles(std::vector<Projectile>& projectiles, const std::vector<T
         return p.travelled>=weaponSpec(p.weapon).range-.0001f;
     }),projectiles.end());
 }
+// Build a visible bullet and convert its unit direction to pitch/yaw using asin and atan2.
 SceneObject projectileObject(const Projectile& p) {
     auto o=makeCube("PROJECTILE_"+std::to_string(p.id),"Projectile",weaponSpec(p.weapon).name,
                 p.position,weaponSpec(p.weapon).projectileScale,{1,.8f,.22f});

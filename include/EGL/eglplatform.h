@@ -1,3 +1,4 @@
+// Third-party EGL platform types connect graphics contexts to native window handles; the game uses GLFW instead.
 #ifndef __eglplatform_h_
 #define __eglplatform_h_
 

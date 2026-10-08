@@ -1,8 +1,10 @@
 #include "world/Lighting.h"
 
 namespace shooter {
+// Configure ambient background, parallel sunlight, omnidirectional point lamps, and cone-shaped spotlights.
 LightingRig createLighting(bool night) {
     LightingRig rig;
+    // Ambient approximates indirect light everywhere; night disables sunlight and enables local lamps.
     rig.ambient=night?Vec3{.012f,.016f,.025f}:Vec3{.30f,.32f,.35f};
     rig.sunDirection=normalize({.45f,.8f,.3f});
     rig.sunColor=night?Vec3{}:Vec3{.95f,.88f,.73f};
@@ -18,6 +20,7 @@ LightingRig createLighting(bool night) {
             night?Vec3{1.8f,1.9f,2.1f}:Vec3{},std::cos(radians(32)),std::cos(radians(53))});
     return rig;
 }
+// Build visible lamp housings and towers at the same positions used by the lighting calculations.
 std::vector<SceneObject> createLightFixtures() {
     std::vector<SceneObject> objects;
     auto add=[&](std::string id,std::string component,Vec3 p,Vec3 scale,Vec3 color) -> SceneObject& {
@@ -50,6 +53,7 @@ std::vector<SceneObject> createLightFixtures() {
         add(id+"_BASE","Concrete footing",{p.x,.25f,p.z},{1.3f,.5f,1.3f},{.35f,.37f,.39f});
         add(id+"_POLE","Stadium tower",{p.x,6,p.z},{.38f,12,.38f},metal);
         add(id+"_BAR","Floodlight crossbar",p,{2.9f,.18f,.25f},metal);
+        // Fixture pitch=-asin(direction.y), yaw=atan2(direction.x,direction.z), converted to degrees.
         const Vec3 rotation{-std::asin(light.direction.y)*180/pi,std::atan2(light.direction.x,light.direction.z)*180/pi,0};
         for(int panel=-1;panel<=1;++panel) {
             const Vec3 center=p+Vec3{0,0,float(panel)*.95f};

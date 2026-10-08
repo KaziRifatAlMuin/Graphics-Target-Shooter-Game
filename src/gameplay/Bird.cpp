@@ -2,15 +2,18 @@
 #include "core/Collision.h"
 #include <algorithm>
 namespace shooter {
+// Create a bird with repeatable speed, animation phase, and waypoints near its assigned target.
 Bird createBird(std::size_t zone, Vec3 home, unsigned seed) {
     Bird b; b.zone=zone; b.home=home; b.random=seed;
     b.speed=1.8f+npcRandom(b)*2.3f; b.animation=npcRandom(b)*6;
     b.position=npcDestination(b,true); b.destination=npcDestination(b,true);
     return b;
 }
+// Fly toward a waypoint while alive, or integrate gravity and tumbling after a hit.
 void updateBird(Bird& b, float dt, const std::vector<SceneObject>& obstacles) {
     if (b.dying) {
         b.deathTime+=dt;
+        // Gravity integration: vy'=vy-14*dt, then position'=position+velocity'*dt.
         b.deathVelocity.y-=14.0f*dt;
         b.position=b.position+b.deathVelocity*dt;
         b.deathPitch+=260.0f*dt;
@@ -44,6 +47,7 @@ void updateBird(Bird& b, float dt, const std::vector<SceneObject>& obstacles) {
     if (blocked) b.destination=npcDestination(b,true);
     else { b.position=next; b.heading=std::atan2(-velocity.z,velocity.x)*180/pi; }
 }
+// Assemble the bird from cubes; each part follows the bird's position, heading, and falling pose.
 std::vector<SceneObject> createBirdObjects(const Bird& b, std::size_t index) {
     if (!b.active && !b.dying && !b.dead) return {};
     const auto id=(b.dead?"DEAD_BIRD_":b.dying?"DYING_BIRD_":"BIRD_")+std::to_string(index);
@@ -59,6 +63,7 @@ std::vector<SceneObject> createBirdObjects(const Bird& b, std::size_t index) {
     add("Beak",{.49f,.09f+bob,0},{.17f,.07f,.10f},{.9f,.62f,.13f});
     add("Tail",{-.4f,bob,0},{.3f,.07f,.24f},feather);
     for (int side:{-1,1}) {
+        // Flapping angle=35*sin(animation)*side; sin/cos place each wing around its attachment axis.
         const float flap=(b.dying || b.dead)?side*(15+60*std::min(1.f,b.deathTime/.5f)):(std::sin(b.animation)*35*side);
         const float a=radians(flap);
         add(side<0?"WingLeft":"WingRight",{-.03f,bob-std::sin(a)*side*.35f,std::cos(a)*side*.35f},

@@ -1,6 +1,7 @@
 #include "Level7.h"
 #include "Level6.h"
 namespace shooter {
+// Extend Level 6 to twelve targets, with four birds and three humans assigned to each target.
 LevelConfig Level7::configure() const {
     auto c=Level6{}.configure(); c.number=7; c.title="FINAL ARENA";
     c.birds=0; c.birdsPerTarget=4; c.humansPerTarget=3;

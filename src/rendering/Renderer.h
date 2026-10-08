@@ -7,17 +7,21 @@
 #include "rendering/TextureCache.h"
 
 namespace shooter {
+// Own GPU resources and draw the 3D cube scene plus 2D interface triangles.
 class Renderer {
 public:
     Renderer() = default;
+    // Release GPU programs and buffers while the OpenGL context still exists.
     ~Renderer();
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
+    // Compile shaders, link drawing programs, and upload the shared cube and interface vertex layouts.
     void initialize(const std::filesystem::path& shaderDirectory);
     int shadingMode=2;
     // isolation is used only by documentation captures: 0 ambient, 1 sun, 2 points, 3 spots.
     // Documentation mask: ambient=1, sun=2, points=4, spots=8. Default preserves gameplay.
     void drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection, Vec3 eye, bool night, int isolation=-1, int lightMask=15);
+    // Draw interface triangles over the scene; alpha blending gives C=alpha*front+(1-alpha)*back.
     void drawInterface(const std::vector<UiVertex>& vertices);
 private:
     TextureCache textures;
@@ -41,6 +45,7 @@ private:
     struct SpotLightLocations { GLint position, direction, color, innerCos, outerCos; };
     PointLightLocations pointLocations[8]{};
     SpotLightLocations spotLocations[6]{};
+    // Set this cube's transform and material, then draw its 12 triangles (36 vertices).
     void drawTransformedCube(const SceneObject& object);
 };
 }

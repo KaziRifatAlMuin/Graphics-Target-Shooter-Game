@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <sstream>
 namespace shooter {
+// Draw a scrolling window of ranking rows, highlighting the current player's name.
 void drawLeaderboard(ui::Painter& p,const UiState& state,const std::string& name) {
     using namespace ui;
     p.rect(56,310,1168,342,{.035f,.065f,.09f});

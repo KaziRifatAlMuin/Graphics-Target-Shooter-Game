@@ -8,14 +8,20 @@
 using namespace shooter;
 namespace fs=std::filesystem;
 namespace {
+// Throw a readable failure when a mode or persistence expectation is false.
 void check(bool value,const char* message) { if (!value) throw std::runtime_error(message); }
+// Load the complete file as bytes for exact before/after persistence comparisons.
 std::string read(const fs::path& p) { std::ifstream in(p,std::ios::binary); return {(std::istreambuf_iterator<char>(in)),{}}; }
+// Advance 1.51 seconds to leave the 1.5-second intro and assert that gameplay is active.
 void activate(Game& game) { game.update(1.51f); check(game.gameplayActive(),"Intro did not activate."); }
+// Inject one unique center hit per target to set up completed-level tests.
 void clear(Game& game) { for (std::size_t i=0;i<game.targets.size();++i) game.applyTargetHit(i,0,100+i); }
+// Build a controlled candidate result for leaderboard eligibility and ordering tests.
 EligibleResult result(std::string name,GameMode mode,int score,double seconds) {
     RunStats stats; stats.score=score; stats.elapsed=seconds; stats.levelsCleared=mode==GameMode::Challenge?1:0;
     stats.destroyed=3; stats.bullseyes=2; return {name,mode,stats};
 }
+// Exercise CSV escaping, best-score rules, ties, malformed records, and mode-separated rankings.
 void storage(const fs::path& path) {
     // Only explicitly named test artifacts in the configured build directory are reset.
     fs::remove(path); Leaderboard board(path); board.load();
@@ -53,6 +59,7 @@ void storage(const fs::path& path) {
     check(refused && read(corrupt)=="unrecognized,header\nKEEP ME\n","Corrupt file was overwritten.");
     std::cout<<"PASS: create/read/write, negative scores, score/time ties, coherent records, quoted names, mode keys, deduplication, invalid-row preservation and rank.\n";
 }
+// Verify the 180-second session, 30-second respawns, scoring, and freeze after time expires.
 void freeMode(CsvLogger& logger) {
     Game game; game.startMode(GameMode::Free); activate(game);
     check(game.targets.size()==12 && game.birds.size()==48 && game.humans.size()==36,"Free must reuse Level 7 populations.");
@@ -81,6 +88,7 @@ void freeMode(CsvLogger& logger) {
     logger.observe(game.scene(),game.elapsed,false);
     std::cout<<"PASS: full Free countdown, no early completion, 30-second respawn/warning, fresh scoring, penalties, NPC retention, expiry freeze and reset.\n";
 }
+// Project known ground points to screen, then pick them back to validate the camera's inverse mapping.
 void camera(CsvLogger& logger) {
     Game game; game.startMode(GameMode::BirdsEye);
     check(game.targets.size()==12 && game.birdEye.overhead.position.y==120 && game.birdEye.overhead.pitch<-89,"Not a true overhead Level 7 view.");
@@ -112,6 +120,7 @@ void camera(CsvLogger& logger) {
     logger.observe(game.scene(),game.elapsed,false);
     std::cout<<"PASS: overhead view, independent project/unproject checks, safe observation placement/movement, yaw/pitch, return/pan/zoom, noncompetitive inspection.\n";
 }
+// Compare geometry and target settings across modes that reuse the same final level.
 void sharedWorld() {
     Game reference; reference.startChallenge(7);
     for (auto mode:{GameMode::Free,GameMode::Developer,GameMode::BirdsEye}) {
@@ -129,6 +138,7 @@ void sharedWorld() {
     }
     std::cout<<"PASS: Free, Developer Level 7 and Bird's-Eye use identical arena/cargo transforms and target configurations.\n";
 }
+// Block the temporary save path deliberately, then verify that retry preserves and saves the result.
 void failedSave(const fs::path& path) {
     fs::remove(path); Leaderboard board(path); board.load(); Game game; SessionController session(game,board);
     auto temporary=path; temporary+=".tmp";
@@ -140,6 +150,7 @@ void failedSave(const fs::path& path) {
     session.action(Action::RetrySave); check(board.records().size()==1,"Retry duplicated a completed result.");
     std::cout<<"PASS: failed atomic save preserves results and supports retry without duplicate records.\n";
 }
+// Exercise menu transitions, pause, completion saves, Developer levels, and leaderboard scrolling.
 void sessions(const fs::path& path,CsvLogger& logger) {
     writeAtomicText(path,"Name,Mode,BestScore,LevelsCleared,TargetsDestroyed,Bullseyes,BirdKills,HumanKills,BestTimeSeconds,LastUpdated\n");
     Game game; Leaderboard board(path); SessionController session(game,board);
@@ -185,6 +196,7 @@ void sessions(const fs::path& path,CsvLogger& logger) {
     std::cout<<"PASS: completion-only saves, pause, partial Challenge preservation, completed Free, all seven Developer cards/movement/reset, menu flow and leaderboard scrolling.\n";
 }
 }
+// Run mode regressions or the separate-process write/read checks using the supplied test path.
 int main(int argc,char** argv) {
     try {
         check(argc>=2,"Pass a build-directory fixture path."); const fs::path path=argv[1];
