@@ -901,8 +901,10 @@ Lighting.cpp constructs the numeric rig and visible fixtures. Renderer.cpp selec
 #include "world/Lighting.h"
 
 namespace shooter {
+// Configure ambient background, parallel sunlight, omnidirectional point lamps, and cone-shaped spotlights.
 LightingRig createLighting(bool night) {
     LightingRig rig;
+    // Ambient approximates indirect light everywhere; night disables sunlight and enables local lamps.
     rig.ambient=night?Vec3{.012f,.016f,.025f}:Vec3{.30f,.32f,.35f};
     rig.sunDirection=normalize({.45f,.8f,.3f});
     rig.sunColor=night?Vec3{}:Vec3{.95f,.88f,.73f};
@@ -918,6 +920,7 @@ LightingRig createLighting(bool night) {
             night?Vec3{1.8f,1.9f,2.1f}:Vec3{},std::cos(radians(32)),std::cos(radians(53))});
     return rig;
 }
+// Build visible lamp housings and towers at the same positions used by the lighting calculations.
 std::vector<SceneObject> createLightFixtures() {
     std::vector<SceneObject> objects;
     auto add=[&](std::string id,std::string component,Vec3 p,Vec3 scale,Vec3 color) -> SceneObject& {
@@ -950,6 +953,7 @@ std::vector<SceneObject> createLightFixtures() {
         add(id+"_BASE","Concrete footing",{p.x,.25f,p.z},{1.3f,.5f,1.3f},{.35f,.37f,.39f});
         add(id+"_POLE","Stadium tower",{p.x,6,p.z},{.38f,12,.38f},metal);
         add(id+"_BAR","Floodlight crossbar",p,{2.9f,.18f,.25f},metal);
+        // Fixture pitch=-asin(direction.y), yaw=atan2(direction.x,direction.z), converted to degrees.
         const Vec3 rotation{-std::asin(light.direction.y)*180/pi,std::atan2(light.direction.x,light.direction.z)*180/pi,0};
         for(int panel=-1;panel<=1;++panel) {
             const Vec3 center=p+Vec3{0,0,float(panel)*.95f};
@@ -976,12 +980,14 @@ std::vector<SceneObject> createLightFixtures() {
 
 namespace shooter {
 namespace {
+// Read and compile a GPU program, reporting the compiler log if the shader is invalid.
 GLuint compileShader(GLenum kind, const std::filesystem::path& path) {
     std::ifstream file(path);
     if (!file) throw std::runtime_error("Cannot read shader: " + path.string());
     std::ostringstream buffer;
     buffer << file.rdbuf();
     std::string source = buffer.str();
+    // Expand the shared lighting include ourselves because this shader loader supplies GLSL as plain text.
     const std::string directive="#include \"lighting.glsl\"";
     const auto include=source.find(directive);
     if (include!=std::string::npos) {
@@ -1005,6 +1011,7 @@ GLuint compileShader(GLenum kind, const std::filesystem::path& path) {
     return shader;
 }
 }
+// Release GPU programs and buffers while the OpenGL context still exists.
 Renderer::~Renderer() {
     if (skyProgram) glDeleteProgram(skyProgram);
     if (uiVbo) glDeleteBuffers(1,&uiVbo);
@@ -1014,6 +1021,7 @@ Renderer::~Renderer() {
     if (vao) glDeleteVertexArrays(1,&vao);
     if (program) glDeleteProgram(program);
 }
+// Compile shaders, link drawing programs, and upload the shared cube and interface vertex layouts.
 void Renderer::initialize(const std::filesystem::path& directory) {
     textures.initialize(directory.parent_path()/"assets"/"textures");
     const GLuint vertex=compileShader(GL_VERTEX_SHADER,directory/"object.vert");
@@ -1031,6 +1039,7 @@ void Renderer::initialize(const std::filesystem::path& directory) {
         glGetProgramInfoLog(program,sizeof(log),nullptr,log);
         throw std::runtime_error(std::string("Shader link failed: ")+log);
     }
+    // Cache uniform locations: uniforms are settings shared by every vertex or pixel in a draw call.
     modelLocation=glGetUniformLocation(program,"model");
     viewLocation=glGetUniformLocation(program,"view");
     projectionLocation=glGetUniformLocation(program,"projection");
@@ -1082,9 +1091,11 @@ void Renderer::initialize(const std::filesystem::path& directory) {
         const Vec3 n=normals[face];
         vertices.insert(vertices.end(),{p.x,p.y,p.z,n.x,n.y,n.z});
     }
+    // A VBO stores vertex data; a VAO remembers how to read positions and normals from that data.
     glGenVertexArrays(1,&vao); glGenBuffers(1,&vbo);
     glBindVertexArray(vao); glBindBuffer(GL_ARRAY_BUFFER,vbo);
     glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(float)),vertices.data(),GL_STATIC_DRAW);
+    // Each vertex has six floats: XYZ position followed by XYZ surface normal.
     glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,6*sizeof(float),nullptr);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,6*sizeof(float),reinterpret_cast<void*>(3*sizeof(float)));
@@ -1114,6 +1125,7 @@ void Renderer::initialize(const std::filesystem::path& directory) {
     glGetProgramiv(skyProgram,GL_LINK_STATUS,&ok);
     if (!ok) throw std::runtime_error("Sky shader link failed.");
 }
+// Draw interface triangles over the scene; alpha blending gives C=alpha*front+(1-alpha)*back.
 void Renderer::drawInterface(const std::vector<UiVertex>& vertices) {
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
@@ -1122,10 +1134,12 @@ void Renderer::drawInterface(const std::vector<UiVertex>& vertices) {
     glDrawArrays(GL_TRIANGLES,0,static_cast<GLsizei>(vertices.size()));
     glBindVertexArray(0); glDisable(GL_BLEND); glEnable(GL_DEPTH_TEST);
 }
+// Set this cube's transform and material, then draw its 12 triangles (36 vertices).
 void Renderer::drawTransformedCube(const SceneObject& object) {
     const Mat4 model=composeModelMatrix(object.transform);
     glUniformMatrix4fv(modelLocation,1,GL_FALSE,model.data.data());
     // Compute normal matrix on CPU to avoid per-vertex transpose(inverse(mat3(model))) in the shader.
+    // Normals use N'=(M^-1)^T*N so they remain perpendicular after unequal scaling or shearing.
     if (normalMatrixLocation>=0) {
         const Vec3 a{model.at(0,0),model.at(1,0),model.at(2,0)}, b{model.at(0,1),model.at(1,1),model.at(2,1)},
                    c{model.at(0,2),model.at(1,2),model.at(2,2)};
@@ -1138,6 +1152,7 @@ void Renderer::drawTransformedCube(const SceneObject& object) {
             glUniformMatrix3fv(normalMatrixLocation,1,GL_FALSE,nm);
         }
     }
+    // Only resend material settings when their values change, reducing calls to the graphics driver.
     auto vectorUniform=[&](GLint location,Vec3 value,Vec3& previous) {
         if(!drawStateValid || value.x!=previous.x || value.y!=previous.y || value.z!=previous.z) {
             glUniform3f(location,value.x,value.y,value.z); previous=value;
@@ -1164,6 +1179,7 @@ void Renderer::drawTransformedCube(const SceneObject& object) {
     drawStateValid=true;
     glDrawArrays(GL_TRIANGLES,0,36);
 }
+// Draw the sky first, upload camera and light settings, then draw every transformed cube.
 void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& view, const Mat4& projection,Vec3 eye,bool night,int isolation,int lightMask) {
     glDisable(GL_DEPTH_TEST); glDepthMask(GL_FALSE);
     glUseProgram(skyProgram);
@@ -1178,6 +1194,7 @@ void Renderer::drawArena(const std::vector<SceneObject>& objects, const Mat4& vi
     const auto& lighting=night?nightLighting:dayLighting;
     // Use cached uniform locations instead of per-frame string lookups.
     glUniform3f(eyePositionLocation,eye.x,eye.y,eye.z);
+    // Light-mask bits 1,2,4,8 independently enable ambient, directional, point, and spot lighting.
     const Vec3 ambient=(lightMask&1) && (isolation<0 || isolation==0)?lighting.ambient:Vec3{};
     const Vec3 sun=(lightMask&2) && (isolation<0 || isolation==1)?lighting.sunColor:Vec3{};
     glUniform3f(ambientColorLocation,ambient.x,ambient.y,ambient.z);
@@ -1219,14 +1236,19 @@ struct PointLight { vec3 position; vec3 color; };
 struct SpotLight { vec3 position; vec3 direction; vec3 color; float innerCos; float outerCos; };
 uniform PointLight points[8];
 uniform SpotLight spots[6];
+// Accumulate one light's diffuse (matte) and specular (shiny) reflection using unit directions.
 void addLight(vec3 N, vec3 V, vec3 L, vec3 color, inout vec3 diffuse, inout vec3 specular) {
+    // Lambert diffuse = lightColor*max(N.L,0); a surface facing away receives no direct light.
     float ndotl=max(dot(N,L),0.0);
     diffuse+=color*ndotl;
     // R is the reflection of incoming light; V points toward the viewer.
     vec3 R=reflect(-L,N);
+    // Phong highlight = lightColor*ks*max(R.V,0)^shininess; larger shininess narrows the highlight.
     if (ndotl>0.0) specular+=color*materialSpecular*pow(max(dot(R,V),0.0),shininess);
 }
+// Ambient is constant background light; directional light has parallel rays, points radiate, spots form cones.
 void lighting(vec3 position, vec3 normal, out vec3 diffuse, out vec3 specular) {
+    // Normalize the surface normal N and view direction V before dot-product angle calculations.
     vec3 N=normalize(normal), V=normalize(eyePosition-position);
     diffuse=ambientColor; specular=vec3(0);
     addLight(N,V,normalize(sunDirection),sunColor,diffuse,specular);
@@ -1234,6 +1256,7 @@ void lighting(vec3 position, vec3 normal, out vec3 diffuse, out vec3 specular) {
         if(dot(points[i].color,points[i].color)==0.0) continue;
         vec3 delta=points[i].position-position;
         float d=max(length(delta),0.001);
+        // Point falloff = 1/(1+0.09*d+0.032*d^2), where d is distance to the light.
         float attenuation=1.0/(1.0+0.09*d+0.032*d*d);
         addLight(N,V,delta/d,points[i].color*attenuation,diffuse,specular);
     }
@@ -1241,8 +1264,11 @@ void lighting(vec3 position, vec3 normal, out vec3 diffuse, out vec3 specular) {
         if(dot(spots[i].color,spots[i].color)==0.0) continue;
         vec3 delta=spots[i].position-position;
         float d=max(length(delta),0.001);
+        // Cosine of the spotlight angle = directionFromLight.spotDirection; larger values are nearer its center.
         float cone=dot(-delta/d,spots[i].direction);
+        // Soft cone edge: t=clamp((cosAngle-outerCos)/(innerCos-outerCos),0,1), intensity=t*t*(3-2*t).
         float intensity=smoothstep(spots[i].outerCos,spots[i].innerCos,cone);
+        // Spot falloff = 1/(1+0.025*d+0.002*d^2); multiply by cone intensity to limit its beam.
         float attenuation=1.0/(1.0+0.025*d+0.002*d*d);
         addLight(N,V,delta/d,spots[i].color*intensity*attenuation,diffuse,specular);
     }
@@ -1265,9 +1291,12 @@ out vec2 materialUV;
 out vec3 worldPosition, worldNormal, shapePosition, shapeNormal;
 out vec3 vertexDiffuse, vertexSpecular;
 flat out vec3 flatDiffuse, flatSpecular;
+// Run once per cube vertex to send its position, normal, texture coordinates, and optional lighting onward.
 void main() {
+    // Model matrix places the local cube in the world: world=model*(x,y,z,1).
     vec4 world=model*vec4(localPosition,1.0);
     worldPosition=world.xyz;
+    // Inverse-transpose normal matrix keeps surface directions correct under scale and shear.
     worldNormal=normalMatrix*localNormal;
     shapePosition=localPosition*patternScale+patternOffset;
     shapeNormal=localNormal;
@@ -1276,9 +1305,11 @@ void main() {
     materialUV=abs(localNormal.y)>.5?uvPosition.xz:
         abs(localNormal.x)>.5?uvPosition.zy:uvPosition.xy;
     vertexDiffuse=vec3(0); vertexSpecular=vec3(0);
+    // Flat and Gouraud compute vertex lighting here; Gouraud interpolates it, while flat keeps one vertex's value.
     if(shadingMode!=2) lighting(worldPosition,worldNormal,vertexDiffuse,vertexSpecular);
     // Flat uses one provoking vertex result for the entire triangle.
     flatDiffuse=vertexDiffuse; flatSpecular=vertexSpecular;
+    // clip=projection*view*model*local; the GPU divides by clip.w to obtain screen-relative coordinates.
     gl_Position=projection*view*world;
 }
 
@@ -1299,24 +1330,32 @@ in vec3 vertexDiffuse, vertexSpecular;
 flat in vec3 flatDiffuse, flatSpecular;
 uniform bool targetPattern;
 out vec4 fragmentColor;
+// Choose the cube color or calculate the target's six colored rings from its local face coordinates.
 vec3 surfaceColor() {
     if (!targetPattern) return objectColor;
     if (shapeNormal.z<0.5) return vec3(0.15,0.18,0.21);
+    // Normalized radius r=2*sqrt(x*x+y*y); ring=min(floor(6*r),5) selects one of six bands.
     float radius=length(shapePosition.xy)*2.0;
     int ring=clamp(int(radius*6.0),0,5);
     vec3 colors[6]=vec3[6](vec3(0.96,0.10,0.07),vec3(1.0,0.75,0.12),
         vec3(0.12,0.44,0.84),vec3(0.94,0.93,0.85),vec3(0.82,0.12,0.10),vec3(0.94,0.93,0.85));
     vec3 color=colors[ring];
+    // fract(6*r) keeps the fractional part; its last 5% draws each ring's dark boundary.
     if (fract(radius*6.0)>0.95) color=vec3(0.08);
     return mix(color,vec3(1.0,0.76,0.2),targetFlash*0.5);
 }
+// Run per visible fragment (a candidate pixel) to combine texture, surface color, and lighting.
 void main() {
     vec3 base=surfaceColor()*texture(materialTextures,vec3(materialUV,textureLayer)).rgb, diffuse, specular;
+    // Flat uses constant triangle lighting, Gouraud interpolates vertex lighting, Phong evaluates lighting per fragment.
     if(shadingMode==0) { diffuse=flatDiffuse; specular=flatSpecular; }
     else if(shadingMode==1) { diffuse=vertexDiffuse; specular=vertexSpecular; }
     else lighting(worldPosition,worldNormal,diffuse,specular);
+    // Surface light = baseColor*(ambient+diffuse)+specular, preserving the light's highlight color.
     vec3 lit=base*diffuse+specular;
+    // Emission blends toward unlit color: result=(1-emission)*lit+emission*base; it does not light nearby objects.
     lit=mix(lit,base,emission);
+    // Approximate display gamma correction: displayedRGB=clamp(linearRGB,0,1)^(1/2.2).
     fragmentColor=vec4(pow(clamp(lit,0.0,1.0),vec3(1.0/2.2)),1.0);
 }
 
@@ -1327,7 +1366,9 @@ void main() {
 ```glsl
 #version 330 core
 out vec2 uv;
+// Generate one oversized triangle covering the screen, without supplying a separate sky mesh.
 void main() {
+    // Vertex IDs 0,1,2 become corners (0,0),(2,0),(0,2) through bit shifts and masks.
     vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);
     uv=p;
     gl_Position=vec4(p*2.0-1.0,1.0,1.0);
@@ -1342,6 +1383,7 @@ void main() {
 in vec2 uv;
 uniform bool night;
 out vec4 fragmentColor;
+// Blend horizon and overhead sky colors by height; smoothstep uses t*t*(3-2*t) for a soft transition.
 void main() {
     vec3 horizon=night?vec3(0.045,0.065,0.12):vec3(0.67,0.81,0.93);
     vec3 zenith=night?vec3(0.006,0.012,0.04):vec3(0.20,0.48,0.78);
@@ -1359,6 +1401,7 @@ void main() {
 namespace shooter {
 // Layer order is shared with TextureCache and tools/generate_textures.cpp.
 enum class Material { Plain, Concrete, Masonry, Gravel, Wood, Metal, Fabric, Paper, Rubber };
+// Choose a texture by object role, such as wood for crates and fabric for characters.
 inline Material defaultMaterial(const std::string& type,const std::string& component) {
     if (type=="Boundary") return Material::Masonry;
     if (type=="Arena") return component=="Floor slab"?Material::Gravel:Material::Concrete;
@@ -1371,6 +1414,7 @@ inline Material defaultMaterial(const std::string& type,const std::string& compo
     if (type=="Environment") return component=="Equipment mat"?Material::Rubber:Material::Metal;
     return Material::Plain;
 }
+// Return texture repeats per meter; higher values make the visible pattern smaller.
 inline float materialTiling(Material material) {
     switch(material) {
         case Material::Masonry: return .5f;
@@ -1396,7 +1440,9 @@ inline float materialTiling(Material material) {
 #include <vector>
 
 namespace shooter {
+// Delete the GPU texture array when its owner is destroyed.
 TextureCache::~TextureCache() { if(texture) glDeleteTextures(1,&texture); }
+// Load nine RGB images into one texture array; each material selects a layer instead of a new texture.
 void TextureCache::initialize(const std::filesystem::path& directory) {
     if(texture) return;
     constexpr int size=256, layers=9;
@@ -1418,15 +1464,18 @@ void TextureCache::initialize(const std::filesystem::path& directory) {
         if(!file) throw std::runtime_error("Truncated texture: "+path.string());
     }
     glGenTextures(1,&texture); bind();
+    // Use byte-aligned rows so OpenGL reads packed RGB pixels without assuming extra padding.
     glPixelStorei(GL_UNPACK_ALIGNMENT,1);
     glTexImage3D(GL_TEXTURE_2D_ARRAY,0,GL_RGB8,size,size,layers,0,GL_RGB,GL_UNSIGNED_BYTE,pixels.data());
     glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_S,GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_T,GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    // Precompute smaller texture versions; filtered mipmaps reduce distant flicker and jagged patterns.
     glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
     if(glGetError()!=GL_NO_ERROR) throw std::runtime_error("Material texture upload failed.");
 }
+// Make the material texture array available on texture unit zero.
 void TextureCache::bind() const { glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D_ARRAY,texture); }
 }
 

@@ -13071,17 +13071,20 @@ The following files are copied from this build's source, not hand-maintained sni
 #include <stdexcept>
 namespace shooter {
 namespace {
+// Choose walking destinations near the target, often crossing its firing lane.
 Vec3 humanDestination(Human& h) {
     // Cross the near side of the target zone often enough to obscure a firing lane.
     // Other waypoints still cover the full bounded neighborhood, so waiting/repositioning works.
     if (npcRandom(h)<.55f) return {h.home.x+(npcRandom(h)-.5f)*3.6f,0,h.home.z+1.6f+npcRandom(h)*.7f};
     return npcDestination(h,false);
 }
+// Check both solid-world clearance and the rectangular space occupied by each target stand.
 bool clearHumanPosition(Vec3 p,const std::vector<SceneObject>& obstacles,const std::vector<Target>& targets) {
     if (!canStandAt(p,obstacles)) return false;
     for (const auto& t:targets) if (std::abs(p.x-t.position.x)<1.4f && std::abs(p.z-t.position.z)<1.2f) return false;
     return true;
 }
+// Try up to 512 repeatable random positions, failing explicitly if no safe placement exists.
 void placeHuman(Human& h,const std::vector<SceneObject>& obstacles,const std::vector<Target>& targets) {
     for (int tries=0;tries<512;++tries) {
         const auto candidate=npcDestination(h,false);
@@ -13090,6 +13093,7 @@ void placeHuman(Human& h,const std::vector<SceneObject>& obstacles,const std::ve
     throw std::runtime_error("Human target zone has no safe standing position.");
 }
 }
+// Create a walker with seeded speed/height variation and a collision-free starting position.
 Human createHuman(std::size_t zone, Vec3 home, unsigned seed, const std::vector<SceneObject>& obstacles,const std::vector<Target>& targets) {
     Human h; h.zone=zone; h.home=home; h.random=seed; h.speed=.7f+npcRandom(h)*.8f;
     h.animation=npcRandom(h)*6;
@@ -13102,10 +13106,12 @@ Human createHuman(std::size_t zone, Vec3 home, unsigned seed, const std::vector<
     }
     h.destination=humanDestination(h); return h;
 }
+// Handle falling, resolve overlaps with moving stands, and walk toward bounded waypoints.
 void updateHuman(Human& h, float dt, const std::vector<SceneObject>& obstacles, const std::vector<Target>& targets) {
     if (h.dying) {
         h.deathTime+=dt;
         const float progress=std::min(1.f,h.deathTime/.75f);
+        // Falling angle=90*progress^2 gives a fall that starts slowly and accelerates.
         h.deathPitch=90*progress*progress;
         if (h.deathTime>=0.75f) {
             h.dying=false;
@@ -13140,6 +13146,7 @@ void updateHuman(Human& h, float dt, const std::vector<SceneObject>& obstacles, 
     if (!valid) { h.destination=humanDestination(h); h.pause=.1f+npcRandom(h)*.3f; }
     else { h.position=next; h.heading=std::atan2(-velocity.x,-velocity.z)*180/pi; }
 }
+// Assemble a proportionally scaled cube person with opposite arm and leg swings.
 std::vector<SceneObject> createHumanObjects(const Human& h, std::size_t index) {
     if (!h.active && !h.dying && !h.dead) return {};
     const auto id=(h.dead?"DEAD_HUMAN_":h.dying?"DYING_HUMAN_":"HUMAN_")+std::to_string(index);
@@ -13147,6 +13154,7 @@ std::vector<SceneObject> createHumanObjects(const Human& h, std::size_t index) {
     const Vec3 skin=skins[(index/3)%3], trousers{.15f,.20f,.28f};
     const Vec3 shirts[]={{.76f,.48f,.16f},{.21f,.47f,.53f},{.56f,.30f,.28f}};
     const Vec3 shirt=shirts[index%3];
+    // Walking swing=22*sin(animation) degrees; stop swinging while paused or fallen.
     const float walk=(h.dying || h.dead)?0.0f:(h.pause>0?0:std::sin(h.animation)*22);
     std::vector<SceneObject> parts;
     const float proportion=h.height/1.82f;
@@ -13187,10 +13195,12 @@ std::vector<SceneObject> createHumanObjects(const Human& h, std::size_t index) {
 #include <algorithm>
 #include <limits>
 namespace shooter {
+// Repeatable random sequence: seed=1664525*seed+1013904223 (unsigned wrap), then map selected bits to [0,1].
 float npcRandom(NpcState& n) {
     n.random=n.random*1664525u+1013904223u;
     return float((n.random>>8)&65535)/65535;
 }
+// Choose a nearby waypoint: x=home.x+r*cos(angle), z=home.z+r*sin(angle), with bounded flight height.
 Vec3 npcDestination(NpcState& n, bool flying) {
     const float radius=flying?3.5f:3.0f;
     const float angle=npcRandom(n)*2*pi, distance=1.4f+npcRandom(n)*(radius-1.4f);
@@ -13198,6 +13208,7 @@ Vec3 npcDestination(NpcState& n, bool flying) {
         flying?std::clamp(n.home.y-1.0f+npcRandom(n)*3.0f,1.3f,7.0f):0,
         std::clamp(n.home.z+std::sin(angle)*distance,-94.0f,-13.0f)};
 }
+// Place a body part with worldOffset=Ry(heading)*Rx(fall)*localOffset, then add the character's position.
 SceneObject npcPart(const NpcState& n, const std::string& id, const std::string& type,
                    const std::string& component, Vec3 offset, Vec3 size, Vec3 color, float rx) {
     const float fall=(n.dying || n.dead)?n.deathPitch:0;
@@ -13208,6 +13219,7 @@ SceneObject npcPart(const NpcState& n, const std::string& id, const std::string&
     part.notes+="; life="+std::string(n.dead?"dead":n.dying?"falling":"alive")+"; death time="+std::to_string(n.deathTime);
     return part;
 }
+// Lift the whole assembly until its lowest transformed cube touches the ground.
 void groundNpcParts(std::vector<SceneObject>& parts,float ground) {
     float lowest=ground;
     for (const auto& part:parts) {
@@ -13218,6 +13230,7 @@ void groundNpcParts(std::vector<SceneObject>& parts,float ground) {
     }
     for (auto& part:parts) part.transform.position.y+=ground-lowest;
 }
+// Test each character's cube parts and return the nearest ray contact.
 NpcContact intersectNpcs(Vec3 o, Vec3 d, float maximum, const std::vector<NpcCollider>& colliders) {
     NpcContact result{std::numeric_limits<float>::infinity(),-1};
     for (std::size_t i=0;i<colliders.size();++i) for (const auto& part:colliders[i].parts) {
@@ -13240,17 +13253,26 @@ NpcContact intersectNpcs(Vec3 o, Vec3 d, float maximum, const std::vector<NpcCol
 
 namespace shooter {
 constexpr float pi = 3.14159265358979323846f;
+// Convert degrees to radians for trigonometry: radians = degrees * pi / 180.
 inline float radians(float degrees) { return degrees * pi / 180.0f; }
 
+// A vector stores three coordinates; here X is sideways, Y is up, and forward is usually -Z.
 struct Vec3 { float x = 0, y = 0, z = 0; };
+// The extra coordinate w distinguishes a position (w=1) from a direction (w=0).
 struct Vec4 { float x, y, z, w; };
+// Add corresponding coordinates: a + b = (ax+bx, ay+by, az+bz).
 inline Vec3 operator+(Vec3 a, Vec3 b) { return {a.x+b.x, a.y+b.y, a.z+b.z}; }
+// Subtract coordinates to get the displacement from b to a.
 inline Vec3 operator-(Vec3 a, Vec3 b) { return {a.x-b.x, a.y-b.y, a.z-b.z}; }
+// Multiply each coordinate by s to change a vector's length.
 inline Vec3 operator*(Vec3 a, float s) { return {a.x*s, a.y*s, a.z*s}; }
+// Dot product a.b = ax*bx + ay*by + az*bz; for unit vectors it equals cos(angle).
 inline float dot(Vec3 a, Vec3 b) { return a.x*b.x + a.y*b.y + a.z*b.z; }
+// Cross product a x b is perpendicular to both vectors; its order determines its direction.
 inline Vec3 cross(Vec3 a, Vec3 b) {
     return {a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x};
 }
+// Unit direction = v / sqrt(v.v); return zero when v has no length.
 inline Vec3 normalize(Vec3 v) {
     const float length = std::sqrt(dot(v, v));
     return length > 0 ? v * (1.0f / length) : Vec3{};
@@ -13259,14 +13281,18 @@ inline Vec3 normalize(Vec3 v) {
 // Column-major storage, column vectors: upload directly with GL_FALSE.
 struct Mat4 {
     std::array<float, 16> data{};
+    // Column-major index = column*4 + row; this overload lets callers change an entry.
     float& at(int row, int col) { return data[col*4+row]; }
+    // Read a matrix entry using the same column-major index.
     float at(int row, int col) const { return data[col*4+row]; }
+    // Identity has diagonal entries 1 and all others 0, so I*p = p.
     static Mat4 identity() {
         Mat4 result;
         for (int i = 0; i < 4; ++i) result.at(i, i) = 1;
         return result;
     }
 };
+// Matrix product C[row,col] = sum(A[row,k]*B[k,col]); B acts on a point before A.
 inline Mat4 operator*(const Mat4& a, const Mat4& b) {
     Mat4 result;
     for (int row = 0; row < 4; ++row)
@@ -13275,6 +13301,7 @@ inline Mat4 operator*(const Mat4& a, const Mat4& b) {
                 result.at(row, col) += a.at(row, k) * b.at(k, col);
     return result;
 }
+// Multiply p' = M*p; w=1 includes translation, while w=0 ignores it.
 inline Vec4 transformPoint(const Mat4& m, const Vec4& p) {
     return {
         m.at(0,0)*p.x + m.at(0,1)*p.y + m.at(0,2)*p.z + m.at(0,3)*p.w,
@@ -13283,40 +13310,53 @@ inline Vec4 transformPoint(const Mat4& m, const Vec4& p) {
         m.at(3,0)*p.x + m.at(3,1)*p.y + m.at(3,2)*p.z + m.at(3,3)*p.w
     };
 }
+// Move a point: (x',y',z') = (x+tx, y+ty, z+tz).
 inline Mat4 makeTranslation(float x, float y, float z) {
+    // Assign a stable example name and group from an object's type, component, and ID.
     Mat4 m = Mat4::identity();
     m.at(0,3)=x; m.at(1,3)=y; m.at(2,3)=z;
     return m;
 }
+// Resize each axis: (x',y',z') = (sx*x, sy*y, sz*z).
 inline Mat4 makeScale(float x, float y, float z) {
+    // Assign a stable example name and group from an object's type, component, and ID.
     Mat4 m = Mat4::identity();
     m.at(0,0)=x; m.at(1,1)=y; m.at(2,2)=z;
     return m;
 }
+// Rotate about X: y'=y*cos(a)-z*sin(a), z'=y*sin(a)+z*cos(a); x stays fixed.
 inline Mat4 makeRotationX(float degrees) {
+    // Assign a stable example name and group from an object's type, component, and ID.
     Mat4 m = Mat4::identity();
     const float c=std::cos(radians(degrees)), s=std::sin(radians(degrees));
     m.at(1,1)=c; m.at(1,2)=-s; m.at(2,1)=s; m.at(2,2)=c;
     return m;
 }
+// Rotate about Y: x'=x*cos(a)+z*sin(a), z'=-x*sin(a)+z*cos(a); y stays fixed.
 inline Mat4 makeRotationY(float degrees) {
+    // Assign a stable example name and group from an object's type, component, and ID.
     Mat4 m = Mat4::identity();
     const float c=std::cos(radians(degrees)), s=std::sin(radians(degrees));
     m.at(0,0)=c; m.at(0,2)=s; m.at(2,0)=-s; m.at(2,2)=c;
     return m;
 }
+// Rotate about Z: x'=x*cos(a)-y*sin(a), y'=x*sin(a)+y*cos(a); z stays fixed.
 inline Mat4 makeRotationZ(float degrees) {
+    // Assign a stable example name and group from an object's type, component, and ID.
     Mat4 m = Mat4::identity();
     const float c=std::cos(radians(degrees)), s=std::sin(radians(degrees));
     m.at(0,0)=c; m.at(0,1)=-s; m.at(1,0)=s; m.at(1,1)=c;
     return m;
 }
+// Slant axes: x'=x+xy*y+xz*z, y'=yx*x+y+yz*z, z'=zx*x+zy*y+z.
 inline Mat4 makeShear(float xy, float xz, float yx, float yz, float zx, float zy) {
+    // Assign a stable example name and group from an object's type, component, and ID.
     Mat4 m = Mat4::identity();
     m.at(0,1)=xy; m.at(0,2)=xz; m.at(1,0)=yx;
     m.at(1,2)=yz; m.at(2,0)=zx; m.at(2,1)=zy;
     return m;
 }
+// Store position, rotation, size, and slant separately before combining them into a matrix.
 struct Transform {
     Vec3 position{};
     Vec3 rotation{}; // Degrees about X, Y, Z.
@@ -13328,6 +13368,7 @@ struct TransformStage {
     const char* name;
     Mat4 matrix;
 };
+// List operations in the order a local cube point experiences them: scale, shear, rotate X/Y/Z, move.
 inline std::array<TransformStage, 6> modelTransformStages(const Transform& t) {
     const auto& h = t.shear;
     // Application order; identity operations remain explicit for every object.
@@ -13338,12 +13379,15 @@ inline std::array<TransformStage, 6> modelTransformStages(const Transform& t) {
              {"Rz", makeRotationZ(t.rotation.z)},
              {"T", makeTranslation(t.position.x,t.position.y,t.position.z)}}};
 }
+// World point = T*Rz*Ry*Rx*H*S*local point; read right to left, because order changes the result.
 inline Mat4 composeModelMatrix(const Transform& t) {
+    // Assign a stable example name and group from an object's type, component, and ID.
     Mat4 model = Mat4::identity();
     // Left-multiply each stage: the resulting matrix is T * Rz * Ry * Rx * H * S.
     for (const auto& stage : modelTransformStages(t)) model = stage.matrix * model;
     return model;
 }
+// Record the point after each operation so exported calculations can show every intermediate step.
 inline std::array<Vec4, 7> traceTransformPoint(const Transform& t, Vec4 localPoint) {
     std::array<Vec4, 7> points{};
     points[0] = localPoint;
@@ -13352,18 +13396,23 @@ inline std::array<Vec4, 7> traceTransformPoint(const Transform& t, Vec4 localPoi
         points[i+1] = transformPoint(stages[i].matrix, points[i]);
     return points; // local, scaled, sheared, rotated X/Y/Z, world.
 }
+// Perspective makes distant objects smaller: f=1/tan(FOV/2), x_clip=f*x/aspect, y_clip=f*y.
 inline Mat4 makePerspective(float fovDegrees, float aspect, float nearPlane, float farPlane) {
     Mat4 m;
     const float f = 1.0f / std::tan(radians(fovDegrees) / 2);
     m.at(0,0)=f/aspect; m.at(1,1)=f;
     m.at(2,2)=(farPlane+nearPlane)/(nearPlane-farPlane);
     m.at(2,3)=2*farPlane*nearPlane/(nearPlane-farPlane);
+    // The GPU divides clip coordinates by w=-z; near/far map visible depth to the OpenGL range.
     m.at(3,2)=-1;
     return m;
 }
+// Build camera axes: forward=unit(center-eye), right=unit(forward x up), correctedUp=right x forward.
 inline Mat4 makeLookAt(Vec3 eye, Vec3 center, Vec3 up) {
     const Vec3 f=normalize(center-eye), s=normalize(cross(f,up)), u=cross(s,f);
+    // Assign a stable example name and group from an object's type, component, and ID.
     Mat4 m = Mat4::identity();
+    // Project onto camera axes and subtract the eye position, making the camera the new origin.
     m.at(0,0)=s.x; m.at(0,1)=s.y; m.at(0,2)=s.z; m.at(0,3)=-dot(s,eye);
     m.at(1,0)=u.x; m.at(1,1)=u.y; m.at(1,2)=u.z; m.at(1,3)=-dot(u,eye);
     m.at(2,0)=-f.x; m.at(2,1)=-f.y; m.at(2,2)=-f.z; m.at(2,3)=dot(f,eye);
