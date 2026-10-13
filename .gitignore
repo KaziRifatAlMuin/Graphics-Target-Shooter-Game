@@ -6,9 +6,6 @@
 /*.exe
 /*.dll
 /TargetShooter-share/
-/TargetShooter-share.zip
-/game_demo.mkv
-/Graphics_presentation.pptx
 /calc*.csv
 /leaderboard*.csv
 /core_tests.exe
@@ -31,7 +28,6 @@
 /report/report-formatted.pdf
 /report/report-presentation.pdf
 /report/3D_Target_Shooter_*.pdf
-/report/3D_Target_Shooter_*.pptx
 
 # LaTeX intermediates generated beside the report source.
 /report/report.aux
