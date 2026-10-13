@@ -1,6 +1,16 @@
 /build/
 /.release-work/
 /.work-cmake/
+
+# Compiled binaries, packaged releases, and runtime captures.
+/*.exe
+/*.dll
+/TargetShooter-share/
+/TargetShooter-share.zip
+/game_demo.mkv
+/Graphics_presentation.pptx
+/calc*.csv
+/leaderboard*.csv
 /core_tests.exe
 /phase1.ppm
 /challenge_tests.exe
@@ -9,6 +19,21 @@
 /release_tests.exe
 /demonstrateObject.exe
 /.report-build/
+
+# The prepared report data and copied images remain tracked because they allow
+# report/report.tex to be compiled directly.
+/report/report-image-manifest.csv
+
+# Keep the canonical final report (report/report.pdf); alternate exports are
+# reproducible outputs.
+/report/report-final.pdf
+/report/report-revised.pdf
+/report/report-formatted.pdf
+/report/report-presentation.pdf
+/report/3D_Target_Shooter_*.pdf
+/report/3D_Target_Shooter_*.pptx
+
+# LaTeX intermediates generated beside the report source.
 /report/report.aux
 /report/report.log
 /report/report.out
